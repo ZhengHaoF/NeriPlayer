@@ -227,12 +227,13 @@ internal fun exploreSearchSourceDisplayOrder(
     youtubeEnabled: Boolean
 ): List<SearchSource> {
     return if (!youtubeEnabled) {
-        listOf(SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.LINK_RECOGNITION)
+        listOf(SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.KUGOU, SearchSource.LINK_RECOGNITION)
     } else if (isInternational) {
         listOf(
             SearchSource.YOUTUBE_MUSIC,
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
+            SearchSource.KUGOU,
             SearchSource.LINK_RECOGNITION
         )
     } else {
@@ -240,6 +241,7 @@ internal fun exploreSearchSourceDisplayOrder(
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
             SearchSource.YOUTUBE_MUSIC,
+            SearchSource.KUGOU,
             SearchSource.LINK_RECOGNITION
         )
     }
@@ -297,6 +299,7 @@ private fun searchSourceLabel(source: SearchSource): String {
         SearchSource.YOUTUBE_MUSIC -> stringResource(R.string.explore_tab_youtube)
         SearchSource.NETEASE -> stringResource(R.string.platform_netease_short)
         SearchSource.BILIBILI -> stringResource(R.string.platform_bilibili)
+        SearchSource.KUGOU -> stringResource(R.string.explore_tab_kugou)
         SearchSource.LINK_RECOGNITION -> stringResource(R.string.explore_tab_links)
     }
 }
@@ -1068,6 +1071,15 @@ fun ExploreScreen(
                                 offlineMode = offlineMode,
                                 isTabletLayout = isTabletLayout,
                                 gridState = youtubeGridState
+                            )
+                        }
+                        SearchSource.KUGOU -> {
+                            KugouExploreContent(
+                                content = ui.kugouContent,
+                                loading = ui.kugouChannelLoading,
+                                error = ui.kugouChannelError,
+                                onRetry = vm::loadKugouChannel,
+                                onSongClick = { songs, index -> onSongClick(songs, index) }
                             )
                         }
                         SearchSource.LINK_RECOGNITION -> {

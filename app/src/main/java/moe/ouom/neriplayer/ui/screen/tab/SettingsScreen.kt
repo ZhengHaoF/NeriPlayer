@@ -1,4 +1,4 @@
-﻿package moe.ouom.neriplayer.ui.screen.tab
+package moe.ouom.neriplayer.ui.screen.tab
 
 /*
  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
@@ -671,6 +671,8 @@ fun SettingsScreen(
     var showBiliSavedCookieDialog by remember { mutableStateOf(false) }
     var showYouTubeSheet by remember { mutableStateOf(false) }
     var showYouTubeSavedCookieDialog by remember { mutableStateOf(false) }
+    var showKugouSheet by remember { mutableStateOf(false) }
+    var showKugouLogoutDialog by remember { mutableStateOf(false) }
 
     var showColorPickerDialog by remember { mutableStateOf(false) }
     var showDpiDialog by remember { mutableStateOf(false) }
@@ -1537,6 +1539,14 @@ fun SettingsScreen(
                                 inlineMsg = null
                                 neteaseSheetInitialTab = 0
                                 showNeteaseSheet = true
+                            },
+                            onOpenKugouSheet = {
+                                inlineMsg = null
+                                showKugouSheet = true
+                            },
+                            onKugouLogout = {
+                                inlineMsg = null
+                                showKugouLogoutDialog = true
                             }
                         )
                     }
@@ -2303,6 +2313,42 @@ fun SettingsScreen(
             youtubeVm.clearAuth()
         }
     )
+
+    if (showKugouSheet) {
+        KugouQrLoginSheet(
+            onDismiss = { showKugouSheet = false },
+            onLoggedIn = {
+                showKugouSheet = false
+                loginSuccessTitle = composeResources.getString(
+                    R.string.settings_kugou_login_success
+                )
+            }
+        )
+    }
+
+    if (showKugouLogoutDialog) {
+        MiuixSettingsDialog(
+            onDismissRequest = { showKugouLogoutDialog = false },
+            title = { Text(stringResource(R.string.platform_kugou)) },
+            text = { Text(stringResource(R.string.settings_kugou_logout_confirm)) },
+            confirmButton = {
+                MiuixSettingsTextButton(
+                    onClick = {
+                        showKugouLogoutDialog = false
+                        AppContainer.kugouSession.logout()
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_saved_cookie_logout))
+                }
+            },
+            dismissButton = {
+                MiuixSettingsTextButton(onClick = { showKugouLogoutDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        )
+    }
+
     loginSuccessTitle?.let { title ->
         LoginSuccessDialog(
             title = title,
@@ -4159,10 +4205,14 @@ private fun SettingsLoginExpandedContent(
     onOpenNeteaseSavedCookieDialog: () -> Unit,
     onOpenYouTubeSheet: () -> Unit,
     onOpenNeteaseSheet: () -> Unit,
+    onOpenKugouSheet: () -> Unit = {},
+    onKugouLogout: () -> Unit = {},
 ) {
     val biliAuthUiState by biliVm.uiState.collectAsStateWithLifecycleCompat()
     val youtubeAuthUiState by youtubeVm.uiState.collectAsStateWithLifecycleCompat()
     val neteaseAuthUiState by neteaseVm.uiState.collectAsStateWithLifecycleCompat()
+
+    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
 
     LaunchedEffect(biliVm, youtubeVm, neteaseVm) {
         biliVm.refreshAuthHealth()
@@ -4231,6 +4281,11 @@ private fun SettingsLoginExpandedContent(
                 stringResource(R.string.settings_youtube_status_missing)
             }
         }
+    }
+    val kugouStatusText = if (kugouLoggedIn) {
+        stringResource(R.string.settings_kugou_status_valid)
+    } else {
+        stringResource(R.string.settings_kugou_status_missing)
     }
 
     Column(
@@ -4302,6 +4357,29 @@ private fun SettingsLoginExpandedContent(
                         onOpenNeteaseSavedCookieDialog()
                     } else {
                         onOpenNeteaseSheet()
+                    }
+                }
+            ),
+            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+        )
+
+        ListItem(
+            leadingContent = {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_kugou),
+                    contentDescription = stringResource(R.string.platform_kugou),
+                    modifier = Modifier.size(24.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+            },
+            headlineContent = { Text(stringResource(R.string.platform_kugou)) },
+            supportingContent = { Text(kugouStatusText) },
+            modifier = Modifier.settingsItemClickable(
+                onClick = {
+                    if (kugouLoggedIn) {
+                        onKugouLogout()
+                    } else {
+                        onOpenKugouSheet()
                     }
                 }
             ),

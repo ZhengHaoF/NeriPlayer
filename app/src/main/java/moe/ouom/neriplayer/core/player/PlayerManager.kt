@@ -239,6 +239,8 @@ import moe.ouom.neriplayer.listentogether.session.resolveListenTogetherSessionRo
 import moe.ouom.neriplayer.ui.component.lyrics.LyricEntry
 import moe.ouom.neriplayer.ui.viewmodel.playlist.BiliVideoItem
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.core.api.kugou.KUGOU_CHANNEL_ID
+import moe.ouom.neriplayer.core.api.kugou.PlayerManagerCloudTag
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.playback.stopPlaybackImmediatelyImpl
 import moe.ouom.neriplayer.util.platform.LanguageManager
@@ -262,6 +264,7 @@ internal data class LocalPlaylistPlaybackSource(
 object PlayerManager {
     const val BILI_SOURCE_TAG = "Bilibili"
     const val NETEASE_SOURCE_TAG = "Netease"
+    const val KUGOU_SOURCE_TAG = "Kugou"
 
     internal data class UsbExclusiveLoudPlaybackConfirmation(
         val id: Long,
@@ -686,11 +689,13 @@ object PlayerManager {
     val biliRepo by lazy { AppContainer.biliPlaybackRepository }
     val biliClient by lazy { AppContainer.biliClient }
     val neteaseClient by lazy { AppContainer.neteaseClient }
+    val kugouSession by lazy { AppContainer.kugouSession }
     val youtubeMusicPlaybackRepository by lazy { AppContainer.youtubeMusicPlaybackRepository }
     val youtubeMusicClient by lazy { AppContainer.youtubeMusicClient }
 
     val cloudMusicSearchApi by lazy { AppContainer.cloudMusicSearchApi }
     val qqMusicSearchApi by lazy { AppContainer.qqMusicSearchApi }
+    val kugouSearchApi by lazy { AppContainer.kugouSearchApi }
     val lrcLibClient by lazy { AppContainer.lrcLibClient }
     val amllTtmlClient by lazy { AppContainer.amllTtmlClient }
 
@@ -1535,6 +1540,15 @@ object PlayerManager {
         return song.channelId == ListenTogetherChannels.BILIBILI ||
             song.album.startsWith(BILI_SOURCE_TAG)
     }
+
+    internal fun isKugouTrack(song: SongItem): Boolean {
+        return song.channelId == KUGOU_CHANNEL_ID ||
+            song.album.startsWith(KUGOU_SOURCE_TAG)
+    }
+
+    internal fun isKugouCloudTrack(song: SongItem): Boolean {
+        return song.album.startsWith(PlayerManagerCloudTag)
+    }
     internal fun shouldPersistEmbeddedLyrics(song: SongItem): Boolean {
         return song.matchedLyric != null ||
             song.matchedTranslatedLyric != null ||
@@ -1792,6 +1806,7 @@ object PlayerManager {
                 PlaybackAudioSource.NETEASE -> settingsRepo.setAudioQuality(normalizedKey)
                 PlaybackAudioSource.BILIBILI -> settingsRepo.setBiliAudioQuality(normalizedKey)
                 PlaybackAudioSource.YOUTUBE_MUSIC -> settingsRepo.setYouTubeAudioQuality(normalizedKey)
+                PlaybackAudioSource.KUGOU -> Unit
                 PlaybackAudioSource.LOCAL -> Unit
             }
         }
@@ -2002,6 +2017,7 @@ object PlayerManager {
             PlaybackAudioSource.NETEASE -> ::neteaseQualityRefreshJob
             PlaybackAudioSource.YOUTUBE_MUSIC -> ::youtubeQualityRefreshJob
             PlaybackAudioSource.BILIBILI -> ::biliQualityRefreshJob
+            PlaybackAudioSource.KUGOU,
             PlaybackAudioSource.LOCAL -> return
         }
         targetJob.get()?.cancel()
@@ -2408,6 +2424,11 @@ object PlayerManager {
                 } else {
                     "bili-$biliSongId-${effectiveBiliQuality()}"
                 }
+            }
+            isKugouTrack(song) -> {
+                val kugouHash = song.audioId ?: song.id.toString()
+                val kugouQuality = moe.ouom.neriplayer.core.api.kugou.KUGOU_FREE_QUALITY
+                "kugou-$kugouHash-$kugouQuality"
             }
             else -> buildNeteasePlaybackCacheKey(
                 songId = song.id,

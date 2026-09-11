@@ -1755,6 +1755,7 @@ internal fun resolveNowPlayingPlaybackSourceType(
         PlaybackAudioSource.NETEASE -> return PlaybackSourceType.NETEASE
         PlaybackAudioSource.BILIBILI -> return PlaybackSourceType.BILIBILI
         PlaybackAudioSource.YOUTUBE_MUSIC -> return PlaybackSourceType.YOUTUBE_MUSIC
+        PlaybackAudioSource.KUGOU,
         PlaybackAudioSource.LOCAL,
         null -> Unit
     }
@@ -6475,5 +6476,6 @@ private fun musicPlatformLabel(platform: MusicPlatform): String {
     return when (platform) {
         MusicPlatform.CLOUD_MUSIC -> stringResource(R.string.platform_netease_short)
         MusicPlatform.QQ_MUSIC -> stringResource(R.string.settings_qq_music)
+        MusicPlatform.KUGOU -> stringResource(R.string.explore_tab_kugou)
     }
 }

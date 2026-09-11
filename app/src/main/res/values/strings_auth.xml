@@ -29,6 +29,7 @@
     <string name="settings_cookie_cancelled">已取消读取 Cookie</string>
     <string name="settings_bili_login_success">哔哩哔哩登录成功</string>
     <string name="settings_netease_login_success">网易云登录成功</string>
+    <string name="settings_kugou_login_success">酷狗登录成功</string>
     <string name="settings_youtube_login_success">YouTube 登录成功</string>
     <string name="settings_bili_status_valid">已保存，最近更新于 %1$s</string>
     <string name="settings_bili_status_saved_invalid">检测到已保存的 Cookie，但当前可能无效，点击可刷新或退出登录</string>
@@ -36,6 +37,9 @@
     <string name="settings_netease_status_valid">已保存，最近更新于 %1$s</string>
     <string name="settings_netease_status_saved_invalid">检测到已保存的 Cookie，但当前可能无效，点击可刷新或退出登录</string>
     <string name="settings_netease_status_missing">未检测到可用 Cookie，点击重新登录或导入</string>
+    <string name="settings_kugou_status_valid">已登录</string>
+    <string name="settings_kugou_status_missing">未登录，点击使用酷狗 App 扫码登录</string>
+    <string name="settings_kugou_logout_confirm">确定要退出酷狗登录吗？退出后将无法播放 VIP 音质。</string>
     <string name="settings_youtube_login_methods">浏览器/Cookie 导入</string>
     <string name="settings_youtube_auth_missing">未读取到可用的 YouTube / YouTube Music 鉴权信息</string>
     <string name="settings_youtube_auth_verifying">正在校验登录状态，请稍候…</string>

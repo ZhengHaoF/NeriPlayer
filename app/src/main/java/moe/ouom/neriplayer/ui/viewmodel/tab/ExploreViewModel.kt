@@ -33,10 +33,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.bili.BiliClient
 import moe.ouom.neriplayer.core.api.bili.buildBiliPartSong
 import moe.ouom.neriplayer.core.api.bili.buildBiliSongAlbum
+import moe.ouom.neriplayer.core.api.kugou.loadKugouChannelContent
+import moe.ouom.neriplayer.core.api.kugou.parseKugouSearchItem
+import moe.ouom.neriplayer.core.api.kugou.toSongItem
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicCreatorSummary
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchFilter
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchResult
@@ -44,6 +49,7 @@ import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchResultType
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
+import moe.ouom.neriplayer.core.player.PlayerManager.kugouSession
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
@@ -98,6 +104,7 @@ enum class SearchSource {
     YOUTUBE_MUSIC,
     NETEASE,
     BILIBILI,
+    KUGOU,
     LINK_RECOGNITION
 }
 
@@ -186,7 +193,10 @@ data class ExploreUiState(
     val isNeteaseLoggedIn: Boolean = false,
     val ytMusicPlaylists: List<YouTubeMusicPlaylist> = emptyList(),
     val ytMusicPlaylistsLoading: Boolean = false,
-    val ytMusicPlaylistsError: String? = null
+    val ytMusicPlaylistsError: String? = null,
+    val kugouContent: moe.ouom.neriplayer.core.api.kugou.KugouChannelContent? = null,
+    val kugouChannelLoading: Boolean = false,
+    val kugouChannelError: String? = null
 )
 
 internal fun isNeteaseExploreSearchAvailable(authState: SavedCookieAuthState): Boolean {
@@ -325,6 +335,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private var highQualityLoadJob: Job? = null
     private var searchJob: Job? = null
     private var searchMoreJob: Job? = null
+    private var kugouChannelJob: Job? = null
     private var ytMusicPlaylistsJob: Job? = null
     private var ytMusicPlaylistsPending = false
     private var searchRequestVersion = 0L
@@ -385,6 +396,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             searchDisplayQuery = "",
             searchError = null
         )
+        if (source == SearchSource.KUGOU) {
+            loadKugouChannel()
+        }
     }
 
     fun setNeteaseSearchType(type: NeteaseExploreSearchType) {
@@ -465,6 +479,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.NETEASE -> searchNetease(apiKeyword, matchQuery, requestVersion)
             SearchSource.BILIBILI -> searchBilibili(apiKeyword, matchQuery, requestVersion)
             SearchSource.YOUTUBE_MUSIC -> searchYouTubeMusic(apiKeyword, matchQuery, requestVersion)
+            SearchSource.KUGOU -> searchKugou(apiKeyword, matchQuery, requestVersion)
             SearchSource.LINK_RECOGNITION -> searchRecognizedLink(apiKeyword, requestVersion)
         }
     }
@@ -510,6 +525,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         type = neteaseType
                     )
                     SearchSource.BILIBILI -> fetchBilibiliSearchPage(
+                        keyword = keyword,
+                        matchQuery = matchQuery,
+                        page = nextPage
+                    )
+                    SearchSource.KUGOU -> fetchKugouSearchPage(
                         keyword = keyword,
                         matchQuery = matchQuery,
                         page = nextPage
@@ -617,6 +637,115 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             page = searchPage.page,
             hasMore = searchPage.page < searchPage.numPages && searchPage.items.isNotEmpty()
         )
+    }
+
+    /** 搜索酷狗音乐（免登录） */
+    private fun searchKugou(keyword: String, matchQuery: String, requestVersion: Long) {
+        searchJob = viewModelScope.launch {
+            try {
+                val result = fetchKugouSearchPage(keyword, matchQuery, page = 1)
+                NPLogger.d(
+                    TAG,
+                    "search Kugou success: request=$requestVersion, keyword=$keyword, count=${result.items.size}, page=${result.page}, hasMore=${result.hasMore}"
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.KUGOU) {
+                    it.copy(
+                        searching = false,
+                        searchError = null,
+                        searchLoadMoreError = null,
+                        searchResults = result.songs,
+                        searchItems = result.items,
+                        searchPage = result.page,
+                        searchHasMore = result.hasMore
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(
+                    TAG,
+                    "search Kugou failed: request=$requestVersion, keyword=$keyword",
+                    e
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.KUGOU) {
+                    it.copy(
+                        searching = false,
+                        searchError = app.getString(
+                            R.string.error_kugou_search,
+                            e.message ?: app.getString(R.string.github_sync_failed_message)
+                        ),
+                        searchResults = emptyList(),
+                        searchItems = emptyList(),
+                        searchHasMore = false,
+                        searchLoadingMore = false,
+                        searchLoadMoreError = null,
+                        searchPage = 0
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchKugouSearchPage(
+        keyword: String,
+        matchQuery: String,
+        page: Int
+    ): ExploreSearchFetchResult {
+        val searchPage = withContext(Dispatchers.IO) {
+            kugouSession.ensureDeviceRegistered()
+            val response = kugouSession.client.search.search(
+                keywords = keyword,
+                page = page,
+                pageSize = 30
+            )
+            response.body["data"]?.jsonObject?.get("lists")?.jsonArray.orEmpty()
+        }
+        val songs = searchPage.mapNotNull { item ->
+            parseKugouSearchItem(item.jsonObject)?.toSongItem()
+        }
+        val ranked = rankExploreSongSearchResults(query = matchQuery, songs = songs)
+        return ExploreSearchFetchResult(
+            items = ranked.map { ExploreSearchResult.Song(it) },
+            page = page,
+            hasMore = searchPage.isNotEmpty()
+        )
+    }
+
+    /** 加载酷狗 tab 默认内容（榜单 + 热门歌单 + 每日推荐）。 */
+    internal fun loadKugouChannel() {
+        if (_uiState.value.kugouContent != null || _uiState.value.kugouChannelLoading) return
+        _uiState.value = _uiState.value.copy(
+            kugouChannelLoading = true,
+            kugouChannelError = null
+        )
+        kugouChannelJob?.cancel()
+        kugouChannelJob = viewModelScope.launch {
+            try {
+                val content = withContext(Dispatchers.IO) {
+                    kugouSession.loadKugouChannelContent()
+                }
+                NPLogger.d(
+                    TAG,
+                    "kugou channel loaded: ranks=${content.ranks.size}, playlists=${content.playlists.size}, daily=${content.dailyRecommend.size}"
+                )
+                _uiState.value = _uiState.value.copy(
+                    kugouContent = content,
+                    kugouChannelLoading = false,
+                    kugouChannelError = null
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(TAG, "kugou channel load failed", e)
+                _uiState.value = _uiState.value.copy(
+                    kugouChannelLoading = false,
+                    kugouChannelError = app.getString(
+                        R.string.error_kugou_search,
+                        e.message ?: app.getString(R.string.github_sync_failed_message)
+                    )
+                )
+            }
+        }
     }
 
     private fun beginSearchRequest(keyword: String, displayQuery: String): Long {
@@ -1413,6 +1542,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.NETEASE -> app.getString(R.string.error_netease_search, fallback)
             SearchSource.BILIBILI -> app.getString(R.string.error_bilibili_search, fallback)
             SearchSource.YOUTUBE_MUSIC -> app.getString(R.string.error_youtube_search, fallback)
+            SearchSource.KUGOU -> app.getString(R.string.error_kugou_search, fallback)
             SearchSource.LINK_RECOGNITION -> app.getString(R.string.error_link_recognition, fallback)
         }
     }

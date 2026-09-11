@@ -18,6 +18,8 @@ import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.bili.BiliSponsorBlockTarget
 import moe.ouom.neriplayer.core.api.bili.resolveBiliSong
+import moe.ouom.neriplayer.core.api.kugou.resolveKugouCloudUrl
+import moe.ouom.neriplayer.core.api.kugou.resolveKugouPlaybackUrl
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.core.player.download.AudioDownloadManager
@@ -344,6 +346,11 @@ internal suspend fun PlayerManager.resolveSongUrl(
                 suppressError = suppressError,
                 sideEffects = resolverSideEffects,
                 playbackRequestTokenOverride = playbackRequestTokenOverride
+            )
+            isKugouTrack(song) -> getKugouSongUrl(
+                song = song,
+                suppressError = suppressError,
+                sideEffects = resolverSideEffects
             )
             else -> getNeteaseSongUrl(
                 song = song,
@@ -1713,6 +1720,42 @@ private suspend fun PlayerManager.getBiliAudioUrl(
         }
         SongUrlResult.Failure
     }
+}
+
+private suspend fun PlayerManager.getKugouSongUrl(
+    song: SongItem,
+    suppressError: Boolean = false,
+    sideEffects: RefreshResolverSideEffects = RefreshResolverSideEffects()
+): SongUrlResult = withContext(Dispatchers.IO) {
+    val result = runCatching {
+        if (isKugouCloudTrack(song)) {
+            kugouSession.resolveKugouCloudUrl(song)
+        } else {
+            kugouSession.resolveKugouPlaybackUrl(song)
+        }
+    }.getOrElse { error ->
+        if (error is CancellationException) throw error
+        NPLogger.e("NERI-PlayerManager", "Failed to get Kugou play url", error)
+        if (!suppressError) {
+            sideEffects.emitError {
+                postPlayerEvent(
+                    PlayerEvent.ShowError(
+                        getLocalizedString(
+                            R.string.player_playback_url_error_detail,
+                            error.message.orEmpty()
+                        )
+                    )
+                )
+            }
+        }
+        SongUrlResult.Failure
+    }
+    if (result !is SongUrlResult.Success && !suppressError) {
+        sideEffects.emitError {
+            postPlayerEvent(PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url)))
+        }
+    }
+    result
 }
 
 private suspend fun PlayerManager.getYouTubeMusicAudioUrl(

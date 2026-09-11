@@ -295,6 +295,9 @@ dependencies {
     implementation(libs.zxing.core)
     implementation(libs.tiny.pinyin)
 
+    // 酷狗音乐 API（KMP 库，含加密签名/播放 URL/登录等能力）
+    implementation(libs.kugouapi.kmp)
+
     implementation(project(":accompanist-lyrics-core"))
     implementation(project(":accompanist-lyrics-ui"))
 

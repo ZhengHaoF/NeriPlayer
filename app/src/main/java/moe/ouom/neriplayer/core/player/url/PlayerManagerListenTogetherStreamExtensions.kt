@@ -194,6 +194,7 @@ internal fun listenTogetherQualityRank(
         PlaybackAudioSource.NETEASE -> NETEASE_LISTEN_TOGETHER_QUALITY_ORDER
         PlaybackAudioSource.BILIBILI -> BILI_LISTEN_TOGETHER_QUALITY_ORDER
         PlaybackAudioSource.YOUTUBE_MUSIC -> YOUTUBE_LISTEN_TOGETHER_QUALITY_ORDER
+        PlaybackAudioSource.KUGOU,
         PlaybackAudioSource.LOCAL -> emptyList()
     }.indexOf(normalized).takeIf { it >= 0 }
 }
@@ -223,6 +224,7 @@ private fun normalizeListenTogetherQualityKey(
         PlaybackAudioSource.YOUTUBE_MUSIC -> normalized.takeIf {
             it in YOUTUBE_LISTEN_TOGETHER_QUALITY_ORDER
         }
+        PlaybackAudioSource.KUGOU,
         PlaybackAudioSource.LOCAL -> null
     }
 }
@@ -232,6 +234,7 @@ private fun listenTogetherSourceKey(source: PlaybackAudioSource): String {
         PlaybackAudioSource.NETEASE -> "netease"
         PlaybackAudioSource.BILIBILI -> "bili"
         PlaybackAudioSource.YOUTUBE_MUSIC -> "youtube"
+        PlaybackAudioSource.KUGOU -> "kugou"
         PlaybackAudioSource.LOCAL -> "local"
     }
 }
@@ -338,6 +341,7 @@ internal fun PlayerManager.listenTogetherFallbackResult(song: SongItem): SongUrl
         PlaybackAudioSource.NETEASE -> effectiveNeteaseQuality()
         PlaybackAudioSource.BILIBILI -> effectiveBiliQuality()
         PlaybackAudioSource.YOUTUBE_MUSIC -> effectiveYouTubeQuality()
+        PlaybackAudioSource.KUGOU,
         PlaybackAudioSource.LOCAL -> ""
     }
     val legacyAudioInfo = listenTogetherFallbackAudioInfo(song)
@@ -373,6 +377,7 @@ internal fun PlayerManager.listenTogetherPreferredQualityKey(song: SongItem): St
         PlaybackAudioSource.NETEASE -> effectiveNeteaseQuality()
         PlaybackAudioSource.BILIBILI -> effectiveBiliQuality()
         PlaybackAudioSource.YOUTUBE_MUSIC -> effectiveYouTubeQuality()
+        PlaybackAudioSource.KUGOU,
         PlaybackAudioSource.LOCAL -> null
     }
 }
@@ -427,6 +432,11 @@ internal fun buildListenTogetherFallbackAudioInfo(
                 }
             )
         }
+        PlaybackAudioSource.KUGOU -> PlaybackAudioInfo(
+            source = PlaybackAudioSource.KUGOU,
+            qualityKey = preferredQualityKey,
+            qualityLabel = preferredQualityKey
+        )
         PlaybackAudioSource.LOCAL -> PlaybackAudioInfo(source = PlaybackAudioSource.LOCAL)
     }
 }

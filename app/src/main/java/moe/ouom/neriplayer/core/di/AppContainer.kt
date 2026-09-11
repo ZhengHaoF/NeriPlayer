@@ -36,6 +36,9 @@ import moe.ouom.neriplayer.core.api.bili.BiliClient
 import moe.ouom.neriplayer.core.api.bili.BiliClientAudioDataSource
 import moe.ouom.neriplayer.core.api.bili.BiliPlaybackRepository
 import moe.ouom.neriplayer.core.api.bili.BiliSponsorBlockRepository
+import moe.ouom.neriplayer.core.api.kugou.KugouSearchApi
+import moe.ouom.neriplayer.core.api.kugou.KugouSession
+import moe.ouom.neriplayer.data.auth.kugou.KugouCookieStore
 import moe.ouom.neriplayer.core.api.lyrics.AmllTtmlClient
 import moe.ouom.neriplayer.core.api.lyrics.EditableLyricsMatcher
 import moe.ouom.neriplayer.core.api.lyrics.KugouLyricsClient
@@ -341,6 +344,10 @@ object AppContainer {
     }
 
     // 网络客户端
+    val kugouCookieStore by lazy { KugouCookieStore(application) }
+    val kugouSession by lazy { KugouSession(kugouCookieStore) }
+    val kugouSearchApi by lazy { KugouSearchApi(kugouSession) }
+
     val neteaseClient by lazy {
         NeteaseClient().also { client ->
             neteaseCookieRepo.withCurrentCookies { cookies ->

@@ -88,6 +88,8 @@ class SearchApiProbeViewModel(app: Application) : AndroidViewModel(app) {
                     when (platform) {
                         MusicPlatform.CLOUD_MUSIC -> cloudMusicApi.search(keyword, 1)
                         MusicPlatform.QQ_MUSIC -> qqMusicApi.search(keyword, 1)
+                        MusicPlatform.KUGOU -> moe.ouom.neriplayer.core.di.AppContainer.kugouSearchApi
+                            .search(keyword, 1)
                     }
                 }
                 val resultJson = json.encodeToString(resultList)

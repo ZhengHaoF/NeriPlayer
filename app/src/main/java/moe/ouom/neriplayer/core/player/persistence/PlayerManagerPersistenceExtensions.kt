@@ -1581,6 +1581,7 @@ internal fun PlayerManager.replaceMetadataFromSearchImpl(
             val api = when (platform) {
                 MusicPlatform.CLOUD_MUSIC -> cloudMusicSearchApi
                 MusicPlatform.QQ_MUSIC -> qqMusicSearchApi
+                MusicPlatform.KUGOU -> kugouSearchApi
             }
 
             val (newDetails, usedSearchSummaryFallback) = try {
