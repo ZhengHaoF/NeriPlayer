@@ -159,7 +159,7 @@ YOUTUBE_MUSIC, NETEASE, BILIBILI, KUGOU, LINK_RECOGNITION
 | 能力 | 接口 | 说明 |
 | --- | --- | --- |
 | **匿名取址（采用）** | `GET https://u.y.qq.com/cgi-bin/musicu.fcg?format=json&data={...}` | module `vkey.GetVkeyServer` / method `CgiGetVkey`；param `guid` / `songmid[]` / `songtype[]` / `uin:"0"` / `loginflag:1` / `platform:"20"`；comm `{uin:0, format:"json", ct:24, cv:0}` |
-| 带音质指定 | 同上，加 `filename: ["{QUALITY}{mediaMid}{mediaMid}.{ext}"]` | **需用 `media_mid` 而非 `songmid`**（搜索结果里的 `media_mid` 字段）；不传 filename 时服务端默认给 C400 |
+| 带音质指定 | 同上，加 `filename: ["{QUALITY}{mid}{mid}.{ext}"]` | **实测用 `songmid` 即可成功**（服务端按 songmid 自行解析出正确的 media_mid 生成 purl）；QQMusicapi 注释称部分 VIP 音质需 `media_mid`，故实现取「优先 `media_mid`、缺失回退 `songmid`」（存于 `SongItem.subAudioId`）；不传 filename 时服务端默认给 C400 |
 | 登录态取址 | 同上，`uin` 换成真实 musicid，并携带 `qm_keyst` / `qqmusic_key` cookie | 解锁更高档位与受限曲目（**待验证**） |
 | 项目蓝本参照 | QQMusicapi `song.js` → `music.vkey.GetVkey` / `UrlGetVkey`（`platform:"23"`） | 该路径走 Android 协议，**需 QIMEI + session**，本项目**不采用** |
 
@@ -279,6 +279,19 @@ http://aqqmusic.tc.qq.com/C400002tCAn43sbfuz.m4a?guid=10000&vkey=B1A27F48...
 | `node_modules/` | **未安装** |
 | `credential.json` | **全空**（从未登录过） |
 | `device.json` | 已有 `qimei` / `qimei36` / `sessionUid` / `sessionSid`，生成时间 2026-07-13 → **匿名 Android 协议链路曾跑通**（现已过 24h 有效期） |
+
+### 5.6 榜单 / 歌单接口（第三轮探针 2026-09-12 已全部验证匿名可用 ✅）
+
+| 功能 | 接口 | 编码 | 要点 |
+| --- | --- | --- | --- |
+| 排行榜列表 | `GET c.y.qq.com/v8/fcg-bin/fcg_myqq_toplist.fcg` | UTF-8 | `data.topList[]`：`id` / `topTitle` / `picUrl` / `listenCount` / 3 首预览 |
+| 榜单歌曲 | `GET c.y.qq.com/v8/fcg-bin/fcg_v8_toplist_cp.fcg?topid={id}` | UTF-8 | `songlist[].data`：老格式 `songmid` / `songname` / `singer[]` / `albummid` / `interval` / `pay.payplay` |
+| 热门歌单列表 | `GET c.y.qq.com/splcloud/fcgi-bin/fcg_get_diss_by_tag.fcg` | **GBK** | `data.list[]`：`dissid` / `dissname` / `imgurl` / `listennum` / `creator.name` |
+| 歌单歌曲 | `GET c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg?disstid={id}` | **GBK** | ⚠️ 必须带 **`Referer: https://c.y.qq.com/`** + **`Cookie: uin=0`**，否则报 `invalid referer` / `check privacy error`；`cdlist[0].songlist[]` |
+
+已验证的**失败路径**（避免重蹈）：`musicToplist.ToplistInfoServer.GetOverview` → 500005；`music.sngList.getSongList` 与 `playlist.PlaylistServ.get_song_list` → 500003；qzone 接口带 `y.qq.com` referer → `invalid referer`，带 `y.qq.com/portal/player.html` → `check privacy error`。
+
+**实现落地**：`QQMusicChannel.kt`（数据层，GBK 按 `GB18030` 解码）+ `QQMusicExploreContent.kt`（UI，对齐酷狗 tab 形态），见 commit `841843ef`。信息缺口 §10 第 1、2 条中「榜单 / 歌单列表」已补齐；**歌单详情实际走 qzone 接口而非 musicu**，第 2 条（用户歌单）仍属登录态范畴。
 
 ---
 
