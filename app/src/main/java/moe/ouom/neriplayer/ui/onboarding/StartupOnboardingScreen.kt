@@ -115,6 +115,7 @@ import moe.ouom.neriplayer.ui.effect.glass.LocalAdvancedGlassNavigationOwner
 import moe.ouom.neriplayer.ui.effect.glass.captureAdvancedGlassBackdrop
 import moe.ouom.neriplayer.ui.effect.glass.isAdvancedGlassBackendSupported
 import moe.ouom.neriplayer.ui.effect.glass.rememberAdvancedGlassBackdrop
+import moe.ouom.neriplayer.ui.screen.tab.KugouQrLoginSheet
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.LoginSuccessDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsBiliAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsNeteaseAuthDialogs
@@ -201,10 +202,12 @@ internal fun shouldShowStartupNotificationPermissionWarning(
 internal fun shouldWarnStartupNoPlatformConnected(
     biliState: SavedCookieAuthState,
     neteaseState: SavedCookieAuthState,
-    youTubeState: YouTubeAuthState
+    youTubeState: YouTubeAuthState,
+    kugouLoggedIn: Boolean
 ): Boolean = biliState == SavedCookieAuthState.Missing &&
     neteaseState == SavedCookieAuthState.Missing &&
-    youTubeState == YouTubeAuthState.Missing
+    youTubeState == YouTubeAuthState.Missing &&
+    !kugouLoggedIn
 
 internal fun hasFinishedStartupNotificationPermissionWarning(
     attempts: Int
@@ -365,6 +368,8 @@ fun StartupOnboardingScreen(
     var notificationPermissionWarningAttempts by rememberSaveable { mutableIntStateOf(0) }
     var noPlatformWarningVisible by rememberSaveable { mutableStateOf(false) }
     var enhancedAdvancedBlurPromptVisible by rememberSaveable { mutableStateOf(false) }
+    var showKugouSheet by remember { mutableStateOf(false) }
+    var showKugouLogoutDialog by remember { mutableStateOf(false) }
 
     var inlineMessage by remember { mutableStateOf<String?>(null) }
     var loginSuccessTitle by remember { mutableStateOf<String?>(null) }
@@ -412,6 +417,8 @@ fun StartupOnboardingScreen(
     val biliState by biliVm.uiState.collectAsStateWithLifecycle()
     val youTubeVm: YouTubeAuthViewModel = viewModel()
     val youTubeState by youTubeVm.uiState.collectAsStateWithLifecycle()
+    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow
+        .collectAsStateWithLifecycle()
     val githubVm: GitHubSyncViewModel = viewModel()
     val githubState by githubVm.uiState.collectAsStateWithLifecycle()
     val webDavVm: WebDavSyncViewModel = viewModel()
@@ -651,7 +658,8 @@ fun StartupOnboardingScreen(
             shouldWarnStartupNoPlatformConnected(
                 biliState = biliState.health.state,
                 neteaseState = neteaseState.health.state,
-                youTubeState = youTubeState.health.state
+                youTubeState = youTubeState.health.state,
+                kugouLoggedIn = kugouLoggedIn
             )
         ) {
             noPlatformWarningVisible = true
@@ -791,6 +799,7 @@ fun StartupOnboardingScreen(
                     hasSavedNeteaseCookies = neteaseState.hasSavedCookies,
                     youTubeState = youTubeState.health.state,
                     hasSavedYouTubeAuth = youTubeState.hasSavedAuth,
+                    kugouLoggedIn = kugouLoggedIn,
                     onOpenBili = {
                         inlineMessage = null
                         biliSheetTab = 0
@@ -817,6 +826,14 @@ fun StartupOnboardingScreen(
                     onManageYouTube = {
                         inlineMessage = null
                         showYouTubeSavedCookieDialog = true
+                    },
+                    onOpenKugou = {
+                        inlineMessage = null
+                        showKugouSheet = true
+                    },
+                    onKugouLogout = {
+                        inlineMessage = null
+                        showKugouLogoutDialog = true
                     }
                 )
                 StartupStep.PlaybackSources -> StartupPlaybackSourceContent(
@@ -1238,6 +1255,26 @@ fun StartupOnboardingScreen(
                     }
                 )
             }
+            if (showKugouSheet) {
+                KugouQrLoginSheet(
+                    onDismiss = { showKugouSheet = false },
+                    onLoggedIn = {
+                        showKugouSheet = false
+                        loginSuccessTitle = composeResources.getString(
+                            R.string.settings_kugou_login_success
+                        )
+                    }
+                )
+            }
+            if (showKugouLogoutDialog) {
+                StartupKugouLogoutDialog(
+                    onConfirm = {
+                        showKugouLogoutDialog = false
+                        AppContainer.kugouSession.logout()
+                    },
+                    onDismiss = { showKugouLogoutDialog = false }
+                )
+            }
             if (noPlatformWarningVisible) {
                 StartupNoPlatformWarningDialog(
                     onContinue = {
@@ -1356,7 +1393,10 @@ private fun PlatformContent(
     hasSavedNeteaseCookies: Boolean,
     youTubeState: YouTubeAuthState,
     hasSavedYouTubeAuth: Boolean,
+    kugouLoggedIn: Boolean,
     onOpenBili: () -> Unit,
+    onOpenKugou: () -> Unit,
+    onKugouLogout: () -> Unit,
     onManageBili: () -> Unit,
     onOpenNetease: () -> Unit,
     onManageNetease: () -> Unit,
@@ -1416,6 +1456,23 @@ private fun PlatformContent(
             stringResource(R.string.onboarding_platform_action_connect)
         },
         onClick = if (hasSavedYouTubeAuth) onManageYouTube else onOpenYouTube
+    )
+    Spacer(Modifier.height(12.dp))
+    PlatformCard(
+        icon = painterResource(R.drawable.ic_kugou),
+        title = stringResource(R.string.platform_kugou),
+        status = if (kugouLoggedIn) {
+            stringResource(R.string.onboarding_platform_status_connected)
+        } else {
+            stringResource(R.string.onboarding_platform_status_not_connected)
+        },
+        connected = kugouLoggedIn,
+        actionText = if (kugouLoggedIn) {
+            stringResource(R.string.onboarding_platform_action_logout)
+        } else {
+            stringResource(R.string.onboarding_platform_action_connect)
+        },
+        onClick = if (kugouLoggedIn) onKugouLogout else onOpenKugou
     )
     Spacer(Modifier.height(18.dp))
     HintCard(body = stringResource(R.string.onboarding_platforms_hint))
@@ -2120,6 +2177,32 @@ private fun WebDavSyncCard(
             }
         }
     }
+}
+
+@Composable
+private fun StartupKugouLogoutDialog(
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.platform_kugou))
+        },
+        text = {
+            Text(stringResource(R.string.settings_kugou_logout_confirm))
+        },
+        confirmButton = {
+            HapticTextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.action_confirm))
+            }
+        },
+        dismissButton = {
+            HapticTextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.action_cancel))
+            }
+        }
+    )
 }
 
 @Composable
