@@ -339,6 +339,19 @@ object AutoSettingsSchema {
         )
 
         @AutoSetting(
+            key = "kugou_audio_quality",
+            type = SettingValueType.String,
+            defaultString = DEFAULT_KUGOU_AUDIO_QUALITY,
+            order = 35,
+            ui = SettingUiType.Custom,
+            access = SettingAccessMode.KeyOnly
+        )
+        val kugouAudioQuality = autoSetting(
+            titleRes = R.string.quality_kugou_default,
+            iconRes = R.drawable.ic_kugou
+        )
+
+        @AutoSetting(
             key = "mobile_data_follow_default_audio_quality",
             type = SettingValueType.Boolean,
             defaultBoolean = true,

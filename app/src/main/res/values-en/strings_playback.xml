@@ -99,6 +99,8 @@
     <string name="quality_default">Select Default Quality</string>
     <string name="quality_netease_default">NetEase Default Quality</string>
     <string name="quality_bili_default">Bilibili Default Quality</string>
+    <string name="quality_kugou_default">Kugou Default Quality</string>
+    <string name="quality_viper_tape">Viper Tape</string>
     <string name="quality_youtube_default">YouTube Default Quality</string>
     <string name="device_speaker">Speaker</string>
     <string name="device_wired_headset">Wired</string>

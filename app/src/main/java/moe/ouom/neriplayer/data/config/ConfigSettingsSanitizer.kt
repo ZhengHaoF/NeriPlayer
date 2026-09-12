@@ -222,6 +222,9 @@ internal class ConfigSettingsSanitizer(private val context: Context) {
         sanitizeStringValue(strings, SettingsKeys.BILI_AUDIO_QUALITY.name, onAdjusted) {
             normalizeChoice(it, BILI_AUDIO_QUALITY_VALUES, DEFAULT_BILI_AUDIO_QUALITY)
         }
+        sanitizeStringValue(strings, SettingsKeys.KUGOU_AUDIO_QUALITY.name, onAdjusted) {
+            normalizeChoice(it, KUGOU_AUDIO_QUALITY_VALUES, DEFAULT_KUGOU_AUDIO_QUALITY)
+        }
         sanitizeStringValue(strings, SettingsKeys.DOWNLOAD_FILE_NAME_TEMPLATE.name, onAdjusted) {
             normalizeDownloadFileNameTemplate(it)
         }
@@ -399,6 +402,7 @@ private val PLAYBACK_FADE_DURATION_RANGE_MS = 0L..3000L
 private const val DEFAULT_NETEASE_AUDIO_QUALITY = "exhigh"
 private const val DEFAULT_YOUTUBE_AUDIO_QUALITY = "high"
 private const val DEFAULT_BILI_AUDIO_QUALITY = "high"
+private const val DEFAULT_KUGOU_AUDIO_QUALITY = "320"
 private const val DEFAULT_START_DESTINATION_ROUTE = "home"
 private const val MAX_THEME_PALETTE_COLORS = 64
 private const val MAX_EQUALIZER_BAND_LEVELS = 32
@@ -427,6 +431,13 @@ private val BILI_AUDIO_QUALITY_VALUES = setOf(
     DEFAULT_BILI_AUDIO_QUALITY,
     "medium",
     "low"
+)
+private val KUGOU_AUDIO_QUALITY_VALUES = setOf(
+    "128",
+    DEFAULT_KUGOU_AUDIO_QUALITY,
+    "flac",
+    "high",
+    "viper_tape"
 )
 private val DEFAULT_START_DESTINATION_ROUTES = setOf(
     "home",

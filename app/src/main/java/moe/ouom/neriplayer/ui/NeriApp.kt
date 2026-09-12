@@ -1938,6 +1938,9 @@ private fun NeriAppContent(
     val preferredQuality by repo.audioQualityFlow.collectAsStateWithLifecycle(initialValue = "exhigh")
     val youtubePreferredQuality by repo.youtubeAudioQualityFlow.collectAsStateWithLifecycle(initialValue = "high")
     val biliPreferredQuality by repo.biliAudioQualityFlow.collectAsStateWithLifecycle(initialValue = "high")
+    val kugouPreferredQuality by repo.kugouAudioQualityFlow.collectAsStateWithLifecycle(
+        initialValue = startupPlaybackPreferences.kugouAudioQuality
+    )
     val mobileDataFollowDefaultAudioQuality by repo.mobileDataFollowDefaultAudioQualityFlow.collectAsStateWithLifecycle(
         initialValue = startupPlaybackPreferences.mobileDataFollowDefaultAudioQuality
     )
@@ -2857,6 +2860,8 @@ private fun NeriAppContent(
                         },
                         biliPreferredQuality = biliPreferredQuality,
                         onBiliQualityChange = { scope.launch { repo.setBiliAudioQuality(it) } },
+                        kugouPreferredQuality = kugouPreferredQuality,
+                        onKugouQualityChange = { scope.launch { repo.setKugouAudioQuality(it) } },
                         mobileDataFollowDefaultAudioQuality =
                             mobileDataFollowDefaultAudioQuality,
                         onMobileDataFollowDefaultAudioQualityChange = { enabled ->

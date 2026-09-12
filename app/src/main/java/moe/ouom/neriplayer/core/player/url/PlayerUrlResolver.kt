@@ -58,6 +58,82 @@ internal fun qualityLabelForYouTube(key: String, getLocalizedString: (Int) -> St
     else -> key
 }
 
+/**
+ * 酷狗 v5/url 支持的音质档位, 由高到低排列
+ *
+ * 与 SDK `SongQuality` 枚举及参考实现 EchoMusic 的档位一致:
+ * 128 / 320 / flac / high / viper_tape
+ */
+internal val KUGOU_QUALITY_FALLBACK_ORDER = listOf(
+    "viper_tape",
+    "high",
+    "flac",
+    "320",
+    "128"
+)
+
+private val KUGOU_QUALITY_KEYS = KUGOU_QUALITY_FALLBACK_ORDER.toSet()
+
+internal fun normalizeKugouQualityKey(value: String?): String? = value
+    ?.trim()
+    ?.lowercase()
+    ?.takeIf { it in KUGOU_QUALITY_KEYS }
+
+internal fun qualityLabelForKugou(key: String, getLocalizedString: (Int) -> String): String = when (key) {
+    "128" -> getLocalizedString(R.string.quality_standard)
+    "320" -> getLocalizedString(R.string.settings_audio_quality_high)
+    "flac" -> getLocalizedString(R.string.quality_lossless)
+    "high" -> getLocalizedString(R.string.quality_hires)
+    "viper_tape" -> getLocalizedString(R.string.quality_viper_tape)
+    else -> key
+}
+
+internal fun buildKugouQualityOptions(getLocalizedString: (Int) -> String): List<PlaybackQualityOption> =
+    KUGOU_QUALITY_FALLBACK_ORDER
+        .asReversed()
+        .map { PlaybackQualityOption(it, qualityLabelForKugou(it, getLocalizedString)) }
+
+/**
+ * 按偏好档位生成降级尝试链 (高 -> 低)
+ *
+ * 未登录只保留免费档, 避免必然被拒的会员档请求
+ * 与网易云不同, 酷狗不返回实测档位字段, 只能按已知档位顺序依次尝试
+ */
+internal fun buildKugouQualityCandidates(
+    preferredQuality: String,
+    isLoggedIn: Boolean
+): List<String> {
+    val normalizedQuality = normalizeKugouQualityKey(preferredQuality) ?: "128"
+    val startIndex = KUGOU_QUALITY_FALLBACK_ORDER.indexOf(normalizedQuality)
+    val chain = if (startIndex >= 0) {
+        KUGOU_QUALITY_FALLBACK_ORDER.drop(startIndex)
+    } else {
+        KUGOU_QUALITY_FALLBACK_ORDER
+    }
+    return if (isLoggedIn) chain else chain.filter { it == "128" }.ifEmpty { listOf("128") }
+}
+
+/**
+ * 由响应回填的扩展名与码率推断实际下发的档位
+ *
+ * 请求无损但账号无权时服务端可能回落到 mp3, 展示档位必须以实际文件为准
+ */
+internal fun resolveKugouPlaybackQualityKey(
+    extName: String?,
+    bitrateKbps: Int?,
+    requestedQualityKey: String
+): String {
+    val normalizedExtName = extName?.trim()?.lowercase().orEmpty()
+    return when {
+        normalizedExtName == "flac" -> "flac"
+        normalizedExtName == "ape" || normalizedExtName == "wav" -> "high"
+        bitrateKbps != null && bitrateKbps >= 900 -> "flac"
+        bitrateKbps != null && bitrateKbps >= 256 -> "320"
+        bitrateKbps != null && bitrateKbps > 0 -> "128"
+        else -> normalizeKugouQualityKey(requestedQualityKey) ?: "128"
+    }
+}
+
 internal fun buildNeteaseQualityOptions(getLocalizedString: (Int) -> String): List<PlaybackQualityOption> = listOf(
     PlaybackQualityOption("standard", qualityLabelForNetease("standard", getLocalizedString)),
     PlaybackQualityOption("higher", qualityLabelForNetease("higher", getLocalizedString)),

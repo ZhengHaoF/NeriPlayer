@@ -1731,7 +1731,11 @@ private suspend fun PlayerManager.getKugouSongUrl(
         if (isKugouCloudTrack(song)) {
             kugouSession.resolveKugouCloudUrl(song)
         } else {
-            kugouSession.resolveKugouPlaybackUrl(song)
+            kugouSession.resolveKugouPlaybackUrl(
+                song = song,
+                quality = kugouPreferredQuality,
+                getLocalizedString = { getLocalizedString(it) }
+            )
         }
     }.getOrElse { error ->
         if (error is CancellationException) throw error

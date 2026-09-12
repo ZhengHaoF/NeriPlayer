@@ -30,6 +30,7 @@
     <string name="settings_enhanced_advanced_blur_background_hint">For a better effect, use Enhanced Advanced Blur with a background image from Personalization.</string>
     <string name="settings_audio_quality_netease_member_quality_notice">If you do not have a membership, switching to lossless or higher quality may cause songs to fail playback.</string>
     <string name="settings_audio_quality_bili_dolby_notice">The highest quality profile may cause songs to fail parsing unless the song natively supports Dolby.</string>
+    <string name="settings_audio_quality_kugou_member_quality_notice">Lossless and higher qualities require a Kugou membership. Without permission playback falls back to the highest quality your account can play.</string>
     <string name="settings_audio_quality_standard">Standard</string>
     <string name="settings_audio_quality_higher">Higher</string>
     <string name="settings_audio_quality_exhigh">Extremely High</string>

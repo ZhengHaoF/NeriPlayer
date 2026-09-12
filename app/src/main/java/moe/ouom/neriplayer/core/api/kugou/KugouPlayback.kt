@@ -9,6 +9,10 @@ import moe.ouom.neriplayer.core.player.model.PlaybackAudioInfo
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
 import moe.ouom.neriplayer.core.player.model.deriveCodecLabel
+import moe.ouom.neriplayer.core.player.url.buildKugouQualityCandidates
+import moe.ouom.neriplayer.core.player.url.buildKugouQualityOptions
+import moe.ouom.neriplayer.core.player.url.qualityLabelForKugou
+import moe.ouom.neriplayer.core.player.url.resolveKugouPlaybackQualityKey
 import moe.ouom.neriplayer.data.model.SongItem
 
 /**
@@ -17,9 +21,24 @@ import moe.ouom.neriplayer.data.model.SongItem
 const val KUGOU_FREE_QUALITY = "128"
 
 /**
- * 酷狗 VIP 高音质 key（登录后可尝试，失败自动降级到 [KUGOU_FREE_QUALITY]）。
+ * 酷狗高音质 key（登录后可尝试，失败自动降级到 [KUGOU_FREE_QUALITY]）。
  */
 const val KUGOU_VIP_QUALITY = "320"
+
+/**
+ * 酷狗无损音质 key（需会员，失败自动逐档降级）。
+ */
+const val KUGOU_LOSSLESS_QUALITY = "flac"
+
+/**
+ * 酷狗 Hi-Res 音质 key（需会员，失败自动逐档降级）。
+ */
+const val KUGOU_HI_RES_QUALITY = "high"
+
+/**
+ * 酷狗蝰蛇母带音质 key（需会员，失败自动逐档降级）。
+ */
+const val KUGOU_VIPER_TAPE_QUALITY = "viper_tape"
 
 /**
  * 解析酷狗云盘播放地址（`user.getCloudUrl` → query_musicclound_url）。
@@ -48,7 +67,7 @@ internal suspend fun KugouSession.resolveKugouCloudUrl(song: SongItem): SongUrlR
         return SongUrlResult.Failure
     }
     val body = response.body
-    val bizStatus = body["status"]?.jsonPrimitive?.int
+    val bizStatus = body["status"].asIntOrNull()
     if (bizStatus != 1) {
         NPLogger.w("KugouPlayback", "kugou cloud url rejected: hash=$hash body=${body.toString().take(160)}")
         return SongUrlResult.Failure
@@ -64,13 +83,7 @@ internal suspend fun KugouSession.resolveKugouCloudUrl(song: SongItem): SongUrlR
     }
 
     val extName = body["extName"]?.jsonPrimitive?.content.orEmpty()
-    val mimeType = when (extName.lowercase()) {
-        "mp3" -> "audio/mpeg"
-        "flac" -> "audio/flac"
-        "m4a", "aac" -> "audio/aac"
-        "ogg" -> "audio/ogg"
-        else -> null
-    }
+    val mimeType = kugouMimeTypeForExtension(extName)
     val audioInfo = PlaybackAudioInfo(
         source = PlaybackAudioSource.KUGOU,
         qualityKey = "cloud",
@@ -90,16 +103,20 @@ internal suspend fun KugouSession.resolveKugouCloudUrl(song: SongItem): SongUrlR
 }
 
 /**
- * 解析酷狗播放地址（免费音质 v5/url）。
+ * 解析酷狗播放地址（v5/url）。
+ *
+ * 音质由 [quality] 决定，按档位从高到低依次尝试，首个可播档位即为结果。
+ * 未登录时只尝试免费档，避免必然被拒的会员档请求。
  *
  * 响应为扁平结构：
  * - `status: 1` 可播 / `2` 不可播；
- * - `priv_status: 1` 可播（0 表示 VIP/付费，需登录或切源）；
+ * - `priv_status: 1` 可播（0 表示 VIP/付费，需登录或切源）；字段可能缺失，缺失时不作为否决依据；
  * - `url: [String]` / `backupUrl: [String]` 为顶层数组，取第一个即直链。
  */
 internal suspend fun KugouSession.resolveKugouPlaybackUrl(
     song: SongItem,
-    quality: String = if (isLoggedIn) KUGOU_VIP_QUALITY else KUGOU_FREE_QUALITY
+    quality: String = KUGOU_VIP_QUALITY,
+    getLocalizedString: (Int) -> String
 ): SongUrlResult {
     val hash = song.audioId.orEmpty().trim()
     if (hash.isBlank()) {
@@ -111,14 +128,14 @@ internal suspend fun KugouSession.resolveKugouPlaybackUrl(
 
     ensureDeviceRegistered()
 
-    // 登录后按 高音质→128 降级尝试；未登录仅 128。
-    val qualityCandidates = buildList {
-        add(quality)
-        if (isLoggedIn && quality != KUGOU_FREE_QUALITY) add(KUGOU_FREE_QUALITY)
-    }.distinct()
-
-    for (candidate in qualityCandidates) {
-        val resolved = tryResolveSongUrl(hash, albumAudioId, albumId, candidate)
+    for (candidate in buildKugouQualityCandidates(quality, isLoggedIn)) {
+        val resolved = tryResolveSongUrl(
+            hash = hash,
+            albumAudioId = albumAudioId,
+            albumId = albumId,
+            quality = candidate,
+            getLocalizedString = getLocalizedString
+        )
         if (resolved != null) return resolved
     }
     return SongUrlResult.Failure
@@ -128,7 +145,8 @@ private suspend fun KugouSession.tryResolveSongUrl(
     hash: String,
     albumAudioId: Long,
     albumId: Long,
-    quality: String
+    quality: String,
+    getLocalizedString: (Int) -> String
 ): SongUrlResult? {
     val response = try {
         client.song.getSongUrl(
@@ -143,9 +161,10 @@ private suspend fun KugouSession.tryResolveSongUrl(
     }
 
     val body = response.body
-    val bizStatus = body["status"]?.jsonPrimitive?.int
-    val privStatus = body["priv_status"]?.jsonPrimitive?.int
-    if (bizStatus != 1 || privStatus != 1) {
+    val bizStatus = body["status"].asIntOrNull()
+    // priv_status 并非每条响应都携带, 缺失时不能据此判定不可播
+    val privStatus = body["priv_status"].asIntOrNull()
+    if (bizStatus != 1 || (privStatus != null && privStatus != 1)) {
         NPLogger.w(
             "KugouPlayback",
             "kugou song not playable: hash=$hash quality=$quality status=$bizStatus priv=$privStatus " +
@@ -165,17 +184,17 @@ private suspend fun KugouSession.tryResolveSongUrl(
     val bitRate = body["bitRate"]?.jsonPrimitive?.content?.toIntOrNull()?.div(1_000)
         ?.takeIf { it > 0 }
     val extName = body["extName"]?.jsonPrimitive?.content.orEmpty()
-    val mimeType = when (extName.lowercase()) {
-        "mp3" -> "audio/mpeg"
-        "flac" -> "audio/flac"
-        "m4a", "aac" -> "audio/aac"
-        "ogg" -> "audio/ogg"
-        else -> null
-    }
+    val mimeType = kugouMimeTypeForExtension(extName)
+    val actualQuality = resolveKugouPlaybackQualityKey(
+        extName = extName,
+        bitrateKbps = bitRate,
+        requestedQualityKey = quality
+    )
     val audioInfo = PlaybackAudioInfo(
         source = PlaybackAudioSource.KUGOU,
-        qualityKey = quality,
-        qualityLabel = quality,
+        qualityKey = actualQuality,
+        qualityLabel = qualityLabelForKugou(actualQuality, getLocalizedString),
+        qualityOptions = buildKugouQualityOptions(getLocalizedString),
         bitrateKbps = bitRate,
         codecLabel = deriveCodecLabel(mimeType),
         mimeType = mimeType
@@ -183,20 +202,30 @@ private suspend fun KugouSession.tryResolveSongUrl(
 
     NPLogger.d(
         "KugouPlayback",
-        "resolved kugou url: hash=$hash quality=$quality bitrate=${bitRate}kbps ext=$extName"
+        "resolved kugou url: hash=$hash requested=$quality actual=$actualQuality " +
+            "bitrate=${bitRate}kbps ext=$extName"
     )
     return SongUrlResult.Success(
         url = url,
         mimeType = mimeType,
         expectedContentLength = fileSize,
         audioInfo = audioInfo,
-        cacheKeyOverride = "kugou-$hash-$quality"
+        cacheKeyOverride = "kugou-$hash-$actualQuality"
     )
 }
 
+private fun kugouMimeTypeForExtension(extName: String?): String? = when (extName?.lowercase()) {
+    "mp3" -> "audio/mpeg"
+    "flac" -> "audio/flac"
+    "m4a", "aac" -> "audio/aac"
+    "ogg" -> "audio/ogg"
+    "ape" -> "audio/ape"
+    "wav" -> "audio/wav"
+    else -> null
+}
+
 /**
- * 供 UI 展示所需的酷狗音质选项（阶段 3 扩展高音质前仅免费档）。
- * 保持与 [PlayerUrlResolver] 内其它平台一致的辅助函数形态，便于后续扩展。
+ * 宽松取整：字段缺失或为 JSON null 时返回 null，不抛异常
  */
-@Suppress("unused")
-internal fun buildKugouQualityLabel(qualityKey: String): String = qualityKey
+private fun kotlinx.serialization.json.JsonElement?.asIntOrNull(): Int? =
+    runCatching { this?.jsonPrimitive?.int }.getOrNull()

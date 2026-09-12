@@ -114,6 +114,8 @@ fun SettingsHostScreen(
     onYouTubeQualityChange: (String) -> Unit,
     biliPreferredQuality: String,
     onBiliQualityChange: (String) -> Unit,
+    kugouPreferredQuality: String,
+    onKugouQualityChange: (String) -> Unit,
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseAudioQuality: String,
@@ -385,6 +387,8 @@ fun SettingsHostScreen(
                             onYouTubeQualityChange = onYouTubeQualityChange,
                             biliPreferredQuality = biliPreferredQuality,
                             onBiliQualityChange = onBiliQualityChange,
+                            kugouPreferredQuality = kugouPreferredQuality,
+                            onKugouQualityChange = onKugouQualityChange,
                             mobileDataFollowDefaultAudioQuality =
                                 mobileDataFollowDefaultAudioQuality,
                             onMobileDataFollowDefaultAudioQualityChange =

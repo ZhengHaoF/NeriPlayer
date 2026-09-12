@@ -47,6 +47,7 @@ import moe.ouom.neriplayer.core.player.model.normalizePlaybackLoudnessGainMb
 import moe.ouom.neriplayer.core.player.model.normalizePlaybackPitch
 import moe.ouom.neriplayer.core.player.model.normalizePlaybackSpeed
 import moe.ouom.neriplayer.core.player.model.normalizePlaybackVolumeBalance
+import moe.ouom.neriplayer.core.player.url.normalizeKugouQualityKey
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingsRepository
 import moe.ouom.neriplayer.ksp.annotations.AutoSettingSpec
 import java.util.Locale
@@ -140,6 +141,12 @@ class SettingsRepository(private val context: Context) {
 
     val biliAudioQualityFlow: Flow<String> =
         dataStoreSettingFlow { it[SettingsKeys.BILI_AUDIO_QUALITY] ?: "high" }
+
+    val kugouAudioQualityFlow: Flow<String> =
+        dataStoreSettingFlow {
+            normalizeKugouQualityKey(it[SettingsKeys.KUGOU_AUDIO_QUALITY])
+                ?: DEFAULT_KUGOU_AUDIO_QUALITY
+        }
 
     val mobileDataFollowDefaultAudioQualityFlow: Flow<Boolean> =
         dataStoreSettingFlow { prefs ->
@@ -677,6 +684,12 @@ class SettingsRepository(private val context: Context) {
     suspend fun setBiliAudioQuality(value: String) {
         context.dataStore.edit { it[SettingsKeys.BILI_AUDIO_QUALITY] = value }
         updatePlaybackPreferenceSnapshot(context) { it.copy(biliAudioQuality = value) }
+    }
+
+    suspend fun setKugouAudioQuality(value: String) {
+        val normalized = normalizeKugouQualityKey(value) ?: DEFAULT_KUGOU_AUDIO_QUALITY
+        context.dataStore.edit { it[SettingsKeys.KUGOU_AUDIO_QUALITY] = normalized }
+        updatePlaybackPreferenceSnapshot(context) { it.copy(kugouAudioQuality = normalized) }
     }
 
     suspend fun setMobileDataFollowDefaultAudioQuality(enabled: Boolean) {

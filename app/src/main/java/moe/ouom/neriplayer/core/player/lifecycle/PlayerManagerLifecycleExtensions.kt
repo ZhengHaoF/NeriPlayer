@@ -349,6 +349,7 @@ internal fun PlayerManager.initializeImpl(
         preferredQuality = initialPlaybackPreferences.audioQuality
         youtubePreferredQuality = initialPlaybackPreferences.youtubeAudioQuality
         biliPreferredQuality = initialPlaybackPreferences.biliAudioQuality
+        kugouPreferredQuality = initialPlaybackPreferences.kugouAudioQuality
         mobileDataFollowDefaultAudioQuality =
             initialPlaybackPreferences.mobileDataFollowDefaultAudioQuality
         mobileDataNeteaseAudioQuality =
@@ -404,7 +405,7 @@ internal fun PlayerManager.initializeImpl(
             initialPlaybackPreferences.playbackHighResolutionOutputEnabled
         NPLogger.d(
             "NERI-PlayerManager",
-            "initialize(): prefs quality=$preferredQuality, youtubeQuality=$youtubePreferredQuality, biliQuality=$biliPreferredQuality, mobileDataFollowDefault=$mobileDataFollowDefaultAudioQuality, mobileDataQuality=$mobileDataNeteaseAudioQuality/$mobileDataYouTubeAudioQuality/$mobileDataBiliAudioQuality, keepProgress=$keepLastPlaybackProgressEnabled, rememberLongFormProgress=$rememberLongFormPlaybackProgressEnabled, keepMode=$keepPlaybackModeStateEnabled, neteaseAutoSourceSwitch=$neteaseAutoSourceSwitchEnabled, neteaseLocalSourceFallback=$neteaseLocalSourceFallbackEnabled, fadeIn=$playbackFadeInEnabled/${playbackFadeInDurationMs}ms, crossfade=$playbackCrossfadeNextEnabled/${playbackCrossfadeInDurationMs}ms, highResolutionOutput=$playbackHighResolutionOutputEnabled, stopOnBluetoothDisconnect=$stopOnBluetoothDisconnectEnabled, usbExclusivePlayback=$usbExclusivePlaybackEnabled, allowMixedPlayback=$allowMixedPlaybackEnabled"
+            "initialize(): prefs quality=$preferredQuality, youtubeQuality=$youtubePreferredQuality, biliQuality=$biliPreferredQuality, kugouQuality=$kugouPreferredQuality, mobileDataFollowDefault=$mobileDataFollowDefaultAudioQuality, mobileDataQuality=$mobileDataNeteaseAudioQuality/$mobileDataYouTubeAudioQuality/$mobileDataBiliAudioQuality, keepProgress=$keepLastPlaybackProgressEnabled, rememberLongFormProgress=$rememberLongFormPlaybackProgressEnabled, keepMode=$keepPlaybackModeStateEnabled, neteaseAutoSourceSwitch=$neteaseAutoSourceSwitchEnabled, neteaseLocalSourceFallback=$neteaseLocalSourceFallbackEnabled, fadeIn=$playbackFadeInEnabled/${playbackFadeInDurationMs}ms, crossfade=$playbackCrossfadeNextEnabled/${playbackCrossfadeInDurationMs}ms, highResolutionOutput=$playbackHighResolutionOutputEnabled, stopOnBluetoothDisconnect=$stopOnBluetoothDisconnectEnabled, usbExclusivePlayback=$usbExclusivePlaybackEnabled, allowMixedPlayback=$allowMixedPlaybackEnabled"
         )
         val okHttpClient = AppContainer.sharedOkHttpClient
         val upstreamFactory: HttpDataSource.Factory = OkHttpDataSource.Factory(okHttpClient)
@@ -1025,6 +1026,18 @@ internal fun PlayerManager.initializeImpl(
                     scheduleQualityRefresh(
                         source = PlaybackAudioSource.BILIBILI,
                         reason = "bili_quality_changed"
+                    )
+                }
+            }
+        }
+        ioScope.launch {
+            settingsRepo.kugouAudioQualityFlow.collect { q ->
+                val previousQuality = kugouPreferredQuality
+                kugouPreferredQuality = q
+                if (previousQuality != q) {
+                    scheduleQualityRefresh(
+                        source = PlaybackAudioSource.KUGOU,
+                        reason = "kugou_quality_changed"
                     )
                 }
             }

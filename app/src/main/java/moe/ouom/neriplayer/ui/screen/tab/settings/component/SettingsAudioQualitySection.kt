@@ -64,6 +64,11 @@ private const val NETEASE_HD_SURROUND_QUALITY = "jyeffect"
 private const val NETEASE_SURROUND_QUALITY = "sky"
 private const val NETEASE_MASTER_QUALITY = "jymaster"
 private const val BILI_DOLBY_QUALITY = "dolby"
+private const val KUGOU_STANDARD_QUALITY = "128"
+private const val KUGOU_HIGH_QUALITY = "320"
+private const val KUGOU_LOSSLESS_QUALITY = "flac"
+private const val KUGOU_HI_RES_QUALITY = "high"
+private const val KUGOU_VIPER_TAPE_QUALITY = "viper_tape"
 
 private val NETEASE_MEMBER_QUALITIES = setOf(
     NETEASE_LOSSLESS_QUALITY,
@@ -73,9 +78,16 @@ private val NETEASE_MEMBER_QUALITIES = setOf(
     NETEASE_MASTER_QUALITY
 )
 
+private val KUGOU_MEMBER_QUALITIES = setOf(
+    KUGOU_LOSSLESS_QUALITY,
+    KUGOU_HI_RES_QUALITY,
+    KUGOU_VIPER_TAPE_QUALITY
+)
+
 private enum class AudioQualityNotice {
     NeteaseMemberQuality,
-    BiliDolby
+    BiliDolby,
+    KugouMemberQuality
 }
 
 @Composable
@@ -93,6 +105,9 @@ internal fun SettingsAudioQualitySection(
     biliQualityLabel: String,
     biliPreferredQuality: String,
     onBiliQualityChange: (String) -> Unit,
+    kugouQualityLabel: String,
+    kugouPreferredQuality: String,
+    onKugouQualityChange: (String) -> Unit,
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseQualityLabel: String,
@@ -110,6 +125,8 @@ internal fun SettingsAudioQualitySection(
     onShowYouTubeQualityDialogChange: (Boolean) -> Unit,
     showBiliQualityDialog: Boolean,
     onShowBiliQualityDialogChange: (Boolean) -> Unit,
+    showKugouQualityDialog: Boolean,
+    onShowKugouQualityDialogChange: (Boolean) -> Unit,
     showMobileDataNeteaseQualityDialog: Boolean,
     onShowMobileDataNeteaseQualityDialogChange: (Boolean) -> Unit,
     showMobileDataYouTubeQualityDialog: Boolean,
@@ -177,6 +194,17 @@ internal fun SettingsAudioQualitySection(
                 preferredQuality = biliPreferredQuality,
                 iconRes = R.drawable.ic_bilibili,
                 onClick = { onShowBiliQualityDialogChange(true) },
+                highlightTargetId = highlightTargetId,
+                highlightPulse = highlightPulse,
+                onHighlightFinished = onHighlightFinished
+            )
+
+            AudioQualityListItem(
+                setting = AutoSettingsMetadata.requireSetting(AutoSettingsKeys.KUGOU_AUDIO_QUALITY),
+                valueLabel = kugouQualityLabel,
+                preferredQuality = kugouPreferredQuality,
+                iconRes = R.drawable.ic_kugou,
+                onClick = { onShowKugouQualityDialogChange(true) },
                 highlightTargetId = highlightTargetId,
                 highlightPulse = highlightPulse,
                 onHighlightFinished = onHighlightFinished
@@ -323,6 +351,28 @@ internal fun SettingsAudioQualitySection(
                 onShowBiliQualityDialogChange(false)
                 if (level == BILI_DOLBY_QUALITY && biliPreferredQuality != level) {
                     audioQualityNotice = AudioQualityNotice.BiliDolby
+                }
+            }
+        )
+    }
+
+    if (showKugouQualityDialog) {
+        QualityOptionsDialog(
+            title = stringResource(R.string.quality_kugou_default),
+            selectedValue = kugouPreferredQuality,
+            options = listOf(
+                KUGOU_STANDARD_QUALITY to stringResource(R.string.quality_standard),
+                KUGOU_HIGH_QUALITY to stringResource(R.string.settings_audio_quality_high),
+                KUGOU_LOSSLESS_QUALITY to stringResource(R.string.quality_lossless),
+                KUGOU_HI_RES_QUALITY to stringResource(R.string.quality_hires),
+                KUGOU_VIPER_TAPE_QUALITY to stringResource(R.string.quality_viper_tape)
+            ),
+            onDismiss = { onShowKugouQualityDialogChange(false) },
+            onSelect = { level ->
+                onKugouQualityChange(level)
+                onShowKugouQualityDialogChange(false)
+                if (level in KUGOU_MEMBER_QUALITIES && kugouPreferredQuality != level) {
+                    audioQualityNotice = AudioQualityNotice.KugouMemberQuality
                 }
             }
         )
@@ -479,6 +529,8 @@ private fun AudioQualityNoticeDialog(
                             R.string.settings_audio_quality_netease_member_quality_notice
                         AudioQualityNotice.BiliDolby ->
                             R.string.settings_audio_quality_bili_dolby_notice
+                        AudioQualityNotice.KugouMemberQuality ->
+                            R.string.settings_audio_quality_kugou_member_quality_notice
                     }
                 )
             )

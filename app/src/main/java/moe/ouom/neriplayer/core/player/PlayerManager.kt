@@ -65,6 +65,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.bili.BiliClient
+import moe.ouom.neriplayer.core.api.kugou.KUGOU_VIP_QUALITY
 import moe.ouom.neriplayer.core.api.search.MusicPlatform
 import moe.ouom.neriplayer.core.api.search.SongSearchInfo
 import moe.ouom.neriplayer.core.di.AppContainer
@@ -382,6 +383,7 @@ object PlayerManager {
     internal var neteaseQualityRefreshJob: Job? = null
     internal var youtubeQualityRefreshJob: Job? = null
     internal var biliQualityRefreshJob: Job? = null
+    internal var kugouQualityRefreshJob: Job? = null
     internal var playbackStatsPersistJob: Job? = null
     internal val playbackStatsPersistLock = Any()
 
@@ -406,6 +408,11 @@ object PlayerManager {
             field = value
             publishPreferredQualityKeys()
         }
+    internal var kugouPreferredQuality: String = KUGOU_VIP_QUALITY
+        set(value) {
+            field = value
+            publishPreferredQualityKeys()
+        }
 
     private val _preferredQualityKeys = MutableStateFlow(PreferredQualityKeys())
 
@@ -422,7 +429,8 @@ object PlayerManager {
         _preferredQualityKeys.value = PreferredQualityKeys(
             netease = preferredQuality,
             youtube = youtubePreferredQuality,
-            bili = biliPreferredQuality
+            bili = biliPreferredQuality,
+            kugou = kugouPreferredQuality
         )
     }
     internal var mobileDataFollowDefaultAudioQuality = true
@@ -1806,7 +1814,7 @@ object PlayerManager {
                 PlaybackAudioSource.NETEASE -> settingsRepo.setAudioQuality(normalizedKey)
                 PlaybackAudioSource.BILIBILI -> settingsRepo.setBiliAudioQuality(normalizedKey)
                 PlaybackAudioSource.YOUTUBE_MUSIC -> settingsRepo.setYouTubeAudioQuality(normalizedKey)
-                PlaybackAudioSource.KUGOU -> Unit
+                PlaybackAudioSource.KUGOU -> settingsRepo.setKugouAudioQuality(normalizedKey)
                 PlaybackAudioSource.LOCAL -> Unit
             }
         }
@@ -2017,7 +2025,7 @@ object PlayerManager {
             PlaybackAudioSource.NETEASE -> ::neteaseQualityRefreshJob
             PlaybackAudioSource.YOUTUBE_MUSIC -> ::youtubeQualityRefreshJob
             PlaybackAudioSource.BILIBILI -> ::biliQualityRefreshJob
-            PlaybackAudioSource.KUGOU,
+            PlaybackAudioSource.KUGOU -> ::kugouQualityRefreshJob
             PlaybackAudioSource.LOCAL -> return
         }
         targetJob.get()?.cancel()

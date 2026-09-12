@@ -133,7 +133,7 @@ data class PreferredQualityKeys(
     val netease: String = "exhigh",
     val youtube: String = "high",
     val bili: String = "high",
-    val kugou: String = moe.ouom.neriplayer.core.api.kugou.KUGOU_FREE_QUALITY
+    val kugou: String = moe.ouom.neriplayer.core.api.kugou.KUGOU_VIP_QUALITY
 )
 
 fun PreferredQualityKeys.forSource(source: PlaybackAudioSource): String? {

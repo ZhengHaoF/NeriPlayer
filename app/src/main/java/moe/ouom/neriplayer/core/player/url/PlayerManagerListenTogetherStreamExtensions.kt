@@ -432,11 +432,15 @@ internal fun buildListenTogetherFallbackAudioInfo(
                 }
             )
         }
-        PlaybackAudioSource.KUGOU -> PlaybackAudioInfo(
-            source = PlaybackAudioSource.KUGOU,
-            qualityKey = preferredQualityKey,
-            qualityLabel = preferredQualityKey
-        )
+        PlaybackAudioSource.KUGOU -> {
+            val qualityKey = normalizeKugouQualityKey(preferredQualityKey) ?: "320"
+            PlaybackAudioInfo(
+                source = PlaybackAudioSource.KUGOU,
+                qualityKey = qualityKey,
+                qualityLabel = qualityLabelForKugou(qualityKey, getLocalizedString),
+                qualityOptions = buildKugouQualityOptions(getLocalizedString)
+            )
+        }
         PlaybackAudioSource.LOCAL -> PlaybackAudioInfo(source = PlaybackAudioSource.LOCAL)
     }
 }
