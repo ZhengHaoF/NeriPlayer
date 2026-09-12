@@ -48,6 +48,7 @@ enum class PlaybackSourceType {
     BILIBILI,
     YOUTUBE_MUSIC,
     KUGOU,
+    QQ_MUSIC,
     LOCAL
 }
 
@@ -118,6 +119,20 @@ fun PlaybackSourceBadge(
                 )
                 Text(
                     text = stringResource(R.string.explore_tab_kugou),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            PlaybackSourceType.QQ_MUSIC -> {
+                Icon(
+                    imageVector = Icons.Outlined.LibraryMusic,
+                    contentDescription = stringResource(R.string.explore_tab_qqmusic),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(16.dp)
+                )
+                Text(
+                    text = stringResource(R.string.explore_tab_qqmusic),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
