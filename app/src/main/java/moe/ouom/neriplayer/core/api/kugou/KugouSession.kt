@@ -12,7 +12,7 @@ import moe.ouom.neriplayer.data.auth.kugou.KugouCookieStore
 import top.ghhccghk.multiplatform.kugouapi.KuGouClient
 
 /**
- * 酷狗会话：持有 KuGouApi_Kotlin_SDK 客户端，首次使用时注册设备身份，并管理登录态（token 等）持久化。
+ * 酷狗概念版会话：持有 KuGouApi_Kotlin_SDK 客户端，首次使用时注册设备身份，并管理登录态（token 等）持久化。
  *
  * - 设备注册幂等且线程安全；
  * - 登录态经 [KugouCookieStore] 持久化，启动时恢复，登录/退出时同步落盘。

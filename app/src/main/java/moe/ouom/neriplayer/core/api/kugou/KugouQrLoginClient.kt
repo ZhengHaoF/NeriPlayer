@@ -6,14 +6,14 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import moe.ouom.neriplayer.core.logging.NPLogger
 
-/** 酷狗 QR 登录会话（二维码 key + 二维码图片 base64）。 */
+/** 酷狗概念版 QR 登录会话（二维码 key + 二维码图片 base64）。 */
 data class KugouQrLoginSession(
     val key: String,
     val qrCodeUrl: String,
     val qrImageBase64: String?
 )
 
-/** 酷狗 QR 轮询状态。 */
+/** 酷狗概念版 QR 轮询状态。 */
 enum class KugouQrLoginStatus {
     WAITING,
     SCANNED,
@@ -23,7 +23,7 @@ enum class KugouQrLoginStatus {
 }
 
 /**
- * 酷狗二维码登录客户端：
+ * 酷狗概念版二维码登录客户端：
  * - [createSession] 创建二维码（返回 base64 图片，可直接展示）；
  * - [check] 轮询扫码状态；成功后返回登录 cookie（token/userid 等，源自 Set-Cookie）。
  */
@@ -67,7 +67,7 @@ class KugouQrLoginClient(private val session: KugouSession) {
             return KugouQrLoginStatus.ERROR to emptyMap()
         }
         return when (status) {
-            // 酷狗轮询语义（对齐 KuGouMusicApi login_qr_check）：
+            // 酷狗概念版轮询语义（对齐 KuGouMusicApi login_qr_check）：
             // 0=过期，1=等待扫码，2=已扫码待确认，4=授权登录成功（data 内携带 token/userid）
             0 -> KugouQrLoginStatus.EXPIRED to emptyMap()
             2 -> KugouQrLoginStatus.SCANNED to emptyMap()

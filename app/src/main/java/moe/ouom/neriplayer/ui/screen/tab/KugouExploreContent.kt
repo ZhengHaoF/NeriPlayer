@@ -61,7 +61,7 @@ import moe.ouom.neriplayer.util.format.formatPlayCount
 private const val TAG = "KugouExploreContent"
 
 /**
- * 酷狗 tab 默认内容页：每日推荐 + 排行榜 + 热门歌单。
+ * 酷狗概念版 tab 默认内容页：每日推荐 + 排行榜 + 热门歌单。
  * 点击榜单/歌单弹出底部歌曲列表，点击歌曲走 [onSongClick]（带队列播放）。
  */
 @OptIn(ExperimentalMaterial3Api::class)

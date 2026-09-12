@@ -11,7 +11,7 @@ import kotlinx.serialization.json.longOrNull
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.data.model.SongItem
 
-/** 酷狗榜单元数据。 */
+/** 酷狗概念版榜单元数据。 */
 data class KugouRankMeta(
     val rankId: String,
     val rankName: String,
@@ -20,7 +20,7 @@ data class KugouRankMeta(
     val intro: String?
 )
 
-/** 酷狗歌单元数据（special_recommend 推荐歌单）。 */
+/** 酷狗概念版歌单元数据（special_recommend 推荐歌单）。 */
 data class KugouPlaylistMeta(
     val globalCollectionId: String,
     val name: String,
@@ -29,14 +29,14 @@ data class KugouPlaylistMeta(
     val creator: String?
 )
 
-/** 酷狗 tab 默认内容：榜单 + 热门歌单 + 每日推荐。 */
+/** 酷狗概念版 tab 默认内容：榜单 + 热门歌单 + 每日推荐。 */
 data class KugouChannelContent(
     val ranks: List<KugouRankMeta> = emptyList(),
     val playlists: List<KugouPlaylistMeta> = emptyList(),
     val dailyRecommend: List<SongItem> = emptyList()
 )
 
-/** 加载酷狗 tab 默认内容（榜单列表 + 热门歌单 + 每日推荐）。 */
+/** 加载酷狗概念版 tab 默认内容（榜单列表 + 热门歌单 + 每日推荐）。 */
 suspend fun KugouSession.loadKugouChannelContent(): KugouChannelContent {
     ensureDeviceRegistered()
     val ranks = runCatching { fetchKugouRankList() }.getOrElse { error ->
@@ -144,7 +144,7 @@ suspend fun KugouSession.fetchKugouDailyRecommend(): List<SongItem> {
 }
 
 /**
- * 解析歌曲条目中的封面 URL（酷狗不同接口封面字段名不同：
+ * 解析歌曲条目中的封面 URL（酷狗概念版不同接口封面字段名不同：
  * 每日推荐用 `sizable_cover`/`trans_param.union_cover`，搜索/榜单/歌单用 `img`/`Image` 等），
  * 按候选顺序取第一个非空值，统一替换 {size} 占位符并校验 http 前缀。
  */

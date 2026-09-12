@@ -302,7 +302,7 @@ NeriPlayer 是一个基于 **Jetpack Compose + Media3** 的原生 Android
   可在“设置 > 通用”关闭探索页搜索历史，关闭后不显示也不再记录新关键词，
   已有记录不会被自动删除，重新开启后仍可显示；
   播放页元数据补全使用网易云 / QQ 音乐，并接入 LRCLIB 外部歌词来源；
-  歌词编辑器可选择酷狗、网易云、QQ 音乐、AMLL TTML、LRCLIB 和
+  歌词编辑器可选择酷狗概念版、网易云、QQ 音乐、AMLL TTML、LRCLIB 和
   YouTube Music 后手动匹配歌词，逐字歌词优先但不隐藏普通歌词，并会自动清理
   标题、制作信息等非歌词行。
 - 🧠 **Media3 播放核心**：

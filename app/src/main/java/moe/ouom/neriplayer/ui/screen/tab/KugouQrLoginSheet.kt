@@ -41,7 +41,7 @@ import moe.ouom.neriplayer.core.logging.NPLogger
 private const val QR_POLL_INTERVAL_MS = 2_000L
 
 /**
- * 酷狗二维码登录弹窗：展示二维码 → 轮询扫码状态 → 成功后回调 [onLoggedIn]。
+ * 酷狗概念版二维码登录弹窗：展示二维码 → 轮询扫码状态 → 成功后回调 [onLoggedIn]。
  * 登录成功由调用方将 login cookies 写入 [AppContainer.kugouSession] 并持久化。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -71,7 +71,7 @@ internal fun KugouQrLoginSheet(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "扫一扫，登录酷狗",
+                text = "扫一扫，登录酷狗概念版",
                 style = MaterialTheme.typography.titleMedium
             )
             Spacer(Modifier.height(16.dp))
@@ -93,7 +93,7 @@ internal fun KugouQrLoginSheet(
                 qrImage != null -> {
                     Image(
                         bitmap = qrImage!!.asImageBitmap(),
-                        contentDescription = "酷狗登录二维码",
+                        contentDescription = "酷狗概念版登录二维码",
                         modifier = Modifier
                             .size(220.dp)
                             .clip(RoundedCornerShape(12.dp))
@@ -165,7 +165,7 @@ internal fun KugouQrLoginSheet(
                 }
 
                 KugouQrLoginStatus.WAITING -> {
-                    if (statusText.isBlank()) statusText = "请使用酷狗 App 扫码"
+                    if (statusText.isBlank()) statusText = "请使用酷狗概念版 App 扫码"
                 }
             }
             delay(QR_POLL_INTERVAL_MS)

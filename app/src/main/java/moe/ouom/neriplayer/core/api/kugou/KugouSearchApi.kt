@@ -13,7 +13,7 @@ import moe.ouom.neriplayer.core.api.search.SongSearchInfo
 import moe.ouom.neriplayer.core.logging.NPLogger
 
 /**
- * 酷狗搜索器：通过 [KugouSession] 走 SDK 的 complexsearch（免登录）。
+ * 酷狗概念版搜索器：通过 [KugouSession] 走 SDK 的 complexsearch（免登录）。
  * 搜索结果映射为通用 [SongSearchInfo]（new_source = KUGOU）。
  */
 class KugouSearchApi(private val session: KugouSession) : SearchApi {

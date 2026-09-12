@@ -7,7 +7,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.model.SongItem
 
-/** 酷狗搜索结果单曲（complexsearch 响应 `data.lists[]` 条目的结构化视图）。 */
+/** 酷狗概念版搜索结果单曲（complexsearch 响应 `data.lists[]` 条目的结构化视图）。 */
 data class KugouSong(
     val hash: String,
     val songName: String,
@@ -19,7 +19,7 @@ data class KugouSong(
     val durationMs: Long
 )
 
-/** 从 complexsearch 响应条目（酷狗驼峰字段）解析为 [KugouSong]；缺 hash 视为无效返回 null。 */
+/** 从 complexsearch 响应条目（酷狗概念版驼峰字段）解析为 [KugouSong]；缺 hash 视为无效返回 null。 */
 internal fun parseKugouSearchItem(json: JsonObject): KugouSong? {
     val hash = json["FileHash"]?.jsonPrimitive?.contentOrNull?.trim()
         ?.takeIf { it.isNotBlank() }
@@ -49,7 +49,7 @@ internal fun parseKugouSearchItem(json: JsonObject): KugouSong? {
 }
 
 /**
- * 转成可播放的 [SongItem]（酷狗源标记，与 B 站 `album` 前缀约定一致）：
+ * 转成可播放的 [SongItem]（酷狗概念版源标记，与 B 站 `album` 前缀约定一致）：
  * - [SongItem.album] = `"Kugou|{hash}|{albumAudioId}"`，供 [PlayerManager.isKugouTrack] 识别；
  * - [SongItem.audioId] = 播放 hash；
  * - [SongItem.subAudioId] = album_audio_id；
@@ -66,7 +66,7 @@ fun KugouSong.toSongItem(): SongItem = buildKugouSongItem(
     durationMs = durationMs
 )
 
-/** 直接按部件构建酷狗 [SongItem]（榜单/歌单/推荐等场景复用）。 */
+/** 直接按部件构建酷狗概念版 [SongItem]（榜单/歌单/推荐等场景复用）。 */
 fun buildKugouSongItem(
     hash: String,
     songName: String,
@@ -93,5 +93,5 @@ fun buildKugouSongItem(
     )
 }
 
-/** 酷狗歌曲在 [SongItem.channelId] 中的标识。 */
+/** 酷狗概念版歌曲在 [SongItem.channelId] 中的标识。 */
 const val KUGOU_CHANNEL_ID = "kugou"

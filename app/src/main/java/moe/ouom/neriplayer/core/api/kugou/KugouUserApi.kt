@@ -12,7 +12,7 @@ import moe.ouom.neriplayer.data.model.SongItem
 import org.json.JSONObject
 
 /**
- * 酷狗登录后内容（阶段 4）：听歌历史 / 收藏歌单 / 云盘。
+ * 酷狗概念版登录后内容（阶段 4）：听歌历史 / 收藏歌单 / 云盘。
  * 依赖登录态（token/userid），未登录时返回空列表；调用前需确保 [KugouSession.isLoggedIn]。
  */
 

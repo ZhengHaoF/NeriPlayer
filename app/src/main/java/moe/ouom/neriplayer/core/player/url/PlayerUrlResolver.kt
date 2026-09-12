@@ -59,7 +59,7 @@ internal fun qualityLabelForYouTube(key: String, getLocalizedString: (Int) -> St
 }
 
 /**
- * 酷狗 v5/url 支持的音质档位, 由高到低排列
+ * 酷狗概念版 v5/url 支持的音质档位, 由高到低排列
  *
  * 与 SDK `SongQuality` 枚举及参考实现 EchoMusic 的档位一致:
  * 128 / 320 / flac / high / viper_tape
@@ -97,7 +97,7 @@ internal fun buildKugouQualityOptions(getLocalizedString: (Int) -> String): List
  * 按偏好档位生成降级尝试链 (高 -> 低)
  *
  * 未登录只保留免费档, 避免必然被拒的会员档请求
- * 与网易云不同, 酷狗不返回实测档位字段, 只能按已知档位顺序依次尝试
+ * 与网易云不同, 酷狗概念版不返回实测档位字段, 只能按已知档位顺序依次尝试
  */
 internal fun buildKugouQualityCandidates(
     preferredQuality: String,

@@ -16,32 +16,32 @@ import moe.ouom.neriplayer.core.player.url.resolveKugouPlaybackQualityKey
 import moe.ouom.neriplayer.data.model.SongItem
 
 /**
- * 酷狗免费音质 key（v5/url 免费档）。
+ * 酷狗概念版免费音质 key（v5/url 免费档）。
  */
 const val KUGOU_FREE_QUALITY = "128"
 
 /**
- * 酷狗高音质 key（登录后可尝试，失败自动降级到 [KUGOU_FREE_QUALITY]）。
+ * 酷狗概念版高音质 key（登录后可尝试，失败自动降级到 [KUGOU_FREE_QUALITY]）。
  */
 const val KUGOU_VIP_QUALITY = "320"
 
 /**
- * 酷狗无损音质 key（需会员，失败自动逐档降级）。
+ * 酷狗概念版无损音质 key（需会员，失败自动逐档降级）。
  */
 const val KUGOU_LOSSLESS_QUALITY = "flac"
 
 /**
- * 酷狗 Hi-Res 音质 key（需会员，失败自动逐档降级）。
+ * 酷狗概念版 Hi-Res 音质 key（需会员，失败自动逐档降级）。
  */
 const val KUGOU_HI_RES_QUALITY = "high"
 
 /**
- * 酷狗蝰蛇母带音质 key（需会员，失败自动逐档降级）。
+ * 酷狗概念版蝰蛇母带音质 key（需会员，失败自动逐档降级）。
  */
 const val KUGOU_VIPER_TAPE_QUALITY = "viper_tape"
 
 /**
- * 解析酷狗云盘播放地址（`user.getCloudUrl` → query_musicclound_url）。
+ * 解析酷狗概念版云盘播放地址（`user.getCloudUrl` → query_musicclound_url）。
  * 响应结构与 v5/url 类似：flat 结构 `url` / `backupUrl` / `data.play_url` 均尝试。
  */
 internal suspend fun KugouSession.resolveKugouCloudUrl(song: SongItem): SongUrlResult {
@@ -103,7 +103,7 @@ internal suspend fun KugouSession.resolveKugouCloudUrl(song: SongItem): SongUrlR
 }
 
 /**
- * 解析酷狗播放地址（v5/url）。
+ * 解析酷狗概念版播放地址（v5/url）。
  *
  * 音质由 [quality] 决定，按档位从高到低依次尝试，首个可播档位即为结果。
  * 未登录时只尝试免费档，避免必然被拒的会员档请求。

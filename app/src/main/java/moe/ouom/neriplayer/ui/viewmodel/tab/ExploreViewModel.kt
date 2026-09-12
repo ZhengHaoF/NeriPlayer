@@ -639,7 +639,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    /** 搜索酷狗音乐（免登录） */
+    /** 搜索酷狗概念版（免登录） */
     private fun searchKugou(keyword: String, matchQuery: String, requestVersion: Long) {
         searchJob = viewModelScope.launch {
             try {
@@ -711,7 +711,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    /** 加载酷狗 tab 默认内容（榜单 + 热门歌单 + 每日推荐）。 */
+    /** 加载酷狗概念版 tab 默认内容（榜单 + 热门歌单 + 每日推荐）。 */
     internal fun loadKugouChannel() {
         if (_uiState.value.kugouContent != null || _uiState.value.kugouChannelLoading) return
         _uiState.value = _uiState.value.copy(

@@ -11,7 +11,7 @@ import moe.ouom.neriplayer.core.logging.NPLogger
 import org.json.JSONObject
 
 /**
- * 酷狗登录态持久化：将 SDK CookieJar 的快照（token/userid/dfid/vip_token 等）加密存到本地。
+ * 酷狗概念版登录态持久化：将 SDK CookieJar 的快照（token/userid/dfid/vip_token 等）加密存到本地。
  * 单例由 AppContainer 提供；登录成功后 [KugouSession] 调用 [save] 落盘。
  */
 class KugouCookieStore(context: Context) {

@@ -826,7 +826,7 @@ private val SettingSearchAliases = mapOf(
     "audio_quality" to listOf("netease", "wy", "wyy", "lossless", "hires", "wusun"),
     "youtube_audio_quality" to listOf("yt", "ytm", "very high", "bitrate"),
     "bili_audio_quality" to listOf("哔哩哔哩", "bzhan", "dolby", "hires"),
-    "kugou_audio_quality" to listOf("酷狗", "kugou", "viper", "母带", "tape"),
+    "kugou_audio_quality" to listOf("酷狗概念版", "酷狗", "kugou", "viper", "母带", "tape"),
     "mobile_data_follow_default_audio_quality" to listOf("cellular", "4g", "5g", "liuliang"),
     "mobile_data_netease_audio_quality" to listOf("cellular netease", "wy liuliang"),
     "mobile_data_youtube_audio_quality" to listOf("cellular youtube", "yt liuliang"),

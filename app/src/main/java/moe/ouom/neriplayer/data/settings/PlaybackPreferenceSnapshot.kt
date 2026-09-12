@@ -100,7 +100,7 @@ private const val PLAYBACK_AMLL_LYRICS_ENABLED_KEY = "amll_lyrics_enabled"
 private const val DEFAULT_MAX_CACHE_SIZE_BYTES = 1024L * 1024 * 1024
 
 /**
- * 酷狗默认音质档位（与旧行为一致：登录后尝试 320，未登录自动降到免费档）
+ * 酷狗概念版默认音质档位（与旧行为一致：登录后尝试 320，未登录自动降到免费档）
  */
 internal const val DEFAULT_KUGOU_AUDIO_QUALITY = "320"
 private val playbackPreferenceSnapshotWarmScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

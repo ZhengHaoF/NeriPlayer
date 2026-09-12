@@ -29,7 +29,7 @@
     <string name="settings_cookie_cancelled">Cookie read cancelled</string>
     <string name="settings_bili_login_success">Bilibili login successful</string>
     <string name="settings_netease_login_success">NetEase login successful</string>
-    <string name="settings_kugou_login_success">KuGou login successful</string>
+    <string name="settings_kugou_login_success">KuGou Concept login successful</string>
     <string name="settings_youtube_login_success">YouTube login successful</string>
     <string name="settings_bili_status_valid">Saved and last refreshed %1$s</string>
     <string name="settings_bili_status_saved_invalid">A saved Cookie was found, but it may be invalid. Tap to refresh it or sign out</string>
@@ -38,8 +38,8 @@
     <string name="settings_netease_status_saved_invalid">A saved Cookie was found, but it may be invalid. Tap to refresh it or sign out</string>
     <string name="settings_netease_status_missing">No usable Cookie detected. Tap to sign in again or import one</string>
     <string name="settings_kugou_status_valid">Signed in</string>
-    <string name="settings_kugou_status_missing">Not signed in. Tap to sign in with the KuGou app</string>
-    <string name="settings_kugou_logout_confirm">Sign out of KuGou? VIP quality playback will be unavailable after signing out.</string>
+    <string name="settings_kugou_status_missing">Not signed in. Tap to sign in with the KuGou Concept app</string>
+    <string name="settings_kugou_logout_confirm">Sign out of KuGou Concept? VIP quality playback will be unavailable after signing out.</string>
     <string name="settings_youtube_login_methods">Browser/Cookie Import</string>
     <string name="settings_youtube_auth_missing">No usable YouTube / YouTube Music auth information was captured</string>
     <string name="settings_youtube_auth_verifying">Verifying sign-in state, please wait…</string>
