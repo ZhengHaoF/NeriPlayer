@@ -1181,7 +1181,16 @@ We will keep improving the project over time.
   <td><a href="https://github.com/ReChronoRain/HyperCeiler">HyperCeiler</a></td>
   <td>HyperOS enhancement module - Make HyperOS Great Again!</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/hoowhoami/EchoMusic">EchoMusic</a></td>
+  <td>Desktop third-party music player (local service built on KuGouMusicApi)</td>
+</tr>
 </table>
+
+> 🐶 The **Kugou concept app API implementation** in this project
+> (search, playback URL, audio-quality tiers, login and risk-control behavior)
+> was informed by [EchoMusic](https://github.com/hoowhoami/EchoMusic);
+> only API behavior and strategy were aligned, no code was copied.
 
 ---
 

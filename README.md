@@ -954,7 +954,15 @@ NeriPlayer 支持将本地元数据同步到 **用户自己的 GitHub 仓库**�
   <td><a href="https://github.com/ReChronoRain/HyperCeiler">HyperCeiler</a></td>
   <td>HyperOS enhancement module - Make HyperOS Great Again!</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/hoowhoami/EchoMusic">EchoMusic</a></td>
+  <td>桌面端第三方音乐播放器（内置本地服务基于 KuGouMusicApi）</td>
+</tr>
 </table>
+
+> 🐶 本项目的**酷狗概念版接口实现**（搜索、播放 URL、音质档位、登录与风控策略画像）
+> 参考了 [EchoMusic](https://github.com/hoowhoami/EchoMusic) 项目；
+> 仅对齐接口行为与策略，未复制其代码。
 
 ---
 
