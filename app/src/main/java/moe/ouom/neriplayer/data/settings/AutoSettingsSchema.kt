@@ -352,6 +352,19 @@ object AutoSettingsSchema {
         )
 
         @AutoSetting(
+            key = "qqmusic_audio_quality",
+            type = SettingValueType.String,
+            defaultString = DEFAULT_QQMUSIC_AUDIO_QUALITY,
+            order = 36,
+            ui = SettingUiType.Custom,
+            access = SettingAccessMode.KeyOnly
+        )
+        val qqMusicAudioQuality = autoSetting(
+            titleRes = R.string.quality_qqmusic_default,
+            iconRes = R.drawable.ic_qq_music
+        )
+
+        @AutoSetting(
             key = "mobile_data_follow_default_audio_quality",
             type = SettingValueType.Boolean,
             defaultBoolean = true,

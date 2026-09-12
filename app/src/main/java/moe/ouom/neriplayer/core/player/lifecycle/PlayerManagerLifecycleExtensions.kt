@@ -350,6 +350,7 @@ internal fun PlayerManager.initializeImpl(
         youtubePreferredQuality = initialPlaybackPreferences.youtubeAudioQuality
         biliPreferredQuality = initialPlaybackPreferences.biliAudioQuality
         kugouPreferredQuality = initialPlaybackPreferences.kugouAudioQuality
+        qqMusicPreferredQuality = initialPlaybackPreferences.qqMusicAudioQuality
         mobileDataFollowDefaultAudioQuality =
             initialPlaybackPreferences.mobileDataFollowDefaultAudioQuality
         mobileDataNeteaseAudioQuality =
@@ -1038,6 +1039,18 @@ internal fun PlayerManager.initializeImpl(
                     scheduleQualityRefresh(
                         source = PlaybackAudioSource.KUGOU,
                         reason = "kugou_quality_changed"
+                    )
+                }
+            }
+        }
+        ioScope.launch {
+            settingsRepo.qqMusicAudioQualityFlow.collect { q ->
+                val previousQuality = qqMusicPreferredQuality
+                qqMusicPreferredQuality = q
+                if (previousQuality != q) {
+                    scheduleQualityRefresh(
+                        source = PlaybackAudioSource.QQ_MUSIC,
+                        reason = "qqmusic_quality_changed"
                     )
                 }
             }

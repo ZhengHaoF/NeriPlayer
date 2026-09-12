@@ -225,6 +225,9 @@ internal class ConfigSettingsSanitizer(private val context: Context) {
         sanitizeStringValue(strings, SettingsKeys.KUGOU_AUDIO_QUALITY.name, onAdjusted) {
             normalizeChoice(it, KUGOU_AUDIO_QUALITY_VALUES, DEFAULT_KUGOU_AUDIO_QUALITY)
         }
+        sanitizeStringValue(strings, SettingsKeys.QQMUSIC_AUDIO_QUALITY.name, onAdjusted) {
+            normalizeChoice(it, QQMUSIC_AUDIO_QUALITY_VALUES, DEFAULT_QQMUSIC_AUDIO_QUALITY)
+        }
         sanitizeStringValue(strings, SettingsKeys.DOWNLOAD_FILE_NAME_TEMPLATE.name, onAdjusted) {
             normalizeDownloadFileNameTemplate(it)
         }
@@ -403,6 +406,7 @@ private const val DEFAULT_NETEASE_AUDIO_QUALITY = "exhigh"
 private const val DEFAULT_YOUTUBE_AUDIO_QUALITY = "high"
 private const val DEFAULT_BILI_AUDIO_QUALITY = "high"
 private const val DEFAULT_KUGOU_AUDIO_QUALITY = "320"
+private const val DEFAULT_QQMUSIC_AUDIO_QUALITY = "M500"
 private const val DEFAULT_START_DESTINATION_ROUTE = "home"
 private const val MAX_THEME_PALETTE_COLORS = 64
 private const val MAX_EQUALIZER_BAND_LEVELS = 32
@@ -438,6 +442,14 @@ private val KUGOU_AUDIO_QUALITY_VALUES = setOf(
     "flac",
     "high",
     "viper_tape"
+)
+private val QQMUSIC_AUDIO_QUALITY_VALUES = setOf(
+    "F000",
+    "O800",
+    "M800",
+    "C600",
+    "M500",
+    "C400"
 )
 private val DEFAULT_START_DESTINATION_ROUTES = setOf(
     "home",

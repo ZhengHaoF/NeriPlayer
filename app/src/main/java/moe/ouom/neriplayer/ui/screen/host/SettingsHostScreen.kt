@@ -116,6 +116,8 @@ fun SettingsHostScreen(
     onBiliQualityChange: (String) -> Unit,
     kugouPreferredQuality: String,
     onKugouQualityChange: (String) -> Unit,
+    qqMusicPreferredQuality: String,
+    onQqMusicQualityChange: (String) -> Unit,
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseAudioQuality: String,
@@ -389,6 +391,8 @@ fun SettingsHostScreen(
                             onBiliQualityChange = onBiliQualityChange,
                             kugouPreferredQuality = kugouPreferredQuality,
                             onKugouQualityChange = onKugouQualityChange,
+                            qqMusicPreferredQuality = qqMusicPreferredQuality,
+                            onQqMusicQualityChange = onQqMusicQualityChange,
                             mobileDataFollowDefaultAudioQuality =
                                 mobileDataFollowDefaultAudioQuality,
                             onMobileDataFollowDefaultAudioQualityChange =

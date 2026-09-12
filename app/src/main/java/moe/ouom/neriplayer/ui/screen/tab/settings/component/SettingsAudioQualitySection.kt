@@ -69,6 +69,10 @@ private const val KUGOU_HIGH_QUALITY = "320"
 private const val KUGOU_LOSSLESS_QUALITY = "flac"
 private const val KUGOU_HI_RES_QUALITY = "high"
 private const val KUGOU_VIPER_TAPE_QUALITY = "viper_tape"
+private const val QQMUSIC_STANDARD_QUALITY = "M500"
+private const val QQMUSIC_HIGHER_QUALITY = "C600"
+private const val QQMUSIC_VERY_HIGH_QUALITY = "M800"
+private const val QQMUSIC_LOSSLESS_QUALITY = "F000"
 
 private val NETEASE_MEMBER_QUALITIES = setOf(
     NETEASE_LOSSLESS_QUALITY,
@@ -84,10 +88,17 @@ private val KUGOU_MEMBER_QUALITIES = setOf(
     KUGOU_VIPER_TAPE_QUALITY
 )
 
+private val QQMUSIC_MEMBER_QUALITIES = setOf(
+    QQMUSIC_HIGHER_QUALITY,
+    QQMUSIC_VERY_HIGH_QUALITY,
+    QQMUSIC_LOSSLESS_QUALITY
+)
+
 private enum class AudioQualityNotice {
     NeteaseMemberQuality,
     BiliDolby,
-    KugouMemberQuality
+    KugouMemberQuality,
+    QqMusicMemberQuality
 }
 
 @Composable
@@ -108,6 +119,9 @@ internal fun SettingsAudioQualitySection(
     kugouQualityLabel: String,
     kugouPreferredQuality: String,
     onKugouQualityChange: (String) -> Unit,
+    qqMusicQualityLabel: String,
+    qqMusicPreferredQuality: String,
+    onQqMusicQualityChange: (String) -> Unit,
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseQualityLabel: String,
@@ -127,6 +141,8 @@ internal fun SettingsAudioQualitySection(
     onShowBiliQualityDialogChange: (Boolean) -> Unit,
     showKugouQualityDialog: Boolean,
     onShowKugouQualityDialogChange: (Boolean) -> Unit,
+    showQqMusicQualityDialog: Boolean,
+    onShowQqMusicQualityDialogChange: (Boolean) -> Unit,
     showMobileDataNeteaseQualityDialog: Boolean,
     onShowMobileDataNeteaseQualityDialogChange: (Boolean) -> Unit,
     showMobileDataYouTubeQualityDialog: Boolean,
@@ -205,6 +221,17 @@ internal fun SettingsAudioQualitySection(
                 preferredQuality = kugouPreferredQuality,
                 iconRes = R.drawable.ic_kugou,
                 onClick = { onShowKugouQualityDialogChange(true) },
+                highlightTargetId = highlightTargetId,
+                highlightPulse = highlightPulse,
+                onHighlightFinished = onHighlightFinished
+            )
+
+            AudioQualityListItem(
+                setting = AutoSettingsMetadata.requireSetting(AutoSettingsKeys.QQMUSIC_AUDIO_QUALITY),
+                valueLabel = qqMusicQualityLabel,
+                preferredQuality = qqMusicPreferredQuality,
+                iconRes = R.drawable.ic_qq_music,
+                onClick = { onShowQqMusicQualityDialogChange(true) },
                 highlightTargetId = highlightTargetId,
                 highlightPulse = highlightPulse,
                 onHighlightFinished = onHighlightFinished
@@ -378,6 +405,27 @@ internal fun SettingsAudioQualitySection(
         )
     }
 
+    if (showQqMusicQualityDialog) {
+        QualityOptionsDialog(
+            title = stringResource(R.string.quality_qqmusic_default),
+            selectedValue = qqMusicPreferredQuality,
+            options = listOf(
+                QQMUSIC_STANDARD_QUALITY to stringResource(R.string.quality_standard),
+                QQMUSIC_HIGHER_QUALITY to stringResource(R.string.settings_audio_quality_higher),
+                QQMUSIC_VERY_HIGH_QUALITY to stringResource(R.string.quality_very_high),
+                QQMUSIC_LOSSLESS_QUALITY to stringResource(R.string.quality_lossless)
+            ),
+            onDismiss = { onShowQqMusicQualityDialogChange(false) },
+            onSelect = { level ->
+                onQqMusicQualityChange(level)
+                onShowQqMusicQualityDialogChange(false)
+                if (level in QQMUSIC_MEMBER_QUALITIES && qqMusicPreferredQuality != level) {
+                    audioQualityNotice = AudioQualityNotice.QqMusicMemberQuality
+                }
+            }
+        )
+    }
+
     if (showMobileDataNeteaseQualityDialog) {
         QualityOptionsDialog(
             title = stringResource(R.string.settings_mobile_data_netease_audio_quality),
@@ -531,6 +579,8 @@ private fun AudioQualityNoticeDialog(
                             R.string.settings_audio_quality_bili_dolby_notice
                         AudioQualityNotice.KugouMemberQuality ->
                             R.string.settings_audio_quality_kugou_member_quality_notice
+                        AudioQualityNotice.QqMusicMemberQuality ->
+                            R.string.settings_audio_quality_qqmusic_member_quality_notice
                     }
                 )
             )

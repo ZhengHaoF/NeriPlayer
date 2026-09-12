@@ -43,6 +43,8 @@ import moe.ouom.neriplayer.core.player.model.normalizePlaybackPitch
 import moe.ouom.neriplayer.core.player.model.normalizePlaybackSpeed
 import moe.ouom.neriplayer.core.player.model.normalizePlaybackVolumeBalance
 import moe.ouom.neriplayer.core.player.url.normalizeKugouQualityKey
+import moe.ouom.neriplayer.core.player.url.normalizeQQMusicQualityKey
+import moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_FREE_QUALITY
 import androidx.core.content.edit
 
 private const val PLAYBACK_SNAPSHOT_PREFS = "playback_snapshot_cache"
@@ -53,6 +55,7 @@ private const val PLAYBACK_AUDIO_QUALITY_KEY = "audio_quality"
 private const val PLAYBACK_YOUTUBE_AUDIO_QUALITY_KEY = "youtube_audio_quality"
 private const val PLAYBACK_BILI_AUDIO_QUALITY_KEY = "bili_audio_quality"
 private const val PLAYBACK_KUGOU_AUDIO_QUALITY_KEY = "kugou_audio_quality"
+private const val PLAYBACK_QQMUSIC_AUDIO_QUALITY_KEY = "qqmusic_audio_quality"
 private const val PLAYBACK_MOBILE_DATA_DOWNGRADE_QUALITY_KEY = "mobile_data_downgrade_quality"
 private const val PLAYBACK_MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY_KEY =
     "mobile_data_follow_default_audio_quality"
@@ -103,6 +106,11 @@ private const val DEFAULT_MAX_CACHE_SIZE_BYTES = 1024L * 1024 * 1024
  * 酷狗概念版默认音质档位（与旧行为一致：登录后尝试 320，未登录自动降到免费档）
  */
 internal const val DEFAULT_KUGOU_AUDIO_QUALITY = "320"
+
+/**
+ * QQ音乐默认音质档位（匿名实测可取的免费最高档，兼容性优先）
+ */
+internal const val DEFAULT_QQMUSIC_AUDIO_QUALITY = QQ_MUSIC_FREE_QUALITY
 private val playbackPreferenceSnapshotWarmScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 private val playbackPreferenceSnapshotWarmLock = Any()
 
@@ -114,6 +122,7 @@ data class PlaybackPreferenceSnapshot(
     val youtubeAudioQuality: String = "high",
     val biliAudioQuality: String = "high",
     val kugouAudioQuality: String = DEFAULT_KUGOU_AUDIO_QUALITY,
+    val qqMusicAudioQuality: String = DEFAULT_QQMUSIC_AUDIO_QUALITY,
     val mobileDataFollowDefaultAudioQuality: Boolean = true,
     val mobileDataNeteaseAudioQuality: String = DEFAULT_MOBILE_DATA_NETEASE_AUDIO_QUALITY,
     val mobileDataYouTubeAudioQuality: String = DEFAULT_MOBILE_DATA_YOUTUBE_AUDIO_QUALITY,
@@ -173,6 +182,8 @@ data class PlaybackPreferenceSnapshot(
             biliAudioQuality = biliAudioQuality.trim().ifBlank { "high" },
             kugouAudioQuality = normalizeKugouQualityKey(kugouAudioQuality)
                 ?: DEFAULT_KUGOU_AUDIO_QUALITY,
+            qqMusicAudioQuality = normalizeQQMusicQualityKey(qqMusicAudioQuality)
+                ?: DEFAULT_QQMUSIC_AUDIO_QUALITY,
             mobileDataNeteaseAudioQuality =
                 normalizeMobileDataNeteaseAudioQuality(mobileDataNeteaseAudioQuality),
             mobileDataYouTubeAudioQuality =
@@ -310,6 +321,10 @@ internal fun persistPlaybackPreferenceSnapshot(
                     PLAYBACK_KUGOU_AUDIO_QUALITY_KEY,
                     normalizedSnapshot.kugouAudioQuality
                 )
+                .putString(
+                    PLAYBACK_QQMUSIC_AUDIO_QUALITY_KEY,
+                    normalizedSnapshot.qqMusicAudioQuality
+                )
                 .putBoolean(
                     PLAYBACK_MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY_KEY,
                     normalizedSnapshot.mobileDataFollowDefaultAudioQuality
@@ -427,6 +442,8 @@ internal fun Preferences.toPlaybackPreferenceSnapshot(): PlaybackPreferenceSnaps
         biliAudioQuality = this[SettingsKeys.BILI_AUDIO_QUALITY] ?: "high",
         kugouAudioQuality = normalizeKugouQualityKey(this[SettingsKeys.KUGOU_AUDIO_QUALITY])
             ?: DEFAULT_KUGOU_AUDIO_QUALITY,
+        qqMusicAudioQuality = normalizeQQMusicQualityKey(this[SettingsKeys.QQMUSIC_AUDIO_QUALITY])
+            ?: DEFAULT_QQMUSIC_AUDIO_QUALITY,
         mobileDataFollowDefaultAudioQuality =
             this[SettingsKeys.MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY]
                 ?: resolveLegacyMobileDataFollowDefaultAudioQuality(legacyMobileDataQuality)
@@ -553,6 +570,9 @@ private fun readCachedPlaybackPreferenceSnapshot(context: Context): PlaybackPref
         kugouAudioQuality = normalizeKugouQualityKey(
             prefs.getString(PLAYBACK_KUGOU_AUDIO_QUALITY_KEY, DEFAULT_KUGOU_AUDIO_QUALITY)
         ) ?: DEFAULT_KUGOU_AUDIO_QUALITY,
+        qqMusicAudioQuality = normalizeQQMusicQualityKey(
+            prefs.getString(PLAYBACK_QQMUSIC_AUDIO_QUALITY_KEY, DEFAULT_QQMUSIC_AUDIO_QUALITY)
+        ) ?: DEFAULT_QQMUSIC_AUDIO_QUALITY,
         mobileDataFollowDefaultAudioQuality = if (
             prefs.contains(PLAYBACK_MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY_KEY)
         ) {

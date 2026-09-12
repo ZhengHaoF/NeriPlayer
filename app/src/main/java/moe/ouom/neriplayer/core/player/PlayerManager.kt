@@ -387,6 +387,7 @@ object PlayerManager {
     internal var youtubeQualityRefreshJob: Job? = null
     internal var biliQualityRefreshJob: Job? = null
     internal var kugouQualityRefreshJob: Job? = null
+    internal var qqMusicQualityRefreshJob: Job? = null
     internal var playbackStatsPersistJob: Job? = null
     internal val playbackStatsPersistLock = Any()
 
@@ -2043,8 +2044,7 @@ object PlayerManager {
             PlaybackAudioSource.YOUTUBE_MUSIC -> ::youtubeQualityRefreshJob
             PlaybackAudioSource.BILIBILI -> ::biliQualityRefreshJob
             PlaybackAudioSource.KUGOU -> ::kugouQualityRefreshJob
-            // QQ音乐匿名档固定（M500/C400），无音质设置变化可监听
-            PlaybackAudioSource.QQ_MUSIC -> return
+            PlaybackAudioSource.QQ_MUSIC -> ::qqMusicQualityRefreshJob
             PlaybackAudioSource.LOCAL -> return
         }
         targetJob.get()?.cancel()

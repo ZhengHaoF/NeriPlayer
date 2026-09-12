@@ -149,6 +149,7 @@ import moe.ouom.neriplayer.data.settings.generated.AutoSettingsMetadata
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingsRepository
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingsScopes
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingsSwitchItems
+import moe.ouom.neriplayer.core.player.url.qqMusicQualityLabel as resolveQQMusicQualityLabel
 import moe.ouom.neriplayer.data.settings.normalizeMobileDataBiliAudioQuality
 import moe.ouom.neriplayer.data.settings.normalizeMobileDataNeteaseAudioQuality
 import moe.ouom.neriplayer.data.settings.normalizeMobileDataYouTubeAudioQuality
@@ -478,6 +479,8 @@ fun SettingsScreen(
     onBiliQualityChange: (String) -> Unit,
     kugouPreferredQuality: String,
     onKugouQualityChange: (String) -> Unit,
+    qqMusicPreferredQuality: String,
+    onQqMusicQualityChange: (String) -> Unit,
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseAudioQuality: String,
@@ -687,6 +690,7 @@ fun SettingsScreen(
     var showYouTubeSavedCookieDialog by remember { mutableStateOf(false) }
     var showKugouSheet by remember { mutableStateOf(false) }
     var showKugouLogoutDialog by remember { mutableStateOf(false) }
+    var showQqMusicQualityDialog by remember { mutableStateOf(false) }
 
     var showColorPickerDialog by remember { mutableStateOf(false) }
     var showDpiDialog by remember { mutableStateOf(false) }
@@ -1019,6 +1023,10 @@ fun SettingsScreen(
 
     val kugouQualityLabel = remember(kugouPreferredQuality) {
         context.kugouQualityLabel(kugouPreferredQuality)
+    }
+
+    val qqMusicQualityLabel = remember(qqMusicPreferredQuality) {
+        resolveQQMusicQualityLabel(qqMusicPreferredQuality) { context.getString(it) }
     }
 
     val youtubeQualityLabel = remember(youtubePreferredQuality) {
@@ -1966,6 +1974,9 @@ fun SettingsScreen(
                             kugouQualityLabel = kugouQualityLabel,
                             kugouPreferredQuality = kugouPreferredQuality,
                             onKugouQualityChange = onKugouQualityChange,
+                            qqMusicQualityLabel = qqMusicQualityLabel,
+                            qqMusicPreferredQuality = qqMusicPreferredQuality,
+                            onQqMusicQualityChange = onQqMusicQualityChange,
                             mobileDataFollowDefaultAudioQuality = mobileDataFollowDefaultAudioQuality,
                             onMobileDataFollowDefaultAudioQualityChange =
                                 onMobileDataFollowDefaultAudioQualityChange,
@@ -1988,6 +1999,10 @@ fun SettingsScreen(
                             onShowBiliQualityDialogChange = { showBiliQualityDialog = it },
                             showKugouQualityDialog = showKugouQualityDialog,
                             onShowKugouQualityDialogChange = { showKugouQualityDialog = it },
+                            showQqMusicQualityDialog = showQqMusicQualityDialog,
+                            onShowQqMusicQualityDialogChange = {
+                                showQqMusicQualityDialog = it
+                            },
                             showMobileDataNeteaseQualityDialog = showMobileDataNeteaseQualityDialog,
                             onShowMobileDataNeteaseQualityDialogChange = {
                                 showMobileDataNeteaseQualityDialog = it
