@@ -66,6 +66,8 @@ import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.bili.BiliClient
 import moe.ouom.neriplayer.core.api.kugou.KUGOU_VIP_QUALITY
+import moe.ouom.neriplayer.core.api.qqmusic.QQMUSIC_CHANNEL_ID
+import moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_FREE_QUALITY
 import moe.ouom.neriplayer.core.api.search.MusicPlatform
 import moe.ouom.neriplayer.core.api.search.SongSearchInfo
 import moe.ouom.neriplayer.core.di.AppContainer
@@ -266,6 +268,7 @@ object PlayerManager {
     const val BILI_SOURCE_TAG = "Bilibili"
     const val NETEASE_SOURCE_TAG = "Netease"
     const val KUGOU_SOURCE_TAG = "Kugou"
+    const val QQMUSIC_SOURCE_TAG = "QQMusic"
 
     internal data class UsbExclusiveLoudPlaybackConfirmation(
         val id: Long,
@@ -413,6 +416,11 @@ object PlayerManager {
             field = value
             publishPreferredQualityKeys()
         }
+    internal var qqMusicPreferredQuality: String = QQ_MUSIC_FREE_QUALITY
+        set(value) {
+            field = value
+            publishPreferredQualityKeys()
+        }
 
     private val _preferredQualityKeys = MutableStateFlow(PreferredQualityKeys())
 
@@ -430,7 +438,8 @@ object PlayerManager {
             netease = preferredQuality,
             youtube = youtubePreferredQuality,
             bili = biliPreferredQuality,
-            kugou = kugouPreferredQuality
+            kugou = kugouPreferredQuality,
+            qqMusic = qqMusicPreferredQuality
         )
     }
     internal var mobileDataFollowDefaultAudioQuality = true
@@ -698,6 +707,7 @@ object PlayerManager {
     val biliClient by lazy { AppContainer.biliClient }
     val neteaseClient by lazy { AppContainer.neteaseClient }
     val kugouSession by lazy { AppContainer.kugouSession }
+    val qqMusicSession by lazy { AppContainer.qqMusicSession }
     val youtubeMusicPlaybackRepository by lazy { AppContainer.youtubeMusicPlaybackRepository }
     val youtubeMusicClient by lazy { AppContainer.youtubeMusicClient }
 
@@ -1554,6 +1564,11 @@ object PlayerManager {
             song.album.startsWith(KUGOU_SOURCE_TAG)
     }
 
+    internal fun isQQMusicTrack(song: SongItem): Boolean {
+        return song.channelId == QQMUSIC_CHANNEL_ID ||
+            song.album.startsWith(QQMUSIC_SOURCE_TAG)
+    }
+
     internal fun isKugouCloudTrack(song: SongItem): Boolean {
         return song.album.startsWith(PlayerManagerCloudTag)
     }
@@ -1815,6 +1830,8 @@ object PlayerManager {
                 PlaybackAudioSource.BILIBILI -> settingsRepo.setBiliAudioQuality(normalizedKey)
                 PlaybackAudioSource.YOUTUBE_MUSIC -> settingsRepo.setYouTubeAudioQuality(normalizedKey)
                 PlaybackAudioSource.KUGOU -> settingsRepo.setKugouAudioQuality(normalizedKey)
+                // QQ音乐匿名态只有免费档可切，音质偏好持久化随登录功能（阶段 3）一并开放
+                PlaybackAudioSource.QQ_MUSIC -> Unit
                 PlaybackAudioSource.LOCAL -> Unit
             }
         }
@@ -2026,6 +2043,8 @@ object PlayerManager {
             PlaybackAudioSource.YOUTUBE_MUSIC -> ::youtubeQualityRefreshJob
             PlaybackAudioSource.BILIBILI -> ::biliQualityRefreshJob
             PlaybackAudioSource.KUGOU -> ::kugouQualityRefreshJob
+            // QQ音乐匿名档固定（M500/C400），无音质设置变化可监听
+            PlaybackAudioSource.QQ_MUSIC -> return
             PlaybackAudioSource.LOCAL -> return
         }
         targetJob.get()?.cancel()
@@ -2437,6 +2456,11 @@ object PlayerManager {
                 val kugouHash = song.audioId ?: song.id.toString()
                 val kugouQuality = moe.ouom.neriplayer.core.api.kugou.KUGOU_FREE_QUALITY
                 "kugou-$kugouHash-$kugouQuality"
+            }
+            isQQMusicTrack(song) -> {
+                val qqSongMid = song.audioId ?: song.id.toString()
+                val qqQuality = moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_FREE_QUALITY
+                "qqmusic-$qqSongMid-$qqQuality"
             }
             else -> buildNeteasePlaybackCacheKey(
                 songId = song.id,

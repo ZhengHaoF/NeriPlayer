@@ -31,8 +31,11 @@
     <string name="explore_tab_youtube">YouTube</string>
     <string name="explore_tab_kugou">酷狗概念版</string>
     <string name="explore_tab_links">链接</string>
+    <string name="explore_tab_qqmusic">QQ音乐</string>
     <string name="error_kugou_search">酷狗概念版搜索失败：%1$s</string>
+    <string name="error_qqmusic_search">QQ音乐搜索失败：%1$s</string>
     <string name="explore_kugou_desc">搜索酷狗概念版</string>
+    <string name="explore_qqmusic_desc">搜索 QQ音乐</string>
     <string name="kugou_daily_recommend">每日推荐</string>
     <string name="kugou_rank">排行榜</string>
     <string name="kugou_playlist">热门歌单</string>

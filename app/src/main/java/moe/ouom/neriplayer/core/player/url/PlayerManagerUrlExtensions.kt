@@ -20,6 +20,8 @@ import moe.ouom.neriplayer.core.api.bili.BiliSponsorBlockTarget
 import moe.ouom.neriplayer.core.api.bili.resolveBiliSong
 import moe.ouom.neriplayer.core.api.kugou.resolveKugouCloudUrl
 import moe.ouom.neriplayer.core.api.kugou.resolveKugouPlaybackUrl
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicResolveOutcome
+import moe.ouom.neriplayer.core.api.qqmusic.resolveQQMusicPlaybackUrl
 import moe.ouom.neriplayer.core.download.GlobalDownloadManager
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.core.player.download.AudioDownloadManager
@@ -348,6 +350,11 @@ internal suspend fun PlayerManager.resolveSongUrl(
                 playbackRequestTokenOverride = playbackRequestTokenOverride
             )
             isKugouTrack(song) -> getKugouSongUrl(
+                song = song,
+                suppressError = suppressError,
+                sideEffects = resolverSideEffects
+            )
+            isQQMusicTrack(song) -> getQQMusicSongUrl(
                 song = song,
                 suppressError = suppressError,
                 sideEffects = resolverSideEffects
@@ -1760,6 +1767,61 @@ private suspend fun PlayerManager.getKugouSongUrl(
         }
     }
     result
+}
+
+/**
+ * 解析 QQ音乐播放地址（匿名 vkey 取址）。
+ *
+ * 与酷狗概念版不同，QQ音乐匿名态覆盖率有限（实测约 25%），
+ * 失败主因是 `result=104003`（曲目需会员）—— 这种情况给出可操作提示，
+ * 而不是笼统的「无法获取播放地址」。
+ */
+private suspend fun PlayerManager.getQQMusicSongUrl(
+    song: SongItem,
+    suppressError: Boolean = false,
+    sideEffects: RefreshResolverSideEffects = RefreshResolverSideEffects()
+): SongUrlResult = withContext(Dispatchers.IO) {
+    val outcome = runCatching {
+        qqMusicSession.resolveQQMusicPlaybackUrl(
+            song = song,
+            quality = qqMusicPreferredQuality,
+            getLocalizedString = { getLocalizedString(it) }
+        )
+    }.getOrElse { error ->
+        if (error is CancellationException) throw error
+        NPLogger.e("NERI-PlayerManager", "Failed to get QQ Music play url", error)
+        QQMusicResolveOutcome.Unavailable
+    }
+
+    when (outcome) {
+        is QQMusicResolveOutcome.Playable -> outcome.success
+        QQMusicResolveOutcome.RequiresVip -> {
+            NPLogger.w(
+                "NERI-PlayerManager",
+                "QQ Music track requires VIP: song=${song.name} songmid=${song.audioId.orEmpty()}"
+            )
+            if (!suppressError) {
+                sideEffects.emitError {
+                    postPlayerEvent(
+                        PlayerEvent.ShowError(
+                            getLocalizedString(R.string.error_qqmusic_vip_required)
+                        )
+                    )
+                }
+            }
+            SongUrlResult.Failure
+        }
+        QQMusicResolveOutcome.Unavailable -> {
+            if (!suppressError) {
+                sideEffects.emitError {
+                    postPlayerEvent(
+                        PlayerEvent.ShowError(getLocalizedString(R.string.error_no_play_url))
+                    )
+                }
+            }
+            SongUrlResult.Failure
+        }
+    }
 }
 
 private suspend fun PlayerManager.getYouTubeMusicAudioUrl(

@@ -42,6 +42,7 @@ import moe.ouom.neriplayer.core.api.bili.buildBiliSongAlbum
 import moe.ouom.neriplayer.core.api.kugou.loadKugouChannelContent
 import moe.ouom.neriplayer.core.api.kugou.parseKugouSearchItem
 import moe.ouom.neriplayer.core.api.kugou.toSongItem
+import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicSongItem
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicCreatorSummary
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchFilter
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchResult
@@ -51,7 +52,9 @@ import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
 import moe.ouom.neriplayer.core.player.PlayerManager.kugouSession
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
+import moe.ouom.neriplayer.core.player.PlayerManager.qqMusicSearchApi
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
+import moe.ouom.neriplayer.core.api.search.SongSearchInfo
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
@@ -105,6 +108,7 @@ enum class SearchSource {
     NETEASE,
     BILIBILI,
     KUGOU,
+    QQ_MUSIC,
     LINK_RECOGNITION
 }
 
@@ -480,6 +484,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.BILIBILI -> searchBilibili(apiKeyword, matchQuery, requestVersion)
             SearchSource.YOUTUBE_MUSIC -> searchYouTubeMusic(apiKeyword, matchQuery, requestVersion)
             SearchSource.KUGOU -> searchKugou(apiKeyword, matchQuery, requestVersion)
+            SearchSource.QQ_MUSIC -> searchQQMusic(apiKeyword, matchQuery, requestVersion)
             SearchSource.LINK_RECOGNITION -> searchRecognizedLink(apiKeyword, requestVersion)
         }
     }
@@ -530,6 +535,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         page = nextPage
                     )
                     SearchSource.KUGOU -> fetchKugouSearchPage(
+                        keyword = keyword,
+                        matchQuery = matchQuery,
+                        page = nextPage
+                    )
+                    SearchSource.QQ_MUSIC -> fetchQQMusicSearchPage(
                         keyword = keyword,
                         matchQuery = matchQuery,
                         page = nextPage
@@ -708,6 +718,86 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             items = ranked.map { ExploreSearchResult.Song(it) },
             page = page,
             hasMore = searchPage.isNotEmpty()
+        )
+    }
+
+    /** 搜索 QQ音乐（匿名，免费曲目可直接入队播放）。 */
+    private fun searchQQMusic(keyword: String, matchQuery: String, requestVersion: Long) {
+        searchJob = viewModelScope.launch {
+            try {
+                val result = fetchQQMusicSearchPage(keyword, matchQuery, page = 1)
+                NPLogger.d(
+                    TAG,
+                    "search QQ Music success: request=$requestVersion, keyword=$keyword, " +
+                        "count=${result.items.size}, page=${result.page}, hasMore=${result.hasMore}"
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.QQ_MUSIC) {
+                    it.copy(
+                        searching = false,
+                        searchError = null,
+                        searchLoadMoreError = null,
+                        searchResults = result.songs,
+                        searchItems = result.items,
+                        searchPage = result.page,
+                        searchHasMore = result.hasMore
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(
+                    TAG,
+                    "search QQ Music failed: request=$requestVersion, keyword=$keyword",
+                    e
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.QQ_MUSIC) {
+                    it.copy(
+                        searching = false,
+                        searchError = searchErrorMessage(SearchSource.QQ_MUSIC, e),
+                        searchResults = emptyList(),
+                        searchItems = emptyList(),
+                        searchHasMore = false,
+                        searchLoadingMore = false,
+                        searchLoadMoreError = null,
+                        searchPage = 0
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchQQMusicSearchPage(
+        keyword: String,
+        matchQuery: String,
+        page: Int
+    ): ExploreSearchFetchResult {
+        val songs = withContext(Dispatchers.IO) {
+            qqMusicSearchApi.search(keyword = keyword, page = page).map { it.toQQMusicSongItem() }
+        }
+        val ranked = rankExploreSongSearchResults(query = matchQuery, songs = songs)
+        return ExploreSearchFetchResult(
+            items = ranked.map { ExploreSearchResult.Song(it) },
+            page = page,
+            hasMore = songs.isNotEmpty()
+        )
+    }
+
+    /** QQ音乐搜索条目转可播放 [SongItem]（duration 为 "m:ss" 文本）。 */
+    private fun SongSearchInfo.toQQMusicSongItem(): SongItem {
+        val durationParts = duration.split(":")
+        val durationMs = if (durationParts.size == 2) {
+            (durationParts[0].toLongOrNull() ?: 0L) * 60_000L +
+                (durationParts[1].toLongOrNull() ?: 0L) * 1_000L
+        } else {
+            0L
+        }
+        return buildQQMusicSongItem(
+            songMid = id,
+            songName = songName,
+            singer = singer,
+            albumName = albumName,
+            durationMs = durationMs,
+            coverUrl = coverUrl
         )
     }
 
@@ -1543,6 +1633,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.BILIBILI -> app.getString(R.string.error_bilibili_search, fallback)
             SearchSource.YOUTUBE_MUSIC -> app.getString(R.string.error_youtube_search, fallback)
             SearchSource.KUGOU -> app.getString(R.string.error_kugou_search, fallback)
+            SearchSource.QQ_MUSIC -> app.getString(R.string.error_qqmusic_search, fallback)
             SearchSource.LINK_RECOGNITION -> app.getString(R.string.error_link_recognition, fallback)
         }
     }

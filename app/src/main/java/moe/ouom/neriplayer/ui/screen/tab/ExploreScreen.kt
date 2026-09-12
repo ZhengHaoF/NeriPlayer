@@ -227,13 +227,14 @@ internal fun exploreSearchSourceDisplayOrder(
     youtubeEnabled: Boolean
 ): List<SearchSource> {
     return if (!youtubeEnabled) {
-        listOf(SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.KUGOU, SearchSource.LINK_RECOGNITION)
+        listOf(SearchSource.NETEASE, SearchSource.BILIBILI, SearchSource.KUGOU, SearchSource.QQ_MUSIC, SearchSource.LINK_RECOGNITION)
     } else if (isInternational) {
         listOf(
             SearchSource.YOUTUBE_MUSIC,
             SearchSource.NETEASE,
             SearchSource.BILIBILI,
             SearchSource.KUGOU,
+            SearchSource.QQ_MUSIC,
             SearchSource.LINK_RECOGNITION
         )
     } else {
@@ -242,6 +243,7 @@ internal fun exploreSearchSourceDisplayOrder(
             SearchSource.BILIBILI,
             SearchSource.YOUTUBE_MUSIC,
             SearchSource.KUGOU,
+            SearchSource.QQ_MUSIC,
             SearchSource.LINK_RECOGNITION
         )
     }
@@ -300,6 +302,7 @@ private fun searchSourceLabel(source: SearchSource): String {
         SearchSource.NETEASE -> stringResource(R.string.platform_netease_short)
         SearchSource.BILIBILI -> stringResource(R.string.platform_bilibili)
         SearchSource.KUGOU -> stringResource(R.string.explore_tab_kugou)
+        SearchSource.QQ_MUSIC -> stringResource(R.string.explore_tab_qqmusic)
         SearchSource.LINK_RECOGNITION -> stringResource(R.string.explore_tab_links)
     }
 }
@@ -1081,6 +1084,14 @@ fun ExploreScreen(
                                 onRetry = vm::loadKugouChannel,
                                 onSongClick = { songs, index -> onSongClick(songs, index) }
                             )
+                        }
+                        SearchSource.QQ_MUSIC -> {
+                            Box(Modifier.fillMaxSize(), Alignment.Center) {
+                                Text(
+                                    text = stringResource(R.string.explore_qqmusic_desc),
+                                    style = MaterialTheme.typography.bodyLarge
+                                )
+                            }
                         }
                         SearchSource.LINK_RECOGNITION -> {
                             Box(Modifier.fillMaxSize(), Alignment.Center) {

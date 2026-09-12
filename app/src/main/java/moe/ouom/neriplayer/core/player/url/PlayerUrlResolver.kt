@@ -2,6 +2,8 @@ package moe.ouom.neriplayer.core.player.url
 
 import android.net.Uri
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_ANONYMOUS_FALLBACK_QUALITY
+import moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_FREE_QUALITY
 import moe.ouom.neriplayer.core.api.youtube.YouTubePlayableAudio
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioInfo
 import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
@@ -132,6 +134,67 @@ internal fun resolveKugouPlaybackQualityKey(
         bitrateKbps != null && bitrateKbps > 0 -> "128"
         else -> normalizeKugouQualityKey(requestedQualityKey) ?: "128"
     }
+}
+
+/**
+ * QQ音乐音质档位，由高到低排列。
+ *
+ * 匿名态实测只能取到 `M500`（MP3 128）与 `C400`（AAC 96）；
+ * 更高档位（`M800` / `C600` / `O800` / `F000` 等）一律返回 `result=104003`（需登录 + 会员）。
+ */
+internal val QQMUSIC_QUALITY_FALLBACK_ORDER = listOf(
+    "F000",
+    "O800",
+    "M800",
+    "C600",
+    "M500",
+    "C400"
+)
+
+/** 匿名态可用的档位集合（实测边界）。 */
+private val QQMUSIC_FREE_QUALITY_KEYS = setOf("M500", "C400")
+
+internal fun normalizeQQMusicQualityKey(value: String?): String? = value
+    ?.trim()
+    ?.uppercase()
+    ?.takeIf { it in QQMUSIC_QUALITY_FALLBACK_ORDER }
+
+internal fun qqMusicQualityLabel(key: String, getLocalizedString: (Int) -> String): String =
+    when (key.uppercase()) {
+        "M500", "C400", "C200" -> getLocalizedString(R.string.quality_standard)
+        "C600", "O600" -> getLocalizedString(R.string.settings_audio_quality_higher)
+        "M800", "O800" -> getLocalizedString(R.string.quality_very_high)
+        "F000", "AI00", "Q000" -> getLocalizedString(R.string.quality_lossless)
+        "O400", "Q001", "Q003", "D004", "DT03", "TL01" -> getLocalizedString(R.string.quality_hires)
+        else -> key
+    }
+
+internal fun buildQQMusicQualityOptions(getLocalizedString: (Int) -> String): List<PlaybackQualityOption> =
+    QQMUSIC_QUALITY_FALLBACK_ORDER
+        .asReversed()
+        .map { PlaybackQualityOption(it, qqMusicQualityLabel(it, getLocalizedString)) }
+
+/**
+ * 按偏好档位生成降级尝试链（高 → 低）。
+ *
+ * 未登录时只保留匿名实测可取的 [QQMUSIC_FREE_QUALITY_KEYS]，
+ * 避免发出必然被拒（`result=104003`）的会员档请求。
+ */
+internal fun buildQQMusicQualityCandidates(
+    preferredQuality: String,
+    isLoggedIn: Boolean = false
+): List<String> {
+    val normalized = normalizeQQMusicQualityKey(preferredQuality) ?: QQ_MUSIC_FREE_QUALITY
+    val startIndex = QQMUSIC_QUALITY_FALLBACK_ORDER.indexOf(normalized)
+    val chain = if (startIndex >= 0) {
+        QQMUSIC_QUALITY_FALLBACK_ORDER.drop(startIndex)
+    } else {
+        QQMUSIC_QUALITY_FALLBACK_ORDER
+    }
+    if (isLoggedIn) return chain
+    return chain
+        .filter { it in QQMUSIC_FREE_QUALITY_KEYS }
+        .ifEmpty { listOf(QQ_MUSIC_FREE_QUALITY, QQ_MUSIC_ANONYMOUS_FALLBACK_QUALITY) }
 }
 
 internal fun buildNeteaseQualityOptions(getLocalizedString: (Int) -> String): List<PlaybackQualityOption> = listOf(

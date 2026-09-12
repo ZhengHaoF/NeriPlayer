@@ -20,6 +20,7 @@ internal fun maxListenTogetherStreamUrlCandidates(source: PlaybackAudioSource): 
         PlaybackAudioSource.BILIBILI -> MAX_LISTEN_TOGETHER_BILI_STREAM_URL_CANDIDATES
         PlaybackAudioSource.YOUTUBE_MUSIC -> MAX_LISTEN_TOGETHER_YOUTUBE_STREAM_URL_CANDIDATES
         PlaybackAudioSource.KUGOU -> 0
+        PlaybackAudioSource.QQ_MUSIC -> 0
         PlaybackAudioSource.LOCAL -> 0
     }
 }

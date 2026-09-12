@@ -7,7 +7,8 @@ enum class PlaybackAudioSource {
     NETEASE,
     BILIBILI,
     YOUTUBE_MUSIC,
-    KUGOU
+    KUGOU,
+    QQ_MUSIC
 }
 
 data class PlaybackQualityOption(
@@ -133,7 +134,8 @@ data class PreferredQualityKeys(
     val netease: String = "exhigh",
     val youtube: String = "high",
     val bili: String = "high",
-    val kugou: String = moe.ouom.neriplayer.core.api.kugou.KUGOU_VIP_QUALITY
+    val kugou: String = moe.ouom.neriplayer.core.api.kugou.KUGOU_VIP_QUALITY,
+    val qqMusic: String = moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_FREE_QUALITY
 )
 
 fun PreferredQualityKeys.forSource(source: PlaybackAudioSource): String? {
@@ -142,6 +144,7 @@ fun PreferredQualityKeys.forSource(source: PlaybackAudioSource): String? {
         PlaybackAudioSource.YOUTUBE_MUSIC -> youtube
         PlaybackAudioSource.BILIBILI -> bili
         PlaybackAudioSource.KUGOU -> kugou
+        PlaybackAudioSource.QQ_MUSIC -> qqMusic
         PlaybackAudioSource.LOCAL -> null
     }
 }

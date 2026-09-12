@@ -195,6 +195,7 @@ internal fun listenTogetherQualityRank(
         PlaybackAudioSource.BILIBILI -> BILI_LISTEN_TOGETHER_QUALITY_ORDER
         PlaybackAudioSource.YOUTUBE_MUSIC -> YOUTUBE_LISTEN_TOGETHER_QUALITY_ORDER
         PlaybackAudioSource.KUGOU,
+        PlaybackAudioSource.QQ_MUSIC,
         PlaybackAudioSource.LOCAL -> emptyList()
     }.indexOf(normalized).takeIf { it >= 0 }
 }
@@ -225,6 +226,7 @@ private fun normalizeListenTogetherQualityKey(
             it in YOUTUBE_LISTEN_TOGETHER_QUALITY_ORDER
         }
         PlaybackAudioSource.KUGOU,
+        PlaybackAudioSource.QQ_MUSIC,
         PlaybackAudioSource.LOCAL -> null
     }
 }
@@ -235,6 +237,7 @@ private fun listenTogetherSourceKey(source: PlaybackAudioSource): String {
         PlaybackAudioSource.BILIBILI -> "bili"
         PlaybackAudioSource.YOUTUBE_MUSIC -> "youtube"
         PlaybackAudioSource.KUGOU -> "kugou"
+        PlaybackAudioSource.QQ_MUSIC -> "qqmusic"
         PlaybackAudioSource.LOCAL -> "local"
     }
 }
@@ -342,6 +345,7 @@ internal fun PlayerManager.listenTogetherFallbackResult(song: SongItem): SongUrl
         PlaybackAudioSource.BILIBILI -> effectiveBiliQuality()
         PlaybackAudioSource.YOUTUBE_MUSIC -> effectiveYouTubeQuality()
         PlaybackAudioSource.KUGOU,
+        PlaybackAudioSource.QQ_MUSIC,
         PlaybackAudioSource.LOCAL -> ""
     }
     val legacyAudioInfo = listenTogetherFallbackAudioInfo(song)
@@ -378,6 +382,7 @@ internal fun PlayerManager.listenTogetherPreferredQualityKey(song: SongItem): St
         PlaybackAudioSource.BILIBILI -> effectiveBiliQuality()
         PlaybackAudioSource.YOUTUBE_MUSIC -> effectiveYouTubeQuality()
         PlaybackAudioSource.KUGOU,
+        PlaybackAudioSource.QQ_MUSIC,
         PlaybackAudioSource.LOCAL -> null
     }
 }
@@ -441,6 +446,7 @@ internal fun buildListenTogetherFallbackAudioInfo(
                 qualityOptions = buildKugouQualityOptions(getLocalizedString)
             )
         }
+        PlaybackAudioSource.QQ_MUSIC -> PlaybackAudioInfo(source = PlaybackAudioSource.QQ_MUSIC)
         PlaybackAudioSource.LOCAL -> PlaybackAudioInfo(source = PlaybackAudioSource.LOCAL)
     }
 }

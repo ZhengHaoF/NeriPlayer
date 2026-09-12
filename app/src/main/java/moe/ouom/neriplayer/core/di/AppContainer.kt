@@ -38,6 +38,7 @@ import moe.ouom.neriplayer.core.api.bili.BiliPlaybackRepository
 import moe.ouom.neriplayer.core.api.bili.BiliSponsorBlockRepository
 import moe.ouom.neriplayer.core.api.kugou.KugouSearchApi
 import moe.ouom.neriplayer.core.api.kugou.KugouSession
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicSession
 import moe.ouom.neriplayer.data.auth.kugou.KugouCookieStore
 import moe.ouom.neriplayer.core.api.lyrics.AmllTtmlClient
 import moe.ouom.neriplayer.core.api.lyrics.EditableLyricsMatcher
@@ -347,6 +348,9 @@ object AppContainer {
     val kugouCookieStore by lazy { KugouCookieStore(application) }
     val kugouSession by lazy { KugouSession(kugouCookieStore) }
     val kugouSearchApi by lazy { KugouSearchApi(kugouSession) }
+
+    /** QQ音乐会话（guid 持久化；匿名播放走 web 协议，暂不含登录态）。 */
+    val qqMusicSession by lazy { QQMusicSession(application) }
 
     val neteaseClient by lazy {
         NeteaseClient().also { client ->

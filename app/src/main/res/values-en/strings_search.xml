@@ -31,8 +31,11 @@
     <string name="explore_tab_youtube">YouTube</string>
     <string name="explore_tab_kugou">KuGou Concept</string>
     <string name="explore_tab_links">Links</string>
+    <string name="explore_tab_qqmusic">QQ Music</string>
     <string name="error_kugou_search">KuGou Concept search failed: %1$s</string>
+    <string name="error_qqmusic_search">QQ Music search failed: %1$s</string>
     <string name="explore_kugou_desc">Search KuGou Concept</string>
+    <string name="explore_qqmusic_desc">Search QQ Music</string>
     <string name="kugou_daily_recommend">Daily Picks</string>
     <string name="kugou_rank">Charts</string>
     <string name="kugou_playlist">Hot Playlists</string>
