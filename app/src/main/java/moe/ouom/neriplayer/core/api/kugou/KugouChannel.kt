@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.core.api.kugou
 
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.int
@@ -132,12 +133,25 @@ suspend fun KugouSession.fetchKugouDailyRecommend(): List<SongItem> {
                 albumName = obj["album_name"]?.jsonPrimitive?.contentOrNull,
                 albumId = obj["album_id"]?.jsonPrimitive?.longOrNull ?: 0L,
                 albumAudioId = 0L,
-                coverUrl = obj["img"]?.jsonPrimitive?.contentOrNull
-                    ?.replace("{size}", "320")
-                    ?.takeIf { it.startsWith("http", ignoreCase = true) },
+                coverUrl = resolveKugouCoverUrl(
+                    obj["sizable_cover"],
+                    obj["img"],
+                    obj["trans_param"]?.jsonObject?.get("union_cover")
+                ),
                 durationMs = (obj["duration"]?.jsonPrimitive?.longOrNull ?: 0L) * 1_000L
             )
         }
+}
+
+/**
+ * 解析歌曲条目中的封面 URL（酷狗不同接口封面字段名不同：
+ * 每日推荐用 `sizable_cover`/`trans_param.union_cover`，搜索/榜单/歌单用 `img`/`Image` 等），
+ * 按候选顺序取第一个非空值，统一替换 {size} 占位符并校验 http 前缀。
+ */
+internal fun resolveKugouCoverUrl(vararg candidates: JsonElement?): String? {
+    return candidates.firstNotNullOfOrNull { it?.jsonPrimitive?.contentOrNull }
+        ?.replace("{size}", "320")
+        ?.takeIf { it.startsWith("http", ignoreCase = true) }
 }
 
 /**
@@ -191,12 +205,15 @@ internal fun parseKugouAudioEntry(obj: JsonObject): SongItem? {
     val durationMs = audioInfo?.get("duration_128")?.jsonPrimitive?.longOrNull
         ?: audioInfo?.get("duration_320")?.jsonPrimitive?.longOrNull
         ?: (obj["duration"]?.jsonPrimitive?.longOrNull ?: 0L) * 1_000L
-    val coverUrl = obj["img"]?.jsonPrimitive?.contentOrNull
-        ?: obj["Image"]?.jsonPrimitive?.contentOrNull
-        ?: (obj["album_info"]?.jsonObject?.get("imgurl")?.jsonPrimitive?.contentOrNull
-            ?: (obj["album_info"]?.jsonObject?.get("img")?.jsonPrimitive?.contentOrNull))
-        ?.replace("{size}", "320")
-        ?.takeIf { it.startsWith("http", ignoreCase = true) }
+    val coverUrl = resolveKugouCoverUrl(
+        obj["cover"],
+        obj["sizable_cover"],
+        obj["img"],
+        obj["Image"],
+        obj["trans_param"]?.jsonObject?.get("union_cover"),
+        obj["album_info"]?.jsonObject?.get("imgurl"),
+        obj["album_info"]?.jsonObject?.get("img")
+    )
     return buildKugouSongItem(
         hash = hash,
         songName = songName,
