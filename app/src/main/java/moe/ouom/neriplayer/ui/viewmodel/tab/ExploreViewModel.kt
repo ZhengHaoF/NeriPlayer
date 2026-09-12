@@ -42,7 +42,9 @@ import moe.ouom.neriplayer.core.api.bili.buildBiliSongAlbum
 import moe.ouom.neriplayer.core.api.kugou.loadKugouChannelContent
 import moe.ouom.neriplayer.core.api.kugou.parseKugouSearchItem
 import moe.ouom.neriplayer.core.api.kugou.toSongItem
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicChannelContent
 import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicSongItem
+import moe.ouom.neriplayer.core.api.qqmusic.loadQQMusicChannelContent
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicCreatorSummary
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchFilter
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchResult
@@ -53,6 +55,7 @@ import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
 import moe.ouom.neriplayer.core.player.PlayerManager.kugouSession
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
 import moe.ouom.neriplayer.core.player.PlayerManager.qqMusicSearchApi
+import moe.ouom.neriplayer.core.player.PlayerManager.qqMusicSession
 import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
 import moe.ouom.neriplayer.core.api.search.SongSearchInfo
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
@@ -200,7 +203,10 @@ data class ExploreUiState(
     val ytMusicPlaylistsError: String? = null,
     val kugouContent: moe.ouom.neriplayer.core.api.kugou.KugouChannelContent? = null,
     val kugouChannelLoading: Boolean = false,
-    val kugouChannelError: String? = null
+    val kugouChannelError: String? = null,
+    val qqMusicContent: moe.ouom.neriplayer.core.api.qqmusic.QQMusicChannelContent? = null,
+    val qqMusicChannelLoading: Boolean = false,
+    val qqMusicChannelError: String? = null
 )
 
 internal fun isNeteaseExploreSearchAvailable(authState: SavedCookieAuthState): Boolean {
@@ -340,6 +346,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private var searchJob: Job? = null
     private var searchMoreJob: Job? = null
     private var kugouChannelJob: Job? = null
+    private var qqMusicChannelJob: Job? = null
     private var ytMusicPlaylistsJob: Job? = null
     private var ytMusicPlaylistsPending = false
     private var searchRequestVersion = 0L
@@ -402,6 +409,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
         if (source == SearchSource.KUGOU) {
             loadKugouChannel()
+        }
+        if (source == SearchSource.QQ_MUSIC) {
+            loadQQMusicChannel()
         }
     }
 
@@ -831,6 +841,43 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     kugouChannelLoading = false,
                     kugouChannelError = app.getString(
                         R.string.error_kugou_search,
+                        e.message ?: app.getString(R.string.github_sync_failed_message)
+                    )
+                )
+            }
+        }
+    }
+
+    /** 加载 QQ音乐 tab 默认内容（排行榜 + 热门歌单）。 */
+    internal fun loadQQMusicChannel() {
+        if (_uiState.value.qqMusicContent != null || _uiState.value.qqMusicChannelLoading) return
+        _uiState.value = _uiState.value.copy(
+            qqMusicChannelLoading = true,
+            qqMusicChannelError = null
+        )
+        qqMusicChannelJob?.cancel()
+        qqMusicChannelJob = viewModelScope.launch {
+            try {
+                val content = withContext(Dispatchers.IO) {
+                    qqMusicSession.loadQQMusicChannelContent()
+                }
+                NPLogger.d(
+                    TAG,
+                    "qq music channel loaded: ranks=${content.ranks.size}, playlists=${content.playlists.size}"
+                )
+                _uiState.value = _uiState.value.copy(
+                    qqMusicContent = content,
+                    qqMusicChannelLoading = false,
+                    qqMusicChannelError = null
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(TAG, "qq music channel load failed", e)
+                _uiState.value = _uiState.value.copy(
+                    qqMusicChannelLoading = false,
+                    qqMusicChannelError = app.getString(
+                        R.string.error_qqmusic_search,
                         e.message ?: app.getString(R.string.github_sync_failed_message)
                     )
                 )

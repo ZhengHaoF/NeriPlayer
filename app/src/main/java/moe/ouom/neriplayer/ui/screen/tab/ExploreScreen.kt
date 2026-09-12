@@ -1086,12 +1086,13 @@ fun ExploreScreen(
                             )
                         }
                         SearchSource.QQ_MUSIC -> {
-                            Box(Modifier.fillMaxSize(), Alignment.Center) {
-                                Text(
-                                    text = stringResource(R.string.explore_qqmusic_desc),
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                            }
+                            QQMusicExploreContent(
+                                content = ui.qqMusicContent,
+                                loading = ui.qqMusicChannelLoading,
+                                error = ui.qqMusicChannelError,
+                                onRetry = vm::loadQQMusicChannel,
+                                onSongClick = { songs, index -> onSongClick(songs, index) }
+                            )
                         }
                         SearchSource.LINK_RECOGNITION -> {
                             Box(Modifier.fillMaxSize(), Alignment.Center) {

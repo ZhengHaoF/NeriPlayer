@@ -36,6 +36,8 @@
     <string name="error_qqmusic_search">QQ Music search failed: %1$s</string>
     <string name="explore_kugou_desc">Search KuGou Concept</string>
     <string name="explore_qqmusic_desc">Search QQ Music</string>
+    <string name="qqmusic_rank">Charts</string>
+    <string name="qqmusic_playlist">Hot Playlists</string>
     <string name="kugou_daily_recommend">Daily Picks</string>
     <string name="kugou_rank">Charts</string>
     <string name="kugou_playlist">Hot Playlists</string>

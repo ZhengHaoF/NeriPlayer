@@ -36,6 +36,8 @@
     <string name="error_qqmusic_search">QQ音乐搜索失败：%1$s</string>
     <string name="explore_kugou_desc">搜索酷狗概念版</string>
     <string name="explore_qqmusic_desc">搜索 QQ音乐</string>
+    <string name="qqmusic_rank">排行榜</string>
+    <string name="qqmusic_playlist">热门歌单</string>
     <string name="kugou_daily_recommend">每日推荐</string>
     <string name="kugou_rank">排行榜</string>
     <string name="kugou_playlist">热门歌单</string>
