@@ -384,7 +384,7 @@ For release build and signing details, see
   General; disabling it hides the history and stops new records without deleting
   existing entries, which reappear when the setting is enabled again.
   Playback metadata completion uses NetEase / QQ Music and integrates LRCLIB
-  as an external lyrics source. The lyrics editor lets users choose Kugou,
+  as an external lyrics source. The lyrics editor lets users choose KuGou Concept,
   NetEase, QQ Music, AMLL TTML, LRCLIB, and YouTube Music before manually
   matching lyrics, preferring word-level lyrics without hiding regular lyrics
   while automatically removing title and credit lines from matched lyrics.
@@ -1187,7 +1187,7 @@ We will keep improving the project over time.
 </tr>
 </table>
 
-> 🐶 The **Kugou concept app API implementation** in this project
+> 🐶 The **KuGou Concept API implementation** in this project
 > (search, playback URL, audio-quality tiers, login and risk-control behavior)
 > was informed by [EchoMusic](https://github.com/hoowhoami/EchoMusic);
 > only API behavior and strategy were aligned, no code was copied.

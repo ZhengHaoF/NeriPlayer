@@ -70,7 +70,7 @@
     <string name="lyrics_match_confidence_medium">Medium confidence</string>
     <string name="lyrics_match_confidence_low">Low confidence, please verify</string>
     <string name="lyrics_match_duration_delta">delta %s</string>
-    <string name="lyrics_match_source_kugou">Kugou</string>
+    <string name="lyrics_match_source_kugou">KuGou Concept</string>
     <string name="lyrics_match_source_cloud_music">NetEase</string>
     <string name="lyrics_match_source_qq_music">QQ Music</string>
     <string name="lyrics_match_source_amll_ttml">AMLL TTML</string>
