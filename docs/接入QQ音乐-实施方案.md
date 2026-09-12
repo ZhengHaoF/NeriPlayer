@@ -1,6 +1,6 @@
 # NeriPlayer 接入 QQ音乐 · 实施方案（完整版）
 
-> 状态：**仅完成评估与实测验证，尚未开始编码** · 本文最后同步 2026-09-12
+> 状态：**阶段 1–3 已实现（匿名播放 / 探索搜索源 / 探索页榜单歌单 / 音质偏好设置），登录（阶段 4）与媒体库 tab（阶段 5）待实施** · 本文最后同步 2026-09-12
 > 范围：完整版（匿名播放 + 登录 + 高音质 + 用户内容）
 > 落地方式（**已决策**）：**内嵌 Kotlin 适配层**，不引入 Node 中转
 > 登录路线（**已决策**）：**QR 扫码登录（路线 A）** —— 连锁依赖见 §5.4 / §7.2
@@ -28,7 +28,7 @@
 | --- | --- | --- |
 | 播放（匿名） | vkey 取址 → 128k 档（C400 / M500），覆盖免费曲目 | P0 |
 | 探索页搜索源 | `SearchSource.QQ_MUSIC`，搜索结果可直接入队播放 | P0 |
-| 歌词 | 复用现有 QQ音乐歌词链路（已含 base64 解码 + 未翻译占位处理 + AMLL 优先） | P0（已完成） |
+| 歌词 | 复用现有 QQ音乐歌词链路（已含 base64 解码 + 未翻译占位处理 + AMLL 优先）；**播放歌词管线 `PlayerLyricsProvider` 已接入 QQ（阶段 1 补记，见下）** | P0（已完成） |
 | 音质偏好设置 | `qqMusicAudioQuality`，接入设置页与 PlayerManager 音质管道 | P1 |
 | 登录 | **QQ 扫码登录（QR）**，解锁高音质与受限曲库 · **含 QIMEI + session 前置** | P1 |
 | 高音质 | 登录后逐档上探（M800 / C600 / O800 / F000 等） | P1 |
@@ -58,21 +58,21 @@
 | 歌词偏移设置项 | `qq_music_lyric_default_offset_ms`（默认 500ms） | ✅ 已存在 |
 | 媒体库 tab 骨架 | `LibraryTab.QQMUSIC` + `qqMusicListState` + `QqMusicPlaylistList` | ⚠️ 存在但为「开发中」占位（`LibraryScreen.kt:3470`，纯 `TODO`） |
 | DI 容器 | `AppContainer.qqMusicSearchApi`（L405） | ✅ 已注册 |
-| 播放源枚举 | `core/player/model/PlaybackAudioInfo.kt` → `PlaybackAudioSource` | ❌ **无 `QQ_MUSIC`**（现有：LOCAL / NETEASE / BILIBILI / YOUTUBE_MUSIC / KUGOU） |
-| URL 解析分发 | [PlayerManagerUrlExtensions.kt](../../app/src/main/java/moe/ouom/neriplayer/core/player/url/PlayerManagerUrlExtensions.kt) L336 起 | ❌ 无 QQ音乐分支 |
-| 音质偏好管道 | `PlaybackPreferenceSnapshot` / `AutoSettingsSchema` / `PlayerManagerLifecycleExtensions` | ❌ 无 QQ音乐音质项 |
+| 播放源枚举 | `core/player/model/PlaybackAudioInfo.kt` → `PlaybackAudioSource` | ✅ **已实现** `QQ_MUSIC`（阶段 1，commit `4f94aaf4`） |
+| URL 解析分发 | [PlayerManagerUrlExtensions.kt](../../app/src/main/java/moe/ouom/neriplayer/core/player/url/PlayerManagerUrlExtensions.kt) L336 起 | ✅ 已实现 `isQQMusicTrack` 分支 + `getQQMusicSongUrl`（阶段 1） |
+| 音质偏好管道 | `PlaybackPreferenceSnapshot` / `AutoSettingsSchema` / `PlayerManagerLifecycleExtensions` | ✅ 已实现（阶段 3：`qqMusicAudioQuality` 全链路 + 设置页选项 + 会员档提示；登录态档位区分待阶段 4） |
 
-**⚠️ 关键缺口（唯一的 P0）**：`PlaybackAudioSource` 无 `QQ_MUSIC`、`resolveSongUrl` 无对应分支、无取址实现 —— 即**搜得到、看得见歌词，但播不了**。
+**⚠️ 关键缺口（阶段 1 已消除，当前剩余 P0 为登录+高音质）**：匿名播放链路（`QQMusicPlayback` + `PlaybackAudioSource.QQ_MUSIC` + `resolveSongUrl` 分支）已于阶段 1 落地，见 §8。
 
-### 3.2 探索页搜索源现状
+### 3.2 探索页搜索源现状（阶段 2 已完成）
 
-`SearchSource`（`ui/viewmodel/tab/ExploreViewModel.kt` L103）当前为：
+`SearchSource`（`ui/viewmodel/tab/ExploreViewModel.kt`）现为：
 
 ```
-YOUTUBE_MUSIC, NETEASE, BILIBILI, KUGOU, LINK_RECOGNITION
+YOUTUBE_MUSIC, NETEASE, BILIBILI, KUGOU, QQ_MUSIC, LINK_RECOGNITION
 ```
 
-**无 `QQ_MUSIC`** —— 这是个独立缺口。即使播放链路做通，用户在探索页也搜不到 QQ音乐歌曲。需新增该枚举值（酷狗当时同理）。
+**✅ 已实现（commit `4f94aaf4`）**：`QQ_MUSIC` 已插入（`KUGOU` 之后，与媒体库 tab 顺序一致），搜索 / 加载更多 / 错误文案 / 默认发现内容（榜单 + 热门歌单，commit `841843ef`）均已接入。
 
 ### 3.3 可复刻的范式
 
@@ -422,37 +422,44 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 - [ ] **待验证**：登录后高音质解锁（需真实账号，1 次手工实验，阶段 4 开工前完成）
 - [ ] **待验证**：QIMEI 注册链路在 Kotlin 侧可跑通（可用 QQMusicapi 的固化常量 + 一次性脚本先行验证，避开 Android 环境）
 
-### 阶段 1：基础设施 + 匿名播放（P0）
+### 阶段 1：基础设施 + 匿名播放（P0 · **已实现**，commit `4f94aaf4`）
 
-- [ ] `core/api/qqmusic/QQMusicModels.kt`：`SongItem` 构建
+- [x] `core/api/qqmusic/QQMusicModels.kt`：`SongItem` 构建
   - `album = "QQMusic|{songmid}"`（供识别），`channelId = "qqmusic"`，`audioId = songmid`
-  - **注意 `SongItem.id` 是 `Long`，而 songmid 是字符串** → 照搬酷狗范式：`id = songmid.hashCode().toLong()`，真实标识放 `audioId`
-- [ ] `core/api/qqmusic/QQMusicSession.kt`：`guid` 持久化（安装后生成一次并复用）、`QQMusicQuality` 常量
-  - `guid` 独立于登录态的**设备身份存储**，退出登录不重置
-- [ ] `core/api/qqmusic/QQMusicPlayback.kt`：`resolveQQMusicPlaybackUrl(song)` → `CgiGetVkey` → `SongUrlResult`
-  - 降级链 `["M500", "C400"]`（未登录）；`sip[0] + purl` 组装；`result` 码映射为失败原因
-- [ ] `PlaybackAudioSource.QQ_MUSIC` 枚举 + 全链路 exhaustive `when` 补全（**编译器会强制列出所有遗漏点**）
-- [ ] `PlayerUrlResolver`：`qualityLabelForQQMusic` / `buildQQMusicQualityOptions` / `buildQQMusicQualityCandidates` / `QQMUSIC_QUALITY_FALLBACK_ORDER`
-- [ ] `PlayerManager`：`QQMUSIC_SOURCE_TAG`、`isQQMusicTrack()`、`computeCacheKey` 分支（`qqmusic-$songmid-$quality`）
-- [ ] `PlayerManagerUrlExtensions.resolveSongUrl` 新增 `isQQMusicTrack(song) -> getQQMusicSongUrl(...)` 分支
-- [ ] AppContainer 注册 `qqMusicSession`
-- [ ] **验收：真机能搜到 QQ音乐免费歌曲（如「小苹果」「好运来」）并播出 128k**
+  - `SongItem.id` 是 `Long`、songmid 是字符串 → `id = songmid.hashCode().toLong()`，真实标识放 `audioId`
+- [x] `core/api/qqmusic/QQMusicSession.kt`：`guid` 持久化（安装后生成一次并复用）、`QQMusicQuality` 常量
+  - `guid` 独立于登录态的设备身份存储，退出登录不重置
+- [x] `core/api/qqmusic/QQMusicPlayback.kt`：`resolveQQMusicPlaybackUrl(song)` → `CgiGetVkey` → `SongUrlResult`
+  - 降级链 `["M500", "C400"]`（未登录）；`sip[0] + purl` 组装；`result` 码映射为失败原因（`104003` → `RequiresVip` 专用文案 `error_qqmusic_vip_required`）
+- [x] `PlaybackAudioSource.QQ_MUSIC` 枚举 + 全链路 exhaustive `when` 补全
+- [x] `PlayerUrlResolver`：`qqMusicQualityLabel` / `buildQQMusicQualityOptions` / `buildQQMusicQualityCandidates` / `QQMUSIC_QUALITY_FALLBACK_ORDER`
+- [x] `PlayerManager`：`QQMUSIC_SOURCE_TAG`、`isQQMusicTrack()`、`computeCacheKey` 分支（`qqmusic-$songmid-$quality`）
+- [x] `PlayerManagerUrlExtensions.resolveSongUrl` 新增 `isQQMusicTrack(song) -> getQQMusicSongUrl(...)` 分支
+- [x] AppContainer 注册 `qqMusicSession`
+- [x] **播放歌词管线接入（补记）**：`PlayerLyricsProvider` 新增 QQ 分支（`isQQMusicLyricTarget`：channelId / 专辑标记 / 歌词匹配源三路判定）——主歌词走 `QQMusicSearchApi.getNativeSongInfo(songmid)`（原文 + 翻译一次取全，带内存缓存，`matchedSongId` 优先于 `audioId`），翻译歌词同源，音译歌词返回空；顺带修掉了「QQ 歌曲用 songmid 的 hashCode 伪 id 去查网易云」的错误兜底。AMLL 逐字歌词仍由主流程兜底
+- [x] **验收：真机验证通过（用户确认「没问题」）**
 
-### 阶段 2：探索页搜索源（P0，与阶段 1 合并交付）
+### 阶段 2：探索页搜索源（P0 **已实现**，commit `4f94aaf4`）
 
-- [ ] `SearchSource.QQ_MUSIC` 枚举 + `ExploreViewModel` 的 `searchQQMusic` / `fetchQQMusicSearchPage` / 错误文案分支
-- [ ] `ExploreScreen` 搜索源 chip（注意 `youtubeEnabled` 时的顺序差异）
-- [ ] `error_qqmusic_search` 等字符串（3 个语言目录）
-- [ ] **验收：探索页切到 QQ音乐源 → 搜索 → 点歌入队播放**
+- [x] `SearchSource.QQ_MUSIC` 枚举 + `ExploreViewModel` 的 `searchQQMusic` / `fetchQQMusicSearchPage` / 错误文案分支
+- [x] `ExploreScreen` 搜索源 chip（`youtubeEnabled` 时的顺序差异）
+- [x] `error_qqmusic_search` 等字符串（3 个语言目录）
+- [x] **验收：真机验证通过（用户确认「没问题」）**
 
-### 阶段 3：音质偏好设置（P1）
+### 阶段 2+：探索页榜单 / 热门歌单（P2 提前落地，commit `841843ef` / `11cf4cb0` / `b9c1f43e`）
 
-- [ ] `qqMusicAudioQuality` 全链路（照抄 `kugouAudioQuality`，共 6 处）：
-  `SettingsKeys` → `SettingsRepository` → `PlaybackPreferenceSnapshot`（含 `normalizeQQMusicQualityKey` 与 `DEFAULT_*` 常量）→ `AutoSettingsSchema` → `NeriApp.kt` 偏好 collect → `PlayerManagerLifecycleExtensions` 音质管道
-- [ ] `PreferredQualityKeys.qqMusic` + `forSource()` 映射
-- [ ] `SettingsAudioQualitySection` 新增 QQ音乐音质选项 + i18n
-- [ ] 登录态差异：未登录时档位选项应灰显或标注「需登录」
-- [ ] **验收：设置页切换音质 → 播放请求按新档位发起**
+- [x] `QQMusicChannel.kt`（数据层：榜单列表 / 榜单歌曲 / 热门歌单 / 歌单歌曲，GBK 按 GB18030 解码，qzone 接口带 `Referer: https://c.y.qq.com/` + `Cookie: uin=0`）
+- [x] `QQMusicExploreContent.kt`（UI，对齐酷狗 tab 形态，无每日推荐板块）
+- [x] 装机验证通过
+
+### 阶段 3：音质偏好设置（P1 · **已实现**）
+
+- [x] `qqMusicAudioQuality` 全链路：
+  `AutoSettingsSchema`（KSP 生成 `SettingsKeys.QQMUSIC_AUDIO_QUALITY`）→ `SettingsRepository`（`qqMusicAudioQualityFlow` + `setQqMusicAudioQuality`）→ `PlaybackPreferenceSnapshot`（`normalizeQQMusicQualityKey` + `DEFAULT_QQMUSIC_AUDIO_QUALITY = M500`，5 处读写）→ `ConfigSettingsSanitizer`（`QQMUSIC_AUDIO_QUALITY_VALUES`）→ `NeriApp.kt` 偏好 collect → `PlayerManagerLifecycleExtensions` 音质管道（新增 `qqMusicQualityRefreshJob`）
+- [x] `PreferredQualityKeys.qqMusic` + `forSource()` 映射（阶段 1 已就绪）
+- [x] `SettingsAudioQualitySection` 新增 QQ音乐音质选项 + i18n（`quality_qqmusic_default` / `settings_audio_quality_qqmusic_member_quality_notice`，3 语言）+ `SettingsSearchIndex` 搜索别名
+- [x] 登录态差异：因登录（阶段 4）尚未实现，采用「选择会员档（C600/M800/F000）弹提示」方案（对齐酷狗/网易云 notice 范式），不灰显；阶段 4 落地后再接 `loggedInFlow` 两套档位
+- [ ] **验收（待真机人工）**：设置页切换音质 → 播放请求按新档位发起；未登录选会员档 → 弹提示 + 实际回落到 `M500`/`C400`
 
 ### 阶段 4：登录 + 高音质（P1）· 路线 A（QR 扫码）
 
@@ -557,7 +564,7 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
    - 选项 A：仅个人内容（我的歌单 / 收藏）+ 未登录空态 —— 与项目「媒体库 = 我的内容」分层原则一致
    - 选项 B：A + 榜单/推荐（会与探索页职责重叠）
    - 选项 C：本阶段不做，保持占位
-8. **音质偏好默认档位**：匿名封顶 `M500`/`C400`，登录后可上探。默认偏好建议 `M500` 优先（文档 §5.3 已给理由），是否需要在设置页区分「未登录/已登录」两套可选档位？
+8. **音质偏好默认档位**（**已定，阶段 3 落地）**：默认 `M500` 优先（文档 §5.3 理由）；设置页选项 = 标准(M500) / 较高(C600) / 极高(M800) / 无损(F000)，`O800`/`C400` 不单列（由降级链隐式覆盖）。登录尚未实现，未做两套档位区分，改以「选择会员档弹提示」承载（见 §8 阶段 3）。
 
 **由实施方（助手）自行决定的技术细节（如有异议请提出）：**
 
