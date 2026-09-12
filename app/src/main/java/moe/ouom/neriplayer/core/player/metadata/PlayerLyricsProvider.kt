@@ -30,12 +30,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import moe.ouom.neriplayer.core.api.kugou.KUGOU_CHANNEL_ID
 import moe.ouom.neriplayer.core.api.lyrics.AmllTtmlClient
 import moe.ouom.neriplayer.core.api.lyrics.EditableLyricMatchCandidate
 import moe.ouom.neriplayer.core.api.lyrics.EditableLyricMatchRequest
 import moe.ouom.neriplayer.core.api.lyrics.EditableLyricMatchSource
 import moe.ouom.neriplayer.core.api.lyrics.EditableLyricMatchConfidence
 import moe.ouom.neriplayer.core.api.lyrics.EditableLyricsMatcher
+import moe.ouom.neriplayer.core.api.lyrics.KugouLyricsPayload
+import moe.ouom.neriplayer.core.api.lyrics.KugouSongSearchResult
 import moe.ouom.neriplayer.core.api.lyrics.LrcLibClient
 import moe.ouom.neriplayer.core.api.lyrics.RankedEditableLyricMatch
 import moe.ouom.neriplayer.core.api.lyrics.editableLyricMatchSourcePriority
@@ -847,6 +850,9 @@ internal object PlayerLyricsProvider {
                 }
             }
 
+            if (song.channelId == KUGOU_CHANNEL_ID) {
+                return@withContext loadKugouTranslatedLyrics(song)
+            }
             when (song.matchedLyricSource) {
                 null,
                 MusicPlatform.CLOUD_MUSIC -> getNeteaseTranslatedLyrics(
@@ -1023,6 +1029,7 @@ internal object PlayerLyricsProvider {
             val platformLyrics = when {
                 song.album.startsWith(biliSourceTag) -> emptyList()
                 song.matchedLyricSource == MusicPlatform.QQ_MUSIC -> emptyList()
+                song.channelId == KUGOU_CHANNEL_ID -> loadKugouPlatformLyrics(song)
                 song.matchedLyricSource == MusicPlatform.CLOUD_MUSIC -> {
                     val matchedId = song.matchedSongId?.toLongOrNull() ?: song.id
                     getNeteaseLyrics(matchedId, neteaseClient, neteaseLyricsCache)
@@ -1039,6 +1046,37 @@ internal object PlayerLyricsProvider {
                     requireDurationMatch = false
                 ).ifEmpty { platformLyrics }
             }
+        }
+    }
+
+    private suspend fun loadKugouPlatformLyrics(song: SongItem): List<LyricEntry> {
+        val payload = loadKugouLyricsPayload(song) ?: return emptyList()
+        return parseNeteaseLyricsAuto(payload.lyrics)
+    }
+
+    private suspend fun loadKugouTranslatedLyrics(song: SongItem): List<LyricEntry> {
+        val payload = loadKugouLyricsPayload(song) ?: return emptyList()
+        val translated = payload.translatedLyrics ?: return emptyList()
+        return parseNeteaseLyricsAuto(translated)
+    }
+
+    private suspend fun loadKugouLyricsPayload(song: SongItem): KugouLyricsPayload? {
+        return try {
+            AppContainer.kugouLyricsClient.getBestLyricPayload(
+                KugouSongSearchResult(
+                    id = song.subAudioId.orEmpty(),
+                    hash = song.audioId.orEmpty(),
+                    title = song.name,
+                    artist = song.artist,
+                    album = song.album,
+                    durationMs = song.durationMs
+                )
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            NPLogger.e("NERI-PlayerManager", "Kugou lyric lookup failed: ${error.message}", error)
+            null
         }
     }
 
