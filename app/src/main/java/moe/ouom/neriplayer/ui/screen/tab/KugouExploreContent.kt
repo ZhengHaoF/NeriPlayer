@@ -27,7 +27,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,13 +45,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.kugou.KugouChannelContent
-import moe.ouom.neriplayer.core.api.kugou.KugouPlaylistMeta
 import moe.ouom.neriplayer.core.api.kugou.KugouRankMeta
-import moe.ouom.neriplayer.core.api.kugou.fetchKugouCloudSongs
-import moe.ouom.neriplayer.core.api.kugou.fetchKugouHistory
-import moe.ouom.neriplayer.core.api.kugou.fetchKugouPlaylistSongs
 import moe.ouom.neriplayer.core.api.kugou.fetchKugouRankSongs
-import moe.ouom.neriplayer.core.api.kugou.fetchKugouUserPlaylists
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.data.model.SongItem
@@ -76,15 +70,8 @@ internal fun KugouExploreContent(
 ) {
     val context = LocalContext.current
     val playlistLoginHint = stringResource(R.string.kugou_playlist_login_hint)
-    val cloudTitle = stringResource(R.string.kugou_cloud)
-    val historyTitle = stringResource(R.string.kugou_history)
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
-
-    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
-    var userPlaylistSheetOpen by remember { mutableStateOf(false) }
-    var userPlaylists by remember { mutableStateOf<List<KugouPlaylistMeta>?>(null) }
-    var userPlaylistLoading by remember { mutableStateOf(false) }
 
     var sheetOpen by remember { mutableStateOf(false) }
     var sheetTitle by remember { mutableStateOf("") }
@@ -151,45 +138,6 @@ internal fun KugouExploreContent(
                 modifier = modifier.fillMaxSize(),
                 contentPadding = PaddingValues(vertical = 8.dp)
             ) {
-                if (kugouLoggedIn) {
-                    item {
-                        SectionHeader(stringResource(R.string.kugou_my_section))
-                    }
-                    item {
-                        MyKugouRow(
-                            onCloud = {
-                                openSheet(cloudTitle) {
-                                    AppContainer.kugouSession.fetchKugouCloudSongs()
-                                }
-                            },
-                            onHistory = {
-                                openSheet(historyTitle) {
-                                    AppContainer.kugouSession.fetchKugouHistory()
-                                }
-                            },
-                            onPlaylists = {
-                                userPlaylistSheetOpen = true
-                                userPlaylists = null
-                                userPlaylistLoading = true
-                                scope.launch {
-                                    runCatching {
-                                        AppContainer.kugouSession.fetchKugouUserPlaylists()
-                                    }.onSuccess { list ->
-                                        NPLogger.d(TAG, "user playlists loaded: ${list.size}")
-                                        userPlaylists = list
-                                    }.onFailure { e ->
-                                        if (e is CancellationException) throw e
-                                        NPLogger.e(TAG, "user playlists failed", e)
-                                        userPlaylists = emptyList()
-                                    }
-                                    userPlaylistLoading = false
-                                }
-                            }
-                        )
-                    }
-                    item { Spacer(Modifier.height(20.dp)) }
-                }
-
                 if (safeContent.dailyRecommend.isNotEmpty()) {
                     item {
                         SectionHeader(stringResource(R.string.kugou_daily_recommend))
@@ -317,153 +265,6 @@ internal fun KugouExploreContent(
         }
     }
 
-    if (userPlaylistSheetOpen) {
-        ModalBottomSheet(
-            onDismissRequest = { userPlaylistSheetOpen = false },
-            sheetState = rememberModalBottomSheetState()
-        ) {
-            Column(Modifier.padding(bottom = 24.dp)) {
-                Text(
-                    text = stringResource(R.string.kugou_user_playlist),
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
-                )
-                HorizontalDivider()
-                when {
-                    userPlaylistLoading -> {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
-                        }
-                    }
-
-                    userPlaylists.isNullOrEmpty() -> {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
-                            Text(
-                                text = stringResource(R.string.kugou_user_playlist_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-
-                    else -> {
-                        LazyColumn {
-                            items(userPlaylists!!) { playlist ->
-                                KugouPlaylistRow(playlist = playlist) {
-                                    userPlaylistSheetOpen = false
-                                    openSheet(playlist.name) {
-                                        AppContainer.kugouSession.fetchKugouPlaylistSongs(
-                                            playlist.globalCollectionId
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MyKugouRow(
-    onCloud: () -> Unit,
-    onHistory: () -> Unit,
-    onPlaylists: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        KugouMyEntryRow(
-            title = stringResource(R.string.kugou_cloud),
-            onClick = onCloud,
-            modifier = Modifier.fillMaxWidth()
-        )
-        KugouMyEntryRow(
-            title = stringResource(R.string.kugou_history),
-            onClick = onHistory,
-            modifier = Modifier.fillMaxWidth()
-        )
-        KugouMyEntryRow(
-            title = stringResource(R.string.kugou_user_playlist),
-            onClick = onPlaylists,
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
-}
-
-@Composable
-private fun KugouMyEntryRow(
-    title: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = "›",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun KugouPlaylistRow(
-    playlist: KugouPlaylistMeta,
-    onClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        AsyncImage(
-            model = playlist.coverUrl,
-            contentDescription = playlist.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .size(44.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-        )
-        Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
-            Text(
-                text = playlist.name,
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            val creator = playlist.creator
-            if (!creator.isNullOrBlank()) {
-                Text(
-                    text = creator,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
 }
 
 @Composable

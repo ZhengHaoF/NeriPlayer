@@ -33,6 +33,7 @@
     <string name="library_tab_youtube_music">YouTube Music</string>
     <string name="library_tab_bilibili">Bilibili</string>
     <string name="library_tab_qqmusic">QQ Music</string>
+    <string name="library_tab_kugou">KuGou Concept</string>
     <string name="library_create_playlist_default">New Playlist</string>
     <string name="library_name_reserved">This name is reserved for \"%s\", please choose another name~</string>
     <string name="library_name_exists">A playlist with this name already exists, please choose another name</string>
@@ -59,6 +60,17 @@
     <string name="library_youtube_music_open_playlist">Open Playlist</string>
     <string name="library_youtube_music_copy_browse_id">Copy Browse ID</string>
     <string name="library_youtube_music_copy_playlist_id">Copy Playlist ID</string>
+    <string name="library_kugou_cloud">Cloud</string>
+    <string name="library_kugou_history">Listening history</string>
+    <string name="library_kugou_playlists">My playlists</string>
+    <string name="library_kugou_login_hint">Sign in to KuGou Concept to browse your cloud files, listening history and playlists</string>
+    <string name="library_kugou_login_action">Sign in to KuGou Concept</string>
+    <string name="library_kugou_cloud_empty">No songs in your cloud yet</string>
+    <string name="library_kugou_history_empty">No listening history yet</string>
+    <string name="library_kugou_playlists_empty">No playlists yet</string>
+    <string name="library_kugou_playlist_songs_empty">No songs in this playlist yet</string>
+    <string name="library_kugou_load_failed">Failed to load, please retry</string>
+    <string name="library_kugou_offline_hint">KuGou Concept content is unavailable in offline mode</string>
     <string name="library_favorite_source_format" formatted="false">%d songs · %s</string>
     <string name="library_favorite_sort_mode_title">Favorite Playlist Order</string>
     <string name="library_favorite_sort_mode_desc">Long press a playlist to enter sorting mode, then drag the handle</string>

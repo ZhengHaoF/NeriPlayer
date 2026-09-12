@@ -153,6 +153,7 @@ import moe.ouom.neriplayer.ui.util.rememberPlaylistDisplayCoverUrl
 import moe.ouom.neriplayer.util.media.fastScrollableImageRequest
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
+import moe.ouom.neriplayer.ui.screen.playlist.KugouLibraryEntryKind
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialogContent
@@ -174,7 +175,8 @@ enum class LibraryTab(val labelResId: Int) {
     NETEASE(R.string.library_tab_netease),
     NETEASEALBUM(R.string.library_tab_netease_album),
     BILI(R.string.library_tab_bilibili),
-    QQMUSIC(R.string.library_tab_qqmusic)
+    QQMUSIC(R.string.library_tab_qqmusic),
+    KUGOU(R.string.library_tab_kugou)
 }
 
 private const val NETEASE_CATEGORY_PLAYLIST = 0
@@ -262,6 +264,7 @@ internal fun libraryTabDisplayOrder(
             LibraryTab.FAVORITE,
             LibraryTab.YTMUSIC,
             LibraryTab.NETEASE,
+            LibraryTab.KUGOU,
             LibraryTab.BILI,
             LibraryTab.QQMUSIC
         )
@@ -270,6 +273,7 @@ internal fun libraryTabDisplayOrder(
             LibraryTab.LOCAL,
             LibraryTab.FAVORITE,
             LibraryTab.NETEASE,
+            LibraryTab.KUGOU,
             LibraryTab.YTMUSIC,
             LibraryTab.BILI,
             LibraryTab.QQMUSIC
@@ -303,6 +307,7 @@ fun LibraryScreen(
     youtubeMusicListState: LazyListState,
     biliListState: LazyListState,
     qqMusicListState: LazyListState,
+    kugouListState: LazyListState,
     topAppBarState: TopAppBarState,
     onLocalPlaylistClick: (LocalPlaylist) -> Unit = {},
     onLocalArtistClick: (LocalArtistSummary) -> Unit = {},
@@ -312,6 +317,7 @@ fun LibraryScreen(
     onNeteaseArtistClick: (NeteaseArtistSummary) -> Unit = {},
     onYouTubeMusicPlaylistClick: (YouTubeMusicPlaylist) -> Unit = {},
     onBiliPlaylistClick: (BiliPlaylist) -> Unit = {},
+    onKugouOpen: (KugouLibraryEntryKind) -> Unit = {},
     onOpenRecent: () -> Unit = {},
     onOpenStats: () -> Unit = {},
     offlineMode: Boolean = false
@@ -383,6 +389,11 @@ fun LibraryScreen(
                 LibraryTab.QQMUSIC -> shouldAllowCollapsingTopAppBar(
                     qqMusicListState.canScrollForward,
                     qqMusicListState.canScrollBackward,
+                    topAppBarState.collapsedFraction
+                )
+                LibraryTab.KUGOU -> shouldAllowCollapsingTopAppBar(
+                    kugouListState.canScrollForward,
+                    kugouListState.canScrollBackward,
                     topAppBarState.collapsedFraction
                 )
                 null -> shouldAllowCollapsingTopAppBar(
@@ -553,6 +564,12 @@ fun LibraryScreen(
 
                         LibraryTab.QQMUSIC -> QqMusicPlaylistList(
                             listState = qqMusicListState
+                        )
+
+                        LibraryTab.KUGOU -> KugouLibraryContent(
+                            listState = kugouListState,
+                            onOpenDetail = onKugouOpen,
+                            offlineMode = offlineMode
                         )
                     }
                 }

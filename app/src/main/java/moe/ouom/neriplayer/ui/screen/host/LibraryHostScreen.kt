@@ -87,6 +87,11 @@ import moe.ouom.neriplayer.ui.effect.glass.animateAdvancedGlassSceneMotion
 import moe.ouom.neriplayer.ui.animateMainTabDetailCloseRootRevealFraction
 import moe.ouom.neriplayer.ui.clipMainTabDetailCloseRoot
 import moe.ouom.neriplayer.ui.rememberMainTabSceneRestoredEntry
+import moe.ouom.neriplayer.ui.screen.playlist.KugouLibraryEntryKind
+import moe.ouom.neriplayer.ui.screen.playlist.KugouPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.KugouPlaylistSelection
+import moe.ouom.neriplayer.ui.screen.playlist.KugouSongListDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.KugouUserPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.shouldSuppressRestoredMainTabHostEntry
 import moe.ouom.neriplayer.ui.util.toSaveMap
 import moe.ouom.neriplayer.ui.util.restoreBiliPlaylist
@@ -118,12 +123,17 @@ sealed class LibrarySelectedItem : Parcelable {
     data class Bili(val playlist: BiliPlaylist) : LibrarySelectedItem()
     @Parcelize
     data class YouTubeMusic(val playlist: YouTubeMusicPlaylist) : LibrarySelectedItem()
+    @Parcelize
+    data class KugouLibrary(val kind: KugouLibraryEntryKind) : LibrarySelectedItem()
+    @Parcelize
+    data class KugouPlaylist(val playlist: KugouPlaylistSelection) : LibrarySelectedItem()
 }
 
 private val LibrarySelectedItem?.navigationDepth: Int
     get() = when (this) {
         null -> 0
         is LibrarySelectedItem.NeteaseArtistAlbum -> 2
+        is LibrarySelectedItem.KugouPlaylist -> 2
         else -> 1
     }
 
@@ -137,7 +147,8 @@ private enum class LibraryScrollSource {
     NeteasePlaylist,
     NeteaseAlbum,
     YouTubeMusic,
-    Bili
+    Bili,
+    Kugou
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -280,6 +291,7 @@ fun LibraryHostScreen(
     val youtubeMusicListSaver: Saver<LazyListState, *> = LazyListState.Saver
     val biliListSaver: Saver<LazyListState, *> = LazyListState.Saver
     val qqMusicListSaver: Saver<LazyListState, *> = LazyListState.Saver
+    val kugouListSaver: Saver<LazyListState, *> = LazyListState.Saver
 
     val localListState = rememberSaveable(saver = localListSaver) {
         LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
@@ -302,6 +314,9 @@ fun LibraryHostScreen(
     val qqMusicListState = rememberSaveable(saver = qqMusicListSaver) {
         LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
     }
+    val kugouListState = rememberSaveable(saver = kugouListSaver) {
+        LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
+    }
     val topAppBarState = rememberTopAppBarState()
     fun listStateFor(source: LibraryScrollSource): LazyListState = when (source) {
         LibraryScrollSource.Local -> localListState
@@ -310,6 +325,7 @@ fun LibraryHostScreen(
         LibraryScrollSource.NeteaseAlbum -> neteaseAlbumState
         LibraryScrollSource.YouTubeMusic -> youtubeMusicListState
         LibraryScrollSource.Bili -> biliListState
+        LibraryScrollSource.Kugou -> kugouListState
     }
 
     fun captureLibraryScrollPosition(source: LibraryScrollSource) {
@@ -431,6 +447,7 @@ fun LibraryHostScreen(
                             youtubeMusicListState = youtubeMusicListState,
                             biliListState = biliListState,
                             qqMusicListState = qqMusicListState,
+                            kugouListState = kugouListState,
                             topAppBarState = topAppBarState,
                             offlineMode = offlineMode,
                             onLocalPlaylistClick = { playlist ->
@@ -551,6 +568,11 @@ fun LibraryHostScreen(
                                         subtitle = playlist.subtitle
                                     )
                                 }
+                            },
+                            onKugouOpen = { kind ->
+                                skipDetailCloseAnimation = false
+                                captureLibraryScrollPosition(LibraryScrollSource.Kugou)
+                                openLibrarySelectedItem(LibrarySelectedItem.KugouLibrary(kind))
                             },
                             onOpenRecent = onOpenRecent,
                             onOpenStats = onOpenStats
@@ -692,6 +714,44 @@ fun LibraryHostScreen(
                                     offlineMode = offlineMode
                                 )
                         }
+
+                        is LibrarySelectedItem.KugouLibrary -> {
+                            when (current.kind) {
+                                KugouLibraryEntryKind.USER_PLAYLISTS -> {
+                                    KugouUserPlaylistDetailScreen(
+                                        onBack = { closeSelectedDetail() },
+                                        onPlaylistClick = { playlist ->
+                                            openLibrarySelectedItem(
+                                                LibrarySelectedItem.KugouPlaylist(playlist)
+                                            )
+                                        },
+                                        offlineMode = offlineMode
+                                    )
+                                }
+
+                                else -> {
+                                    KugouSongListDetailScreen(
+                                        kind = current.kind,
+                                        onBack = { closeSelectedDetail() },
+                                        onSongClick = onSongClick,
+                                        offlineMode = offlineMode
+                                    )
+                                }
+                            }
+                        }
+
+                        is LibrarySelectedItem.KugouPlaylist -> {
+                            KugouPlaylistDetailScreen(
+                                playlist = current.playlist,
+                                onBack = {
+                                    selected = LibrarySelectedItem.KugouLibrary(
+                                        KugouLibraryEntryKind.USER_PLAYLISTS
+                                    )
+                                },
+                                onSongClick = onSongClick,
+                                offlineMode = offlineMode
+                            )
+                        }
                         }
                     }
                 }
@@ -743,6 +803,17 @@ private val librarySelectedItemSaver = mapSaver<LibrarySelectedItem?>(
                 "type" to "ytmusic",
                 "playlist" to item.playlist.toSaveMap()
             )
+            is LibrarySelectedItem.KugouLibrary -> hashMapOf(
+                "type" to "kugouLibrary",
+                "kind" to item.kind.name
+            )
+            is LibrarySelectedItem.KugouPlaylist -> hashMapOf(
+                "type" to "kugouPlaylist",
+                "id" to item.playlist.globalCollectionId,
+                "name" to item.playlist.name,
+                "cover" to (item.playlist.coverUrl ?: ""),
+                "creator" to (item.playlist.creator ?: "")
+            )
         }
     },
     restore = { saved ->
@@ -773,6 +844,25 @@ private val librarySelectedItemSaver = mapSaver<LibrarySelectedItem?>(
             }
             "bili" -> restoreBiliPlaylist(saved["playlist"] as? Map<*, *>)?.let { LibrarySelectedItem.Bili(it) }
             "ytmusic" -> restoreYouTubeMusicPlaylist(saved["playlist"] as? Map<*, *>)?.let { LibrarySelectedItem.YouTubeMusic(it) }
+            "kugouLibrary" -> (saved["kind"] as? String)
+                ?.let { stored -> KugouLibraryEntryKind.entries.firstOrNull { it.name == stored } }
+                ?.let { LibrarySelectedItem.KugouLibrary(it) }
+            "kugouPlaylist" -> {
+                val playlistId = saved["id"] as? String
+                val playlistName = saved["name"] as? String
+                if (!playlistId.isNullOrBlank() && !playlistName.isNullOrBlank()) {
+                    LibrarySelectedItem.KugouPlaylist(
+                        KugouPlaylistSelection(
+                            globalCollectionId = playlistId,
+                            name = playlistName,
+                            coverUrl = (saved["cover"] as? String)?.takeIf { it.isNotBlank() },
+                            creator = (saved["creator"] as? String)?.takeIf { it.isNotBlank() }
+                        )
+                    )
+                } else {
+                    null
+                }
+            }
             else -> null
         }
     }

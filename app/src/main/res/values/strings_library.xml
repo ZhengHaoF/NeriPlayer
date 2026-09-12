@@ -33,6 +33,7 @@
     <string name="library_tab_youtube_music">YouTube</string>
     <string name="library_tab_bilibili">哔哩哔哩</string>
     <string name="library_tab_qqmusic">QQ音乐</string>
+    <string name="library_tab_kugou">酷狗概念版</string>
     <string name="library_create_playlist_default">新建歌单</string>
     <string name="library_name_reserved">该名称已保留为\"%s\"，请换一个名称哦~</string>
     <string name="library_name_exists">已存在同名歌单，请换一个名称</string>
@@ -59,6 +60,17 @@
     <string name="library_youtube_music_open_playlist">打开歌单</string>
     <string name="library_youtube_music_copy_browse_id">复制 Browse ID</string>
     <string name="library_youtube_music_copy_playlist_id">复制 Playlist ID</string>
+    <string name="library_kugou_cloud">云盘</string>
+    <string name="library_kugou_history">听歌历史</string>
+    <string name="library_kugou_playlists">我的歌单</string>
+    <string name="library_kugou_login_hint">登录酷狗概念版后查看云盘、听歌历史与我的歌单</string>
+    <string name="library_kugou_login_action">登录酷狗概念版</string>
+    <string name="library_kugou_cloud_empty">云盘里还没有歌曲</string>
+    <string name="library_kugou_history_empty">还没有听歌历史</string>
+    <string name="library_kugou_playlists_empty">暂无歌单</string>
+    <string name="library_kugou_playlist_songs_empty">这个歌单还没有歌曲</string>
+    <string name="library_kugou_load_failed">加载失败，请重试</string>
+    <string name="library_kugou_offline_hint">离线模式下无法查看酷狗概念版内容</string>
     <string name="library_favorite_source_format" formatted="false">%d首 · %s</string>
     <string name="library_favorite_sort_mode_title">收藏歌单排序</string>
     <string name="library_favorite_sort_mode_desc">长按歌单进入排序，拖动右侧手柄调整顺序</string>
