@@ -149,8 +149,12 @@ suspend fun KugouSession.fetchKugouDailyRecommend(): List<SongItem> {
  * 按候选顺序取第一个非空值，统一替换 {size} 占位符并校验 http 前缀。
  */
 internal fun resolveKugouCoverUrl(vararg candidates: JsonElement?): String? {
-    return candidates.firstNotNullOfOrNull { it?.jsonPrimitive?.contentOrNull }
+    // 空白串必须视为无效并继续尝试后续候选：firstNotNullOfOrNull 会把 "" 当成命中而短路
+    return candidates
+        .firstNotNullOfOrNull { it?.jsonPrimitive?.contentOrNull?.takeIf(String::isNotBlank) }
         ?.replace("{size}", "320")
+        // 酷狗概念版常返回协议相对 URL（//imge.kugou.com/...），需补全协议才能被图片库加载
+        ?.let { if (it.startsWith("//")) "https:$it" else it }
         ?.takeIf { it.startsWith("http", ignoreCase = true) }
 }
 

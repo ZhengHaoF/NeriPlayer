@@ -43,7 +43,8 @@ suspend fun KugouSession.fetchKugouUserPlaylists(): List<KugouPlaylistMeta> {
         return emptyList()
     }
     val info = body["data"]?.jsonObject?.get("info")?.jsonArray.orEmpty()
-    NPLogger.d("KugouUser", "user playlists raw head: ${info.firstOrNull()?.toString()?.take(4000)}")
+    // 放宽截断长度：封面字段 pic 位于响应靠后位置，4000 字符会被截掉，排查封面问题时看不到
+    NPLogger.d("KugouUser", "user playlists raw head: ${info.firstOrNull()?.toString()?.take(12_000)}")
     return info.mapNotNull { item ->
         val obj = item.jsonObject
         val id = obj["global_collection_id"]?.jsonPrimitive?.contentOrNull
@@ -55,10 +56,14 @@ suspend fun KugouSession.fetchKugouUserPlaylists(): List<KugouPlaylistMeta> {
             globalCollectionId = id,
             name = obj["specialname"]?.jsonPrimitive?.contentOrNull
                 ?: obj["name"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-            coverUrl = obj["imgurl"]?.jsonPrimitive?.contentOrNull
-                ?: obj["img"]?.jsonPrimitive?.contentOrNull
-                ?.replace("{size}", "320")
-                ?.takeIf { it.startsWith("http", ignoreCase = true) },
+            // 该接口封面字段为 `pic`（EchoMusic mappers/playlist.ts:70 与 MoeKoe Library.vue 均取 pic），
+            // imgurl / cover / img 仅作兜底；统一走 resolveKugouCoverUrl 做 {size} 替换与协议补全
+            coverUrl = resolveKugouCoverUrl(
+                obj["pic"],
+                obj["imgurl"],
+                obj["cover"],
+                obj["img"],
+            ),
             playCount = obj["play_count"]?.jsonPrimitive?.longOrNull
                 ?: obj["playcount"]?.jsonPrimitive?.longOrNull
                 ?: 0L,
