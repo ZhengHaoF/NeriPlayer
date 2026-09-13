@@ -40,6 +40,16 @@
     <string name="settings_kugou_status_valid">Signed in</string>
     <string name="settings_kugou_status_missing">Not signed in. Tap to sign in with the KuGou Concept app</string>
     <string name="settings_kugou_logout_confirm">Sign out of KuGou Concept? VIP quality playback will be unavailable after signing out.</string>
+    <string name="settings_qqmusic_login_success">QQ Music login successful</string>
+    <string name="settings_qqmusic_status_valid">Signed in</string>
+    <string name="settings_qqmusic_status_missing">Not signed in. Tap to sign in with QQ QR code</string>
+    <string name="settings_qqmusic_logout_confirm">Sign out of QQ Music? VIP quality playback will be unavailable after signing out.</string>
+    <string name="qqmusic_login_title">Scan to sign in to QQ Music</string>
+    <string name="qqmusic_login_qr_content_desc">QQ Music login QR code</string>
+    <string name="qqmusic_login_waiting">Scan with the QQ app on your phone</string>
+    <string name="qqmusic_login_scanned">Scanned. Confirm on your phone</string>
+    <string name="qqmusic_login_expired">QR code expired. Close and try again</string>
+    <string name="qqmusic_login_error">Failed to read status. Please try again</string>
     <string name="settings_youtube_login_methods">Browser/Cookie Import</string>
     <string name="settings_youtube_auth_missing">No usable YouTube / YouTube Music auth information was captured</string>
     <string name="settings_youtube_auth_verifying">Verifying sign-in state, please wait…</string>

@@ -9,6 +9,7 @@ import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
 import moe.ouom.neriplayer.core.player.model.SongUrlResult
 import moe.ouom.neriplayer.core.player.model.deriveCodecLabel
 import moe.ouom.neriplayer.core.player.url.buildQQMusicQualityCandidates
+import moe.ouom.neriplayer.core.player.url.buildQQMusicQualityOptions
 import moe.ouom.neriplayer.core.player.url.qqMusicQualityLabel
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.util.network.awaitResponse
@@ -75,8 +76,33 @@ internal suspend fun QQMusicSession.resolveQQMusicPlaybackUrl(
     // filename 的 mid 段优先用 media_mid；匿名档实测用 songmid 也能取到直链，故缺失时回退
     val filenameMid = song.subAudioId?.trim()?.takeIf { it.isNotBlank() } ?: songMid
 
+    // 登录态维持：节流主动续期，避免 musickey 静默过期后长时间降级
+    if (isLoggedIn) {
+        runCatching { refreshCredentialIfNeeded() }
+            .onFailure { NPLogger.w(TAG, "credential refresh failed: ${it.message}") }
+    }
+
+    val outcome = resolveViaQualityChain(songMid, filenameMid, quality, getLocalizedString)
+    if (outcome !is QQMusicResolveOutcome.Unavailable || !isLoggedIn) return outcome
+
+    // 全链路失败且非「需会员」：会话可能已在两次启动之间失效（失败码不确定，无法按码识别）。
+    // 短节流续期一次后重试整条降级链；续期被拒则已降级匿名态，重试无意义。
+    val renewed = runCatching {
+        refreshCredentialIfNeeded(minIntervalMs = RETRY_REFRESH_INTERVAL_MS)
+    }.getOrDefault(false)
+    if (!renewed) return outcome
+    NPLogger.d(TAG, "credential renewed after failure, retrying chain: songmid=$songMid")
+    return resolveViaQualityChain(songMid, filenameMid, quality, getLocalizedString)
+}
+
+private suspend fun QQMusicSession.resolveViaQualityChain(
+    songMid: String,
+    filenameMid: String,
+    quality: String,
+    getLocalizedString: (Int) -> String
+): QQMusicResolveOutcome {
     var sawVipRequired = false
-    for (candidate in buildQQMusicQualityCandidates(quality)) {
+    for (candidate in buildQQMusicQualityCandidates(quality, isLoggedIn)) {
         val outcome = tryResolveQQMusicUrl(
             songMid = songMid,
             filenameMid = filenameMid,
@@ -90,7 +116,7 @@ internal suspend fun QQMusicSession.resolveQQMusicPlaybackUrl(
         }
     }
     return if (sawVipRequired) {
-        NPLogger.w(TAG, "QQ Music track requires VIP: songmid=$songMid name=${song.name}")
+        NPLogger.w(TAG, "QQ Music track requires VIP: songmid=$songMid")
         QQMusicResolveOutcome.RequiresVip
     } else {
         QQMusicResolveOutcome.Unavailable
@@ -145,25 +171,54 @@ private suspend fun QQMusicSession.tryResolveQQMusicUrl(
     }
     if (url.isBlank()) return@withContext QQMusicResolveOutcome.Unavailable
 
-    val mimeType = qqMusicMimeType(quality)
+    // 以服务端实际下发的档位为准：请求 F000 可能回落 M500（对齐酷狗「请求无损但回落 mp3」）
+    val actualQuality = actualQualityFromPurl(purl) ?: quality
+    if (actualQuality != quality) {
+        NPLogger.d(
+            TAG,
+            "quality adjusted by server: requested=$quality actual=$actualQuality songmid=$songMid"
+        )
+    }
+
+    val mimeType = qqMusicMimeType(actualQuality)
     val audioInfo = PlaybackAudioInfo(
         source = PlaybackAudioSource.QQ_MUSIC,
-        qualityKey = quality,
-        qualityLabel = qqMusicQualityLabel(quality, getLocalizedString),
-        // 匿名态只有免费档可取，不提供音质切换选项；登录后（阶段 3）再开放全档位
-        qualityOptions = emptyList(),
+        qualityKey = actualQuality,
+        qualityLabel = qqMusicQualityLabel(actualQuality, getLocalizedString),
+        // 匿名态只有免费档可取；登录后开放全档位切换
+        qualityOptions = if (isLoggedIn) {
+            buildQQMusicQualityOptions(getLocalizedString)
+        } else {
+            emptyList()
+        },
         codecLabel = deriveCodecLabel(mimeType),
         mimeType = mimeType
     )
-    NPLogger.d(TAG, "resolved QQ Music url: songmid=$songMid quality=$quality")
+    NPLogger.d(TAG, "resolved QQ Music url: songmid=$songMid quality=$actualQuality")
     QQMusicResolveOutcome.Playable(
         SongUrlResult.Success(
             url = url,
             mimeType = mimeType,
             audioInfo = audioInfo,
-            cacheKeyOverride = "qqmusic-$songMid-$quality"
+            cacheKeyOverride = "qqmusic-$songMid-$actualQuality"
         )
     )
+}
+
+/**
+ * 从 purl 文件名解析服务端实际下发的档位码。
+ * purl 形如 `M500{media_mid}.mp3?...`；档位码取文件名前 4 位，
+ * 且扩展名须与档位自洽（如 M500 → mp3），否则视为无法识别，由调用方回退请求档位。
+ */
+internal fun actualQualityFromPurl(purl: String): String? {
+    val fileName = purl.substringBefore('?').substringAfterLast('/')
+    val dot = fileName.lastIndexOf('.')
+    if (dot < 5) return null
+    val candidate = fileName.substring(0, 4).uppercase()
+    val ext = fileName.substring(dot + 1).lowercase()
+    val validShape = candidate[0] in 'A'..'Z' && candidate.substring(1).all { it in '0'..'9' }
+    if (!validShape || ext != qqMusicFileExtension(candidate)) return null
+    return candidate
 }
 
 /** 发起一次 `CgiGetVkey`，返回响应原文。 */
@@ -173,11 +228,13 @@ private suspend fun QQMusicSession.requestVkey(
     quality: String
 ): String {
     val ext = qqMusicFileExtension(quality)
+    val cred = credential
+    val loggedIn = isLoggedIn
     val param = JSONObject()
         .put("guid", guid)
         .put("songmid", JSONArray().put(songMid))
         .put("songtype", JSONArray().put(0))
-        .put("uin", "0")
+        .put("uin", if (loggedIn) cred.musicid.toString() else "0")
         .put("loginflag", 1)
         .put("platform", QQMUSIC_PLATFORM)
         .put("filename", JSONArray().put("$quality$filenameMid$filenameMid.$ext"))
@@ -193,7 +250,7 @@ private suspend fun QQMusicSession.requestVkey(
         .put(
             "comm",
             JSONObject()
-                .put("uin", 0)
+                .put("uin", if (loggedIn) cred.musicid.toString() else "0")
                 .put("format", "json")
                 .put("ct", QQMUSIC_COMM_CT)
                 .put("cv", 0)
@@ -203,11 +260,14 @@ private suspend fun QQMusicSession.requestVkey(
         .addQueryParameter("format", "json")
         .addQueryParameter("data", payload.toString())
         .build()
-    val request = Request.Builder()
+    val requestBuilder = Request.Builder()
         .url(url)
         .header("User-Agent", QQMUSIC_USER_AGENT)
         .header("Referer", QQMUSIC_REFERER)
-        .build()
+    if (loggedIn) {
+        requestBuilder.header("Cookie", cred.toCookieHeader())
+    }
+    val request = requestBuilder.build()
 
     return client.newCall(request).awaitResponse { response ->
         if (!response.isSuccessful) {
@@ -218,3 +278,6 @@ private suspend fun QQMusicSession.requestVkey(
 }
 
 private const val TAG = "QQMusicPlayback"
+
+/** 失败后重试续期的最短间隔：会话失效兑底，同时避免对不可播曲目反复续期。 */
+private const val RETRY_REFRESH_INTERVAL_MS = 10 * 60 * 1000L

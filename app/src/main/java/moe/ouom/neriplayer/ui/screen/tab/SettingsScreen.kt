@@ -691,6 +691,8 @@ fun SettingsScreen(
     var showKugouSheet by remember { mutableStateOf(false) }
     var showKugouLogoutDialog by remember { mutableStateOf(false) }
     var showQqMusicQualityDialog by remember { mutableStateOf(false) }
+    var showQqMusicSheet by remember { mutableStateOf(false) }
+    var showQqMusicLogoutDialog by remember { mutableStateOf(false) }
 
     var showColorPickerDialog by remember { mutableStateOf(false) }
     var showDpiDialog by remember { mutableStateOf(false) }
@@ -1573,6 +1575,14 @@ fun SettingsScreen(
                             onKugouLogout = {
                                 inlineMsg = null
                                 showKugouLogoutDialog = true
+                            },
+                            onOpenQqMusicSheet = {
+                                inlineMsg = null
+                                showQqMusicSheet = true
+                            },
+                            onQqMusicLogout = {
+                                inlineMsg = null
+                                showQqMusicLogoutDialog = true
                             }
                         )
                     }
@@ -1957,6 +1967,8 @@ fun SettingsScreen(
 
                 SettingsPage.AudioQuality -> {
                     miuixSettingsSectionCardItem("${selectedPage.name}:content") {
+                        val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow
+                            .collectAsState()
                         SettingsAudioQualitySection(
                             expanded = true,
                             arrowRotation = 0f,
@@ -1977,6 +1989,7 @@ fun SettingsScreen(
                             qqMusicQualityLabel = qqMusicQualityLabel,
                             qqMusicPreferredQuality = qqMusicPreferredQuality,
                             onQqMusicQualityChange = onQqMusicQualityChange,
+                            qqMusicLoggedIn = qqMusicLoggedIn,
                             mobileDataFollowDefaultAudioQuality = mobileDataFollowDefaultAudioQuality,
                             onMobileDataFollowDefaultAudioQualityChange =
                                 onMobileDataFollowDefaultAudioQualityChange,
@@ -2360,6 +2373,41 @@ fun SettingsScreen(
                 loginSuccessTitle = composeResources.getString(
                     R.string.settings_kugou_login_success
                 )
+            }
+        )
+    }
+
+    if (showQqMusicSheet) {
+        QQMusicQrLoginSheet(
+            onDismiss = { showQqMusicSheet = false },
+            onLoggedIn = {
+                showQqMusicSheet = false
+                loginSuccessTitle = composeResources.getString(
+                    R.string.settings_qqmusic_login_success
+                )
+            }
+        )
+    }
+
+    if (showQqMusicLogoutDialog) {
+        MiuixSettingsDialog(
+            onDismissRequest = { showQqMusicLogoutDialog = false },
+            title = { Text(stringResource(R.string.settings_qq_music)) },
+            text = { Text(stringResource(R.string.settings_qqmusic_logout_confirm)) },
+            confirmButton = {
+                MiuixSettingsTextButton(
+                    onClick = {
+                        showQqMusicLogoutDialog = false
+                        AppContainer.qqMusicSession.logout()
+                    }
+                ) {
+                    Text(stringResource(R.string.settings_saved_cookie_logout))
+                }
+            },
+            dismissButton = {
+                MiuixSettingsTextButton(onClick = { showQqMusicLogoutDialog = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
             }
         )
     }
@@ -4245,12 +4293,15 @@ private fun SettingsLoginExpandedContent(
     onOpenNeteaseSheet: () -> Unit,
     onOpenKugouSheet: () -> Unit = {},
     onKugouLogout: () -> Unit = {},
+    onOpenQqMusicSheet: () -> Unit = {},
+    onQqMusicLogout: () -> Unit = {},
 ) {
     val biliAuthUiState by biliVm.uiState.collectAsStateWithLifecycleCompat()
     val youtubeAuthUiState by youtubeVm.uiState.collectAsStateWithLifecycleCompat()
     val neteaseAuthUiState by neteaseVm.uiState.collectAsStateWithLifecycleCompat()
 
     val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
+    val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow.collectAsState()
 
     LaunchedEffect(biliVm, youtubeVm, neteaseVm) {
         biliVm.refreshAuthHealth()
@@ -4324,6 +4375,11 @@ private fun SettingsLoginExpandedContent(
         stringResource(R.string.settings_kugou_status_valid)
     } else {
         stringResource(R.string.settings_kugou_status_missing)
+    }
+    val qqMusicStatusText = if (qqMusicLoggedIn) {
+        stringResource(R.string.settings_qqmusic_status_valid)
+    } else {
+        stringResource(R.string.settings_qqmusic_status_missing)
     }
 
     Column(
@@ -4434,8 +4490,16 @@ private fun SettingsLoginExpandedContent(
                 )
             },
             headlineContent = { Text(stringResource(R.string.settings_qq_music)) },
-            supportingContent = { Text(stringResource(R.string.common_coming_soon)) },
-            modifier = Modifier.settingsItemClickable { },
+            supportingContent = { Text(qqMusicStatusText) },
+            modifier = Modifier.settingsItemClickable(
+                onClick = {
+                    if (qqMusicLoggedIn) {
+                        onQqMusicLogout()
+                    } else {
+                        onOpenQqMusicSheet()
+                    }
+                }
+            ),
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )
     }

@@ -122,6 +122,7 @@ internal fun SettingsAudioQualitySection(
     qqMusicQualityLabel: String,
     qqMusicPreferredQuality: String,
     onQqMusicQualityChange: (String) -> Unit,
+    qqMusicLoggedIn: Boolean = false,
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseQualityLabel: String,
@@ -419,7 +420,10 @@ internal fun SettingsAudioQualitySection(
             onSelect = { level ->
                 onQqMusicQualityChange(level)
                 onShowQqMusicQualityDialogChange(false)
-                if (level in QQMUSIC_MEMBER_QUALITIES && qqMusicPreferredQuality != level) {
+                if (!qqMusicLoggedIn &&
+                    level in QQMUSIC_MEMBER_QUALITIES &&
+                    qqMusicPreferredQuality != level
+                ) {
                     audioQualityNotice = AudioQualityNotice.QqMusicMemberQuality
                 }
             }
