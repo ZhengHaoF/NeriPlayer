@@ -154,6 +154,7 @@ import moe.ouom.neriplayer.util.media.fastScrollableImageRequest
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton
 import moe.ouom.neriplayer.ui.haptic.HapticTextButton
 import moe.ouom.neriplayer.ui.screen.playlist.KugouLibraryEntryKind
+import moe.ouom.neriplayer.ui.screen.playlist.QQMusicPlaylistSelection
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsDialogContent
@@ -318,6 +319,7 @@ fun LibraryScreen(
     onYouTubeMusicPlaylistClick: (YouTubeMusicPlaylist) -> Unit = {},
     onBiliPlaylistClick: (BiliPlaylist) -> Unit = {},
     onKugouOpen: (KugouLibraryEntryKind) -> Unit = {},
+    onQqMusicPlaylistClick: (QQMusicPlaylistSelection) -> Unit = {},
     onOpenRecent: () -> Unit = {},
     onOpenStats: () -> Unit = {},
     offlineMode: Boolean = false
@@ -562,8 +564,10 @@ fun LibraryScreen(
                             offlineMode = offlineMode
                         )
 
-                        LibraryTab.QQMUSIC -> QqMusicPlaylistList(
-                            listState = qqMusicListState
+                        LibraryTab.QQMUSIC -> QQMusicLibraryContent(
+                            listState = qqMusicListState,
+                            onPlaylistClick = onQqMusicPlaylistClick,
+                            offlineMode = offlineMode
                         )
 
                         LibraryTab.KUGOU -> KugouLibraryContent(
@@ -3463,52 +3467,5 @@ private fun favoriteSourceLabel(source: String): String {
         "bili" -> "Bilibili"
         FAVORITE_SOURCE_NETEASE_ARTIST -> stringResource(R.string.library_favorite_source_artist)
         else -> source
-    }
-}
-
-@Composable
-private fun QqMusicPlaylistList(
-    listState: LazyListState
-) {
-    val miniPlayerHeight = LocalMiniPlayerHeight.current
-
-    LazyColumn(
-        state = listState,
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 8.dp + miniPlayerHeight),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        val cardShape = RoundedCornerShape(12.dp)
-        // TODO: Implement QQ Music playlist list when type is available
-        item {
-            Card(
-                shape = cardShape,
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.Transparent
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-                modifier = Modifier
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .clip(cardShape)
-            ) {
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.library_qqmusic_coming)) },
-                    supportingContent = {
-                        Text(stringResource(R.string.library_coming_soon), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    },
-                    colors = ListItemDefaults.colors(
-                        containerColor = Color.Transparent
-                    ),
-                    leadingContent = {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(56.dp)
-                        )
-                    }
-                )
-            }
-        }
     }
 }

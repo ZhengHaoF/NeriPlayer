@@ -92,6 +92,8 @@ import moe.ouom.neriplayer.ui.screen.playlist.KugouPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.KugouPlaylistSelection
 import moe.ouom.neriplayer.ui.screen.playlist.KugouSongListDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.KugouUserPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.QQMusicPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.QQMusicPlaylistSelection
 import moe.ouom.neriplayer.ui.shouldSuppressRestoredMainTabHostEntry
 import moe.ouom.neriplayer.ui.util.toSaveMap
 import moe.ouom.neriplayer.ui.util.restoreBiliPlaylist
@@ -127,6 +129,8 @@ sealed class LibrarySelectedItem : Parcelable {
     data class KugouLibrary(val kind: KugouLibraryEntryKind) : LibrarySelectedItem()
     @Parcelize
     data class KugouPlaylist(val playlist: KugouPlaylistSelection) : LibrarySelectedItem()
+    @Parcelize
+    data class QqMusicPlaylist(val playlist: QQMusicPlaylistSelection) : LibrarySelectedItem()
 }
 
 private val LibrarySelectedItem?.navigationDepth: Int
@@ -134,6 +138,7 @@ private val LibrarySelectedItem?.navigationDepth: Int
         null -> 0
         is LibrarySelectedItem.NeteaseArtistAlbum -> 2
         is LibrarySelectedItem.KugouPlaylist -> 2
+        is LibrarySelectedItem.QqMusicPlaylist -> 1
         else -> 1
     }
 
@@ -148,7 +153,8 @@ private enum class LibraryScrollSource {
     NeteaseAlbum,
     YouTubeMusic,
     Bili,
-    Kugou
+    Kugou,
+    QQMusic
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -326,6 +332,7 @@ fun LibraryHostScreen(
         LibraryScrollSource.YouTubeMusic -> youtubeMusicListState
         LibraryScrollSource.Bili -> biliListState
         LibraryScrollSource.Kugou -> kugouListState
+        LibraryScrollSource.QQMusic -> qqMusicListState
     }
 
     fun captureLibraryScrollPosition(source: LibraryScrollSource) {
@@ -574,6 +581,11 @@ fun LibraryHostScreen(
                                 captureLibraryScrollPosition(LibraryScrollSource.Kugou)
                                 openLibrarySelectedItem(LibrarySelectedItem.KugouLibrary(kind))
                             },
+                            onQqMusicPlaylistClick = { playlist ->
+                                skipDetailCloseAnimation = false
+                                captureLibraryScrollPosition(LibraryScrollSource.QQMusic)
+                                openLibrarySelectedItem(LibrarySelectedItem.QqMusicPlaylist(playlist))
+                            },
                             onOpenRecent = onOpenRecent,
                             onOpenStats = onOpenStats
                         )
@@ -752,6 +764,15 @@ fun LibraryHostScreen(
                                 offlineMode = offlineMode
                             )
                         }
+
+                        is LibrarySelectedItem.QqMusicPlaylist -> {
+                            QQMusicPlaylistDetailScreen(
+                                playlist = current.playlist,
+                                onBack = { closeSelectedDetail() },
+                                onSongClick = onSongClick,
+                                offlineMode = offlineMode
+                            )
+                        }
                         }
                     }
                 }
@@ -814,6 +835,15 @@ private val librarySelectedItemSaver = mapSaver<LibrarySelectedItem?>(
                 "cover" to (item.playlist.coverUrl ?: ""),
                 "creator" to (item.playlist.creator ?: "")
             )
+            is LibrarySelectedItem.QqMusicPlaylist -> hashMapOf(
+                "type" to "qqMusicPlaylist",
+                "id" to item.playlist.playlistId,
+                "name" to item.playlist.name,
+                "cover" to (item.playlist.coverUrl ?: ""),
+                "creator" to (item.playlist.creator ?: ""),
+                "songCount" to item.playlist.songCount,
+                "playCount" to item.playlist.playCount
+            )
         }
     },
     restore = { saved ->
@@ -857,6 +887,24 @@ private val librarySelectedItemSaver = mapSaver<LibrarySelectedItem?>(
                             name = playlistName,
                             coverUrl = (saved["cover"] as? String)?.takeIf { it.isNotBlank() },
                             creator = (saved["creator"] as? String)?.takeIf { it.isNotBlank() }
+                        )
+                    )
+                } else {
+                    null
+                }
+            }
+            "qqMusicPlaylist" -> {
+                val playlistId = saved["id"] as? String
+                val playlistName = saved["name"] as? String
+                if (!playlistId.isNullOrBlank() && !playlistName.isNullOrBlank()) {
+                    LibrarySelectedItem.QqMusicPlaylist(
+                        QQMusicPlaylistSelection(
+                            playlistId = playlistId,
+                            name = playlistName,
+                            coverUrl = (saved["cover"] as? String)?.takeIf { it.isNotBlank() },
+                            creator = (saved["creator"] as? String)?.takeIf { it.isNotBlank() },
+                            songCount = (saved["songCount"] as? Number)?.toInt() ?: 0,
+                            playCount = (saved["playCount"] as? Number)?.toLong() ?: 0L
                         )
                     )
                 } else {

@@ -39,6 +39,14 @@
     <string name="library_name_exists">A playlist with this name already exists, please choose another name</string>
     <string name="library_create_new">+ Create Playlist</string>
     <string name="library_qqmusic_coming">Coming Soon</string>
+    <string name="library_qqmusic_playlists">My Playlists</string>
+    <string name="library_qqmusic_login_hint">Sign in to QQ Music to browse your playlists and favorites</string>
+    <string name="library_qqmusic_login_action">Sign in to QQ Music</string>
+    <string name="library_qqmusic_playlists_empty">No playlists yet</string>
+    <string name="library_qqmusic_playlist_songs_empty">No songs in this playlist yet</string>
+    <string name="library_qqmusic_load_failed">Failed to load, please retry</string>
+    <string name="library_qqmusic_offline_hint">QQ Music content is unavailable in offline mode</string>
+    <string name="library_qqmusic_song_count" formatted="false">%d songs</string>
     <string name="library_netease_tab_playlists">Playlists</string>
     <string name="library_netease_tab_albums">Albums</string>
     <string name="library_netease_search_hint">Search playlists / albums</string>

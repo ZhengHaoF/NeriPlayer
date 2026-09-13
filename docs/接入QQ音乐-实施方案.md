@@ -1,6 +1,6 @@
 # NeriPlayer 接入 QQ音乐 · 实施方案（完整版）
 
-> 状态：**阶段 1–4 已实现并真机验收通过（匿名播放 / 探索搜索源 / 探索页榜单歌单 / 音质偏好 / QR 登录 + QIMEI + 凭证续期 + 登录后高音质）；媒体库 tab（阶段 5）待实施** · 本文最后同步 2026-09-13
+> 状态：**阶段 1–5 已实现（阶段 1–4 真机验收通过；阶段 5 歌单列表真机通过，详情播放待验收）** · 本文最后同步 2026-09-14
 > 范围：完整版（匿名播放 + 登录 + 高音质 + 用户内容）
 > 落地方式（**已决策**）：**内嵌 Kotlin 适配层**，不引入 Node 中转
 > 登录路线（**已决策**）：**QR 扫码登录（路线 A）** —— 连锁依赖见 §5.4 / §7.2
@@ -32,7 +32,7 @@
 | 音质偏好设置 | `qqMusicAudioQuality`，接入设置页与 PlayerManager 音质管道 | P1 |
 | 登录 | **QQ 扫码登录（QR）**，解锁高音质与受限曲库 · **含 QIMEI + session 前置** | P1 |
 | 高音质 | 登录后逐档上探（M800 / C600 / O800 / F000 等） | P1 |
-| 媒体库 tab | 替换现有 `QqMusicPlaylistList` 占位，接入「我的」内容 | P1 |
+| 媒体库 tab | 替换现有 `QqMusicPlaylistList` 占位，接入「我的」内容 | P1（已完成，待验收） |
 | 榜单 / 推荐 / 歌单 | 官方榜单、推荐歌单、相似歌曲 | P2 |
 | 用户歌单 / 收藏 | 依赖登录态 | P2 |
 | 云盘 | QQ音乐云盘（需确认接口可用性） | P3 |
@@ -56,7 +56,7 @@
 | 搜索源注册 | [SearchManager.kt](../../app/src/main/java/moe/ouom/neriplayer/core/api/search/SearchManager.kt) L78 / L172 | ✅ 已注册（用于歌词自动匹配的候选源） |
 | 手动元数据搜索界面 | [NowPlayingViewModel.kt](../../app/src/main/java/moe/ouom/neriplayer/ui/viewmodel/NowPlayingViewModel.kt) L92 | ✅ `ManualSearchState.selectedPlatform` 的**声明默认值即 `QQ_MUSIC`**（运行时初始值另有条件：网易云 cookie 缺失 → `QQ_MUSIC`，否则 `CLOUD_MUSIC`，见 L109-116） |
 | 歌词偏移设置项 | `qq_music_lyric_default_offset_ms`（默认 500ms） | ✅ 已存在 |
-| 媒体库 tab 骨架 | `LibraryTab.QQMUSIC` + `qqMusicListState` + `QqMusicPlaylistList` | ⚠️ 存在但为「开发中」占位（`LibraryScreen.kt:3470`，纯 `TODO`） |
+| 媒体库 tab | `QQMusicLibraryContent` + `QQMusicPlaylistDetailScreen`（阶段 5） | ✅ 已实现：未登录空态 + 登录后「我的歌单」列表 + 歌单详情 |
 | DI 容器 | `AppContainer.qqMusicSearchApi`（L405） | ✅ 已注册 |
 | 播放源枚举 | `core/player/model/PlaybackAudioInfo.kt` → `PlaybackAudioSource` | ✅ **已实现** `QQ_MUSIC`（阶段 1，commit `4f94aaf4`） |
 | URL 解析分发 | [PlayerManagerUrlExtensions.kt](../../app/src/main/java/moe/ouom/neriplayer/core/player/url/PlayerManagerUrlExtensions.kt) L336 起 | ✅ 已实现 `isQQMusicTrack` 分支 + `getQQMusicSongUrl`（阶段 1） |
@@ -210,7 +210,7 @@ QQMUSIC_QUALITY_FALLBACK_ORDER = ["F000", "M800", "C600", "M500", "C400"]
 | 换取凭证 | `POST https://ssl.ptlogin2.graph.qq.com/check_sig` → `POST https://graph.qq.com/oauth2.0/authorize` → `musicu.fcg` 的 `QQConnectLogin.LoginServer` / `QQLogin` | 三步链路：`check_sig` 取 `p_skey`（**cookie 名兼容 `p_skey` / `p-skey` / `pskey` / `ptsigx` / `skey`**，见 `login.js:421-426`）→ `authorize` 换 `code`（从 302 Location 正则提取）→ `QQLogin` 换 **`musickey` / `musicid` / `refreshKey`**；`comm.tmeLoginType = 2` |
 | 手机验证码 | `music.login.LoginServer` / `SendPhoneAuthCode` + `Login` | P2，非必须 |
 | 凭证刷新 | `music.login.LoginServer` / `Login`（`loginMode: 2`，见 `login.js:refreshCredential`） | 登录态维护。按 `loginType` 分三套 param（1 / 2 / default） |
-| 用户歌单 | QQMusicapi `user.js`（`user/songlist`） | 具体 module/method 需在实现时以抓包校验 |
+| 用户歌单 | `musicu.fcg` 的 `music.musicasset.PlaylistBaseRead` / `GetPlaylistByUin` | ✅ 已实现（阶段 5，对齐上游 [L-1124/QQMusicApi](https://github.com/L-1124/QQMusicApi) `user.get_created_songlist`）；Android comm + cookie；param 仅 `{uin}`；响应在 `req_0.data.v_playlist[]`（字段 camelCase：`tid`/`dirName`/`picUrl`/`songNum`/`play_cnt`）<br/>⚠️ **勿用** `music.songlist.UserSonglistService` / `GetUserSonglist`（实测 500003/860100001）；`fcg_get_user_channel.fcg` 已 404 |
 | 榜单 / 推荐 | 需在实现时以抓包校验（QQMusicapi 未完整覆盖） | P2，**信息缺口见 §10** |
 
 **⚠️ 登录链路的关键约束（已决策路线 A，本节即既定成本）**：
@@ -490,14 +490,20 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 - [x] 音质档位回填：以响应实际下发的 `purl` 文件名档位码 + 扩展名自洽校验为准（`actualQualityFromPurl`），请求无损被回落时 qualityKey/label/mimeType/cacheKey 均以实际档位为准
 - [x] **验收：真机通过（2026-09-13）**：设置页扫码登录成功 → VIP 歌曲可播 → 音质上探到无损档；登出后回落匿名档位。同时关闭 §10 条件项 4（登录后高音质解锁确认有效）
 
-### 阶段 5：媒体库 tab 与内容面（P2）
+### 阶段 5：媒体库 tab 与内容面（P2 · **代码已实现，待真机验收**）
 
-- [ ] 替换 `QqMusicPlaylistList` 占位（`LibraryScreen.kt:3470`，删除 `TODO` 与「开发中」文案）
-- [ ] `QQMusicChannel`：榜单 / 推荐歌单（**接口 module/method 需抓包确认，见 §10**）
-- [ ] `QQMusicUserApi`：用户歌单 / 收藏（依赖登录）
-- [ ] 未登录空态（内嵌登录入口）+ 离线空态
-- [ ] 若走详情页导航：新增 `LibrarySelectedItem` 子类时**必须同步 `librarySelectedItemSaver` 的穷尽 when**，否则编译报错 + 进程重启丢导航态（酷狗接入时踩过的坑）
-- [ ] **验收：媒体库 QQ音乐 tab 显示内容并可播放**
+> 内容范围**已决策为选项 A**（仅「我的」内容）：登录后展示用户歌单；未登录空态 + 内嵌登录入口；不做榜单/推荐（与探索页分层）。
+
+- [x] 替换 `QqMusicPlaylistList` 占位 → 新 `QQMusicLibraryContent`（`LibraryScreen` 已改接）
+- [x] `QQMusicUserApi.kt`：用户创建歌单（`music.musicasset.PlaylistBaseRead` / `GetPlaylistByUin`，对齐上游 QQMusicApi；解析 `v_playlist[]`）<br/>  实测踩坑：`GetUserSonglist` → 500003；`fcg_get_user_channel` → 404；**正确接口已真机跑通（返回「我喜欢」）**
+- [x] `QQMusicLibraryContent.kt`：未登录空态（内嵌 `QQMusicQrLoginSheet`）+ 离线空态；登录后 tab 直列「我的歌单」
+- [x] `QQMusicPlaylistDetailScreen`（`QQMusicDetailScreens.kt`）：歌单头部 + 歌曲列表，复用 `fetchQQMusicPlaylistSongs`
+- [x] `LibrarySelectedItem.QqMusicPlaylist` + `librarySelectedItemSaver` 穷尽 when + 滚动位恢复（`LibraryScrollSource.QQMusic`）
+- [x] i18n：`library_qqmusic_login_hint` / `login_action` / `playlists_empty` / `playlist_songs_empty` / `load_failed` / `offline_hint`（3 语言）
+- [x] 编译通过（`compileDebugKotlin`）
+- [x] **验收：列表已真机通过（2026-09-13）**：登录后 tab 显示「我喜欢」等创建歌单
+- [ ] **验收（待真机人工）**：点击歌单进入详情 → 歌曲可播；未登录空态可拉起扫码登录
+- 说明：当前仅覆盖**创建的歌单**（含「我喜欢」）；收藏的外部歌单可用 `music.musicasset.PlaylistFavRead` / `CgiGetPlaylistFavInfo` 作 P2 增强
 
 ### 阶段 6：稳定性与回归（P3）
 
@@ -561,10 +567,10 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 6. **探索页是否做 QQ音乐默认内容**（未搜索时的发现内容：榜单 / 推荐歌单）：
    - 参照酷狗有 `KugouExploreContent`（每日推荐/排行榜/热门歌单横滑卡片）；QQ音乐是否同等对待？
    - ⚠️ 该功能依赖「榜单 / 推荐接口的 module + method」，属信息缺口（见下），需先抓包确认可行性
-7. **媒体库 QQ音乐 tab 的内容范围**：
-   - 选项 A：仅个人内容（我的歌单 / 收藏）+ 未登录空态 —— 与项目「媒体库 = 我的内容」分层原则一致
-   - 选项 B：A + 榜单/推荐（会与探索页职责重叠）
-   - 选项 C：本阶段不做，保持占位
+7. **媒体库 QQ音乐 tab 的内容范围**（**已定，2026-09-14 用户确认选项 A**）：
+   - 选项 A：仅个人内容（我的歌单 / 收藏）+ 未登录空态 —— **已采用**，与项目「媒体库 = 我的内容」分层原则一致
+   - 选项 B：A + 榜单/推荐（会与探索页职责重叠）—— 未采用
+   - 选项 C：本阶段不做，保持占位 —— 未采用
 8. **音质偏好默认档位**（**已定，阶段 3 落地）**：默认 `M500` 优先（文档 §5.3 理由）；设置页选项 = 标准(M500) / 较高(C600) / 极高(M800) / 无损(F000)，`O800`/`C400` 不单列（由降级链隐式覆盖）。登录尚未实现，未做两套档位区分，改以「选择会员档弹提示」承载（见 §8 阶段 3）。
 
 **由实施方（助手）自行决定的技术细节（如有异议请提出）：**
@@ -586,7 +592,7 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 **信息缺口（实施时需补齐）：**
 
 1. **榜单 / 推荐歌单接口的 module + method**（QQMusicapi 未完整覆盖，`song.js` 仅有 `getSimilar` / `getRelatedSonglist`）。
-2. **用户歌单 / 收藏接口的 module + method**（QQMusicapi 有 web 路由，但底层 module 需确认）。
+2. ~~**用户歌单 / 收藏接口的 module + method**~~ **已补齐（阶段 5）**：`music.songlist.UserSonglistService` / `GetUserSonglist`（对齐 QQMusicapi `user.js`）。
 3. **登录后高音质解锁的实际效果**（需真实账号，阶段 4 开工前置）。
 4. **`sip` 数组的稳定性**：实测返回 `http://`（非 https）CDN，需确认 Android 端 `cleartextTraffic` 策略是否放行（项目已支持其他源 http 直链，但要单独确认 QQ音乐域名）。
 5. **QQ音乐云盘**是否存在可用接口（QQMusicapi 未覆盖）。
