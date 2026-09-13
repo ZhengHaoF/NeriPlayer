@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -51,6 +52,7 @@ import moe.ouom.neriplayer.core.api.qqmusic.fetchQQMusicRankSongs
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.util.format.formatPlayCount
 
 private const val TAG = "QQMusicExploreContent"
@@ -127,7 +129,10 @@ internal fun QQMusicExploreContent(
             val safeContent = content ?: QQMusicChannelContent()
             LazyColumn(
                 modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp)
+                contentPadding = PaddingValues(
+                    top = 8.dp,
+                    bottom = 8.dp + LocalMiniPlayerHeight.current
+                )
             ) {
                 if (safeContent.ranks.isNotEmpty()) {
                     item {
@@ -190,7 +195,11 @@ internal fun QQMusicExploreContent(
             onDismissRequest = { sheetOpen = false },
             sheetState = sheetState
         ) {
-            Column(Modifier.padding(bottom = 24.dp)) {
+            Column(
+                Modifier
+                    .heightIn(max = 520.dp)
+                    .padding(bottom = 24.dp)
+            ) {
                 Text(
                     text = sheetTitle,
                     style = MaterialTheme.typography.titleMedium,
@@ -215,7 +224,7 @@ internal fun QQMusicExploreContent(
                     }
 
                     else -> {
-                        LazyColumn {
+                        LazyColumn(Modifier.weight(1f)) {
                             items(sheetSongs!!) { song ->
                                 QQMusicSongRow(song = song) {
                                     val index = sheetSongs!!.indexOf(song)
