@@ -1142,7 +1142,8 @@ internal fun PlayerManager.playAtIndex(
                     )
                 }
             }
-            is SongUrlResult.Failure -> {
+            is SongUrlResult.Failure,
+            SongUrlResult.Unplayable -> {
                 if (
                     shouldAwaitListenTogetherSharedStreamFallback(
                         song = song,

@@ -505,7 +505,8 @@ internal fun mergeListenTogetherFallbackResult(
             }
         }
         SongUrlResult.Failure,
-        SongUrlResult.RequiresLogin -> listenTogetherFallback
+        SongUrlResult.RequiresLogin,
+        SongUrlResult.Unplayable -> listenTogetherFallback
         SongUrlResult.WaitingForAuthoritativeStream ->
             if (fallbackMatchesPreference) listenTogetherFallback else localResult
     }

@@ -390,7 +390,10 @@ internal suspend fun PlayerManager.resolveSongUrl(
         )
     }
 
-    return if (resolvedResult is SongUrlResult.Failure && hasCachedData) {
+    return if (
+        (resolvedResult is SongUrlResult.Failure || resolvedResult is SongUrlResult.Unplayable) &&
+        hasCachedData
+    ) {
         NPLogger.d("NERI-PlayerManager", "远端解析失败但缓存完整，回退到离线缓存地址: $cacheKey")
         val fallbackDescriptor = cache?.readCachedPlaybackDescriptor(cacheKey)
         val fallbackAudioInfo = fallbackDescriptor?.toPlaybackAudioInfo {
@@ -406,6 +409,14 @@ internal suspend fun PlayerManager.resolveSongUrl(
             durationMs = song.durationMs.takeIf { it > 0L }
         )
     } else {
+        if (resolvedResult is SongUrlResult.Unplayable && isQQMusicTrack(song)) {
+            // 确定性不可播（需会员）：不参与外层重试；离线缓存回退成功时不弹窗
+            resolverSideEffects.emitError {
+                postPlayerEvent(
+                    PlayerEvent.ShowError(getLocalizedString(R.string.error_qqmusic_vip_required))
+                )
+            }
+        }
         resolvedResult
     }
 }
@@ -1800,16 +1811,9 @@ private suspend fun PlayerManager.getQQMusicSongUrl(
                 "NERI-PlayerManager",
                 "QQ Music track requires VIP: song=${song.name} songmid=${song.audioId.orEmpty()}"
             )
-            if (!suppressError) {
-                sideEffects.emitError {
-                    postPlayerEvent(
-                        PlayerEvent.ShowError(
-                            getLocalizedString(R.string.error_qqmusic_vip_required)
-                        )
-                    )
-                }
-            }
-            SongUrlResult.Failure
+            // 确定性不可播：不参与外层 Failure 重试。文案在 resolveSongUrl 收口时统一弹出
+            // （需避开「远端失败但离线缓存可播」的回退路径）。
+            SongUrlResult.Unplayable
         }
         QQMusicResolveOutcome.Unavailable -> {
             if (!suppressError) {

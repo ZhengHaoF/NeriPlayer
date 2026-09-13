@@ -84,4 +84,10 @@ internal sealed class SongUrlResult {
     object WaitingForAuthoritativeStream : SongUrlResult()
     object RequiresLogin : SongUrlResult()
     object Failure : SongUrlResult()
+
+    /**
+     * 永久不可播（如 QQ音乐 `result=104003` 需会员）。
+     * 与 [Failure] 区分：不参与 [retrySongUrlResolution] 外层重试，避免连打取址接口。
+     */
+    object Unplayable : SongUrlResult()
 }

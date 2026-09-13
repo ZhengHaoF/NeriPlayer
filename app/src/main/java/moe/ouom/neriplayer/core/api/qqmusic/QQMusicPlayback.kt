@@ -269,6 +269,9 @@ private suspend fun QQMusicSession.requestVkey(
     }
     val request = requestBuilder.build()
 
+    // 取址 QPS 闸门：降级链 / 外层重试 / 并发预取都会打到本接口
+    vkeyRateLimiter.acquire()
+
     return client.newCall(request).awaitResponse { response ->
         if (!response.isSuccessful) {
             throw IOException("QQ Music vkey HTTP ${response.code}")

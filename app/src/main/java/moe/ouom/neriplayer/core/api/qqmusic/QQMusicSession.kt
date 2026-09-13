@@ -61,6 +61,9 @@ class QQMusicSession(
 
     private val _loggedInFlow = MutableStateFlow(cookieStore.isLoggedIn)
 
+    /** 取址 QPS 闸门：音质降级链 + 外层重试可能连发 `CgiGetVkey`，需串行限速。 */
+    internal val vkeyRateLimiter = QQMusicVkeyRateLimiter()
+
     /** 续期并发串行化：避免多个播放请求同时触发续期。 */
     private val refreshMutex = Mutex()
 

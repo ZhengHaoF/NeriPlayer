@@ -402,7 +402,8 @@ class StartupOnboardingProgressTest {
             shouldWarnStartupNoPlatformConnected(
                 biliState = SavedCookieAuthState.Missing,
                 neteaseState = SavedCookieAuthState.Missing,
-                youTubeState = YouTubeAuthState.Missing
+                youTubeState = YouTubeAuthState.Missing,
+                kugouLoggedIn = false
             )
         )
         assertEquals(
@@ -410,7 +411,8 @@ class StartupOnboardingProgressTest {
             shouldWarnStartupNoPlatformConnected(
                 biliState = SavedCookieAuthState.Valid,
                 neteaseState = SavedCookieAuthState.Missing,
-                youTubeState = YouTubeAuthState.Missing
+                youTubeState = YouTubeAuthState.Missing,
+                kugouLoggedIn = false
             )
         )
         assertEquals(
@@ -418,7 +420,8 @@ class StartupOnboardingProgressTest {
             shouldWarnStartupNoPlatformConnected(
                 biliState = SavedCookieAuthState.Checking,
                 neteaseState = SavedCookieAuthState.Missing,
-                youTubeState = YouTubeAuthState.Missing
+                youTubeState = YouTubeAuthState.Missing,
+                kugouLoggedIn = false
             )
         )
     }
