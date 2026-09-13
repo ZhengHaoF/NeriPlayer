@@ -1,6 +1,6 @@
 # NeriPlayer 接入 QQ音乐 · 实施方案（完整版）
 
-> 状态：**阶段 1–3 已实现（匿名播放 / 探索搜索源 / 探索页榜单歌单 / 音质偏好设置），登录（阶段 4）与媒体库 tab（阶段 5）待实施** · 本文最后同步 2026-09-12
+> 状态：**阶段 1–4 已实现并真机验收通过（匿名播放 / 探索搜索源 / 探索页榜单歌单 / 音质偏好 / QR 登录 + QIMEI + 凭证续期 + 登录后高音质）；媒体库 tab（阶段 5）待实施** · 本文最后同步 2026-09-13
 > 范围：完整版（匿名播放 + 登录 + 高音质 + 用户内容）
 > 落地方式（**已决策**）：**内嵌 Kotlin 适配层**，不引入 Node 中转
 > 登录路线（**已决策**）：**QR 扫码登录（路线 A）** —— 连锁依赖见 §5.4 / §7.2
@@ -458,33 +458,37 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
   `AutoSettingsSchema`（KSP 生成 `SettingsKeys.QQMUSIC_AUDIO_QUALITY`）→ `SettingsRepository`（`qqMusicAudioQualityFlow` + `setQqMusicAudioQuality`）→ `PlaybackPreferenceSnapshot`（`normalizeQQMusicQualityKey` + `DEFAULT_QQMUSIC_AUDIO_QUALITY = M500`，5 处读写）→ `ConfigSettingsSanitizer`（`QQMUSIC_AUDIO_QUALITY_VALUES`）→ `NeriApp.kt` 偏好 collect → `PlayerManagerLifecycleExtensions` 音质管道（新增 `qqMusicQualityRefreshJob`）
 - [x] `PreferredQualityKeys.qqMusic` + `forSource()` 映射（阶段 1 已就绪）
 - [x] `SettingsAudioQualitySection` 新增 QQ音乐音质选项 + i18n（`quality_qqmusic_default` / `settings_audio_quality_qqmusic_member_quality_notice`，3 语言）+ `SettingsSearchIndex` 搜索别名
-- [x] 登录态差异：因登录（阶段 4）尚未实现，采用「选择会员档（C600/M800/F000）弹提示」方案（对齐酷狗/网易云 notice 范式），不灰显；阶段 4 落地后再接 `loggedInFlow` 两套档位
+- [x] 登录态差异：**已随阶段 4 接入 `loggedInFlow`**——未登录选会员档弹提示（对齐酷狗/网易云 notice 范式，不灰显），登录后直接生效不再提示
 - [ ] **验收（待真机人工）**：设置页切换音质 → 播放请求按新档位发起；未登录选会员档 → 弹提示 + 实际回落到 `M500`/`C400`
 
-### 阶段 4：登录 + 高音质（P1）· 路线 A（QR 扫码）
+### 阶段 4：登录 + 高音质（P1）· 路线 A（QR 扫码）· **代码已实现（未提交），待真机验收**
 
 **阶段 4a：QIMEI 设备身份（路线 A 的强制前置）**
 
-- [ ] `core/api/qqmusic/QQMusicDevice.kt`：
-  - QIMEI 注册（`api.tencentmusic.com/tme/trpc/proxy`）—— RSA-PKCS1 加密 `crypt_key` + AES-128-CBC 加密 payload + MD5 签名；参照/复用 `NeteaseCrypto` 的 AES/RSA/MD5 原语
-  - `getSession`（`music.getSession.session / GetSession`）
-  - 24h 有效期 + 签发时间落盘 + **注册并发串行化**（对齐 QQMusicapi `QimeiManager._lock`）
-  - `beaconId` 生成（40 段，`k1/k2/k13...` 用月初时间戳 + 随机数，`k3` 全 0，`k4` 为 16 位非零 hex，其余随机数）
-- [ ] 设备身份独立于登录态持久化；退出登录不重置
-- [ ] **验收**：冷启动可复用未过期的 QIMEI + session，不重复注册
+- [x] `core/api/qqmusic/QQMusicDevice.kt`（447 行）：
+  - QIMEI 注册（`api.tencentmusic.com/tme/trpc/proxy`）—— RSA-PKCS1 加密 `crypt_key` + AES-128-CBC 加密 payload + MD5 签名（复用 `QQMusicCrypto` 原语）
+  - `getSession`（`music.getSession.session / GetSession`，Android comm POST + JSON body）
+  - 24h 有效期 + 签发时间落盘 + 注册并发串行化（`Mutex`，对齐 QQMusicapi `QimeiManager._lock`）
+  - 固定伪造设备画像（MI 6 / Android 10，对齐 QQMusicapi `device.json`），不读真机信息
+- [x] 设备身份独立于登录态持久化；退出登录不重置
+- [x] 编译通过 + **真机验收通过（2026-09-13）**：冷启动可复用未过期的 QIMEI + session，不重复注册
 
 **阶段 4b：QR 登录**
 
-- [ ] **开工前置**：完成 §10 信息缺口第 3 项验证（登录后高音质是否真解锁）
-- [ ] `QQMusicSigner`：`hash33`（QR 轮询 `ptqrtoken` 需要）
-- [ ] `QQMusicQrLoginClient`：`ptqrshow` → `ptqrlogin` 轮询（2s，`hash33(qrsig)`）→ `check_sig`（**必须 `allowRedirects: false`**，cookie 名多形态兼容）→ `authorize` 提 `code` → `QQLogin`（Android comm，依赖 4a）
-- [ ] 扫码状态 JS 文本解析（双正则范式，见 `login.js:279-296`）
-- [ ] `QQMusicCookieStore` 加密持久化 + `QQMusicSession.loggedInFlow`
-- [ ] `QQMusicQrLoginSheet`（可复刻 `KugouQrLoginSheet`，`internal`）接入设置页「平台登录」
-- [ ] 登录态取址：`uin` = musicid + `qm_keyst` / `qqmusic_key` = musickey → 开放 `F000` / `M800` / `C600` / `O800` 档位
-- [ ] `refreshKey` 续期（`music.login.LoginServer / Login`，`loginMode: 2`），失败降级匿名态
-- [ ] 音质档位回填：以响应实际下发的 `purl` 扩展名 + 文件名档位为准（对齐酷狗的「请求无损但回落 mp3」处理）
-- [ ] **验收：设置页扫码登录成功 → VIP 歌曲可播 → 音质上探到无损档**
+- [x] `QQMusicCrypto.kt`：`hash33`（QR 轮询 `ptqrtoken`）等原语
+- [x] `QQMusicQrLoginClient.kt`（429 行）：`ptqrshow` → `ptqrlogin` 轮询（`hash33(qrsig)`）→ `check_sig`（`allowRedirects: false`，cookie 名 5 形态兼容）→ `authorize` 提 `code` → `QQLogin`（Android comm，依赖 4a）
+- [x] 扫码状态 JS 文本解析（`ptuiCB` 双正则；0=成功 / 65=过期 / 66=等待 / 67=已扫 / 68=拒绝）
+- [x] `QQMusicCookieStore` 加密持久化（musickey/musicid/refreshKey/openid/unionid 等）+ `QQMusicSession.loggedInFlow`
+- [x] `QQMusicQrLoginSheet`（复刻 `KugouQrLoginSheet`）接入设置页「平台登录」，含登录态展示与退出登录
+- [x] 登录态取址：`uin` = musicid + `qm_keyst` / `qqmusic_key` cookie → 开放全档位（音质设置不再弹「需会员」提示）
+- [x] **`refreshKey` 续期（2026-09-13 实装）**：`music.login.LoginServer / Login`（`loginMode: 2`）
+  - 新增 `QQMusicCredentialRefresh.kt`：param 按 `loginType` 分三套（1=微信 / 2=QQ扫码 / 其他=合并形态，1:1 对齐蓝本 `login.js` `refreshCredential`）；comm 走 Android 平台；凭证经 cookie + comm 双通道携带
+  - 失败语义：仅鉴权过期码（1000/104401/104400）→ 登出降级匿名态；其余（网络/限流/参数态）→ 保留现凭证
+  - 合并防御：续期响应缺失的字段保留旧值（防 `refresh_key` 被意外清空）
+  - 节流与串行化：常规维持每日至多一次（`QQMusicSession.refreshCredentialIfNeeded`，互斥锁串行化）；播放全链路失败（非 104003）后短节流（10 分钟）续期一次并重试降级链，兜底会话中途失效
+  - `QQMusicCredential` 新增 `unionid` 字段（loginType=1 续期 param 需要），并抽出共享解析器 `fromApiData`（QQLogin / 续期共用）
+- [x] 音质档位回填：以响应实际下发的 `purl` 文件名档位码 + 扩展名自洽校验为准（`actualQualityFromPurl`），请求无损被回落时 qualityKey/label/mimeType/cacheKey 均以实际档位为准
+- [x] **验收：真机通过（2026-09-13）**：设置页扫码登录成功 → VIP 歌曲可播 → 音质上探到无损档；登出后回落匿名档位。同时关闭 §10 条件项 4（登录后高音质解锁确认有效）
 
 ### 阶段 5：媒体库 tab 与内容面（P2）
 
@@ -548,10 +552,7 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 
 **【条件项】**
 
-4. **登录后高音质解锁验证**（阶段 4 开工前置）：需**真实 QQ音乐账号**做 1 次手工实验，确认 `F000` / `M800` / `C600` / `O800` 是否真正解锁。请确认验证方式：
-   - 选项 A：你提供账号，我用 QQMusicapi 跑一次扫码验证（账号凭证仅本地使用，不落盘）
-   - 选项 B：你自己在浏览器/客户端确认 VIP 状态与可用音质档位
-   - 选项 C：先跳过，阶段 4 开工前再补
+4. **登录后高音质解锁验证**（~~阶段 4 开工前置~~ **已随阶段 4 真机验收完成 2026-09-13：解锁确认**）。
 
 **【形态项】**
 
