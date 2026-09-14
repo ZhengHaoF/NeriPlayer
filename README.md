@@ -7,18 +7,9 @@
 <h3>✨ 一个把多源在线播放、本地管理、歌词体验和自建同步做进原生 Android 的音频播放器 🎵</h3>
 
 <p>
-  <a href="https://github.com/cwuom/NeriPlayer/releases">
-    <img alt="Downloads" src="https://img.shields.io/github/downloads/cwuom/NeriPlayer/total?style=social" />
-  </a>
-  <a href="https://github.com/cwuom/NeriPlayer/releases">
-    <img alt="Release" src="https://img.shields.io/github/v/release/cwuom/NeriPlayer?include_prereleases&label=Release" />
-  </a>
   <img alt="Android 9+" src="https://img.shields.io/badge/Android-9%2B-3DDC84?logo=android&logoColor=white" />
-  <a href="https://t.me/ouom_pub">
-    <img alt="Telegram" src="https://img.shields.io/badge/Telegram-@ouom__pub-blue" />
-  </a>
-  <a href="https://t.me/neriplayer_ci">
-    <img alt="CI Builds" src="https://img.shields.io/badge/CI_Builds-@neriplayer__ci-orange" />
+  <a href="https://github.com/cwuom/NeriPlayer">
+    <img alt="Forked from cwuom/NeriPlayer" src="https://img.shields.io/badge/Forked_from-cwuom%2FNeriPlayer-blue?logo=github" />
   </a>
 </p>
 
@@ -37,9 +28,12 @@
 
 🛠️ <strong>Active development / 持续迭代中</strong>
 
-<a href="https://trendshift.io/repositories/23906" target="_blank"><img src="https://trendshift.io/api/badge/repositories/23906" alt="cwuom%2FNeriPlayer | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-
 </div>
+
+> [!NOTE]
+> 本项目 Fork 自 [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer)，
+> 在上游基础上新增了**酷狗概念版**与 **QQ 音乐**音源等内容，
+> 详见 [Fork 说明](#fork-说明--fork-notes)。
 
 > [!WARNING]
 > 本项目仅供学习与研究使用，请勿将其用于任何非法用途。
@@ -59,6 +53,33 @@
 
 ---
 
+## Fork 说明 / Fork Notes
+
+本仓库 Fork 自 [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer)，
+感谢上游维护者与所有贡献者。除完整继承上游能力外，本 Fork 的主要改动：
+
+- 🐶 **新增酷狗概念版音源**：
+  搜索、播放 URL、多音质档位与自动回退、扫码登录、
+  资料库页（账户内容与歌单详情）、歌词与封面链路；
+  接口实现参考 [EchoMusic](https://github.com/hoowhoami/EchoMusic)，
+  仅对齐接口行为与策略，未复制其代码。
+- 🎵 **新增 QQ 音乐音源**：
+  探索搜索与匿名播放、排行榜/热门歌单频道、音质偏好设置、
+  QIMEI 设备身份扫码登录、播放期歌词获取、歌单与资料库用户歌单、
+  vkey 限流与 VIP 解析重试控制；
+  接口实现参考 [qq-music-api](https://github.com/sansenjian/qq-music-api)，
+  仅对齐接口行为与策略，未复制其代码。
+- 📚 **接入方案文档**：
+  [docs/接入酷狗概念版-实施方案.md](./docs/接入酷狗概念版-实施方案.md)、
+  [docs/接入QQ音乐-实施方案.md](./docs/接入QQ音乐-实施方案.md)。
+- 🧱 **构建适配**：跨盘 Windows 构建时禁用 Kotlin 增量缓存，避免跨驱动器路径导致构建失败。
+- 🧹 **界面修复**：探索页列表滚动区域避让迷你播放器。
+
+其余功能、隐私策略与使用说明均继承自上游，
+可参考[上游 README](https://github.com/cwuom/NeriPlayer#readme)。
+
+---
+
 ## 快速定位 / Start here
 
 如果你只是想体验应用，请看 [快速体验](#快速体验--getting-started)。
@@ -70,7 +91,7 @@
 
 ```text
 NeriPlayer
-├── 多源在线播放：网易云 / Bilibili / YouTube Music
+├── 多源在线播放：网易云 / Bilibili / YouTube Music / 酷狗概念版 / QQ 音乐
 ├── 本地优先数据：缓存、下载、歌单、历史、统计、设置
 ├── 可选自有同步：GitHub / WebDAV 元数据同步
 ├── 丰富播放体验：Media3、歌词、音效、流体背景、桌面小组件、启动器快捷方式、悬浮/状态栏歌词
@@ -80,8 +101,10 @@ NeriPlayer
 ## 项目简介 / About
 
 NeriPlayer 是一个基于 **Jetpack Compose + Media3** 的原生 Android
-音频播放器。它不构建公共云端服务，而是在用户具备第三方平台账号能力的前提下，
-整合 **网易云音乐**、**Bilibili** 与 **YouTube Music** 的在线内容，
+音频播放器，也是 [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) 的 Fork。
+它不构建公共云端服务，而是在用户具备第三方平台账号能力的前提下，
+整合 **网易云音乐**、**Bilibili**、**YouTube Music**、**酷狗概念版** 与
+**QQ 音乐** 的在线内容，
 并提供本地播放、下载、缓存、歌单管理和多种同步/备份能力。
 
 当前定位：
@@ -229,31 +252,13 @@ NeriPlayer 是一个基于 **Jetpack Compose + Media3** 的原生 Android
 
 ## 快速体验 / Getting Started
 
-### a. 下载 Release 版本（推荐）
+> 🚧 下载渠道待补充：本仓库暂未发布 Release，可先通过下面的「本地构建」自行编译安装。
 
-1. 前往 [GitHub Releases](https://github.com/cwuom/NeriPlayer/releases)
-2. 如何选择版本？
-- 大部分手机请选择 `arm64-v8a`
-- 老旧 32 位设备请选择 `armeabi-v7a`
-- `x86` / `x86_64` 主要用于模拟器、英特尔设备或 Chromebook
-
-> [!IMPORTANT]
-> Release 渠道不是严格意义上的稳定通道。版本通常在完成一批功能后手动发布，
-> 仍可能包含未充分暴露的问题。
-
-### b. 下载 CI 版本
-
-1. 前往 [GitHub Actions](https://github.com/cwuom/NeriPlayer/actions)
-   下载最近一次成功构建的 Artifacts 并解压。
-2. 或访问 [NeriPlayer CI Builds](https://t.me/neriplayer_ci)。
-
-> master 分支 CI 默认上传 `arm64-v8a` APK；手动 Release 流程会构建多 ABI APK。
-
-### c. 本地构建
+### 本地构建
 
 1. 克隆仓库并初始化子模块：
    ```bash
-   git clone --recursive https://github.com/cwuom/NeriPlayer.git
+   git clone --recursive https://github.com/ZhengHaoF/NeriPlayer.git
    cd NeriPlayer
    ```
 2. 使用 Android Studio 最新稳定版打开项目并同步依赖。
@@ -280,18 +285,18 @@ NeriPlayer 是一个基于 **Jetpack Compose + Media3** 的原生 Android
 ## 核心特性 / Key Features
 
 - 🎧 **多源探索与播放**：
-  支持网易云音乐、Bilibili、YouTube Music 与本地音频播放。
+  支持网易云音乐、Bilibili、YouTube Music、酷狗概念版、QQ 音乐与本地音频播放。
 - 🏠 **首页推荐与继续播放**：
   首页支持最近常用歌单、网易云动态推荐源、雷达歌单与推荐卡片；
   默认同时展示榜单、新歌、日推、私人 FM、精品歌单等可用来源，刷新会更新全部分区。
   国际化模式下优先展示 YouTube Music 首页歌单与歌曲货架。
 - 🗂️ **媒体库分类浏览**：
-  `Library` 提供本地、收藏、网易云、YouTube Music、Bilibili 等入口；
+  `Library` 提供本地、收藏、网易云、YouTube Music、Bilibili、酷狗概念版、QQ 音乐等入口；
   可在“设置 > 通用”中完全禁用 YouTube，关闭后不会展示相关入口或执行后台预热；
   本地页支持歌单/歌手切换、搜索、歌手排序，收藏页支持歌单/歌手切换，
   网易云页支持歌单/专辑切换，Bilibili 页区分创建收藏夹、订阅收藏夹和合集。
 - 🔍 **分层搜索能力**：
-  `Explore` 使用网易云 / Bilibili / YouTube Music 按平台独立搜索；
+  `Explore` 使用网易云 / Bilibili / YouTube Music / 酷狗概念版 / QQ 音乐按平台独立搜索；
   网易云支持歌曲、歌单和歌手分类，网易云与 Bilibili 搜索结果可在列表触底后
   自动加载下一页；“链接识别”可直接粘贴链接或含标题、短链接的整段分享文案，
   识别网易云歌曲/歌单/歌手、Bilibili 视频/收藏夹/合集/UP 主及 YouTube
@@ -491,7 +496,12 @@ NeriPlayer 是一个基于 **Jetpack Compose + Media3** 的原生 Android
   登录、首页/媒体库歌单浏览、歌单详情、搜索和播放兼容，
   并包含 PoToken / JS Challenge 相关支持；内容访问仍受平台规则和用户账号权限约束。
 - **QQ 音乐**：
-  当前仅用于播放页元数据和歌词补全，未实现登录、播放和库页数据。
+  探索搜索与匿名播放、排行榜/热门歌单频道、多音质播放与音质偏好、
+  扫码登录（QIMEI 设备身份）、歌单浏览、资料库用户歌单、
+  播放页元数据与歌词补全；会员内容仍需遵循平台规则。
+- **酷狗概念版**：
+  搜索、播放 URL、多音质档位与自动回退、扫码登录、
+  资料库账户内容（云盘/听歌历史/收藏）与歌单详情、歌词获取。
 - **本地音频**：
   支持外部分享/打开导入、设备扫描、授权文件夹扫描、本地文件播放、
   本地歌手分类、分享和本地歌单管理。
@@ -775,10 +785,11 @@ NeriPlayer 支持将本地元数据同步到 **用户自己的 GitHub 仓库**�
 - [ ] 视频播放
 - [ ] 评论区
 - [ ] 第三方平台播放、库页和账号能力持续扩展
-- [ ] 更完整的 QQ 音乐账号能力、库页数据与更稳定授权链路
 
 ### 近期已落地
 
+- [x] 酷狗概念版适配：搜索、播放、多音质档位与自动回退、扫码登录、资料库页
+- [x] QQ 音乐适配：探索与匿名播放、排行榜/热门歌单、音质设置、扫码登录、歌单与资料库页
 - [x] 主标签双场景横向转场、可打断反向切换、玻璃 owner 接力和默认抽屉式详情反馈
 - [x] 标准化 Snackbar 反馈覆盖层、歌单删除撤销和批量导出撤销
 - [x] 桌面小组件与启动器快捷方式
@@ -837,8 +848,8 @@ NeriPlayer 支持将本地元数据同步到 **用户自己的 GitHub 仓库**�
 - [x] 词幕适配（Lyricon）/ 外部歌词输出
 - [x] 安全模式与启动崩溃日志
 
-> ⚠️ 当前 QQ 音乐主要用于播放页元数据补全。
-> 完整账号能力、库页数据与更稳定的授权链路仍在开发中。
+> 🎵 QQ 音乐与酷狗概念版的基础链路（搜索、播放、扫码登录、音质与资料库页）已落地，
+> 更完整的账号能力与风控兼容仍在持续打磨。
 
 ---
 
@@ -852,7 +863,7 @@ NeriPlayer 支持将本地元数据同步到 **用户自己的 GitHub 仓库**�
 
 - 反馈前建议先开启开发者模式（设置页点击 **版本号** 7 次）。
 - 开发者模式开启后，应用会启用普通文件日志；崩溃日志会单独落盘。
-- 前往 [Issues](https://github.com/cwuom/NeriPlayer/issues)，提供：
+- 前往 [Issues](https://github.com/ZhengHaoF/NeriPlayer/issues)，提供：
   系统版本、机型、应用版本、复现步骤与关键日志。
 - Windows 可使用以下命令过滤日志：
   ```bash
@@ -888,7 +899,8 @@ NeriPlayer 支持将本地元数据同步到 **用户自己的 GitHub 仓库**�
 - 歌词音译显示依赖平台或嵌入歌词中存在音译数据；没有音译时开关会保持不可用。
 - 歌词卡片会写入应用缓存目录用于系统分享，后续可通过缓存清理释放。
 - Bilibili 当前主要提供视频搜索、收藏夹、合集和音频播放链路，不是完整视频发现流。
-- QQ 音乐当前仅作为播放页元数据/歌词补全源。
+- QQ 音乐与酷狗概念版已提供搜索、播放、登录与资料库基础链路；
+  平台风控或接口变更可能导致相关功能临时不可用。
 - GitHub/WebDAV 同步不是端到端加密；完整配置导出文件可能包含授权信息，
   请自行妥善保管。
 - 省流同步写入 `backup-raw.bin` 原始 GZIP 字节；新版在迁移期间同时保留
@@ -922,6 +934,10 @@ NeriPlayer 支持将本地元数据同步到 **用户自己的 GitHub 仓库**�
 ## 鸣谢 / Reference
 
 <table>
+<tr>
+  <td><a href="https://github.com/cwuom/NeriPlayer">NeriPlayer（上游）</a></td>
+  <td>⭐ 本项目 Fork 的上游项目，绝大多数核心能力来自这里</td>
+</tr>
 <tr>
   <td><a href="https://github.com/chaunsin/netease-cloud-music">netease-cloud-music</a></td>
   <td>✨ 网易云音乐 Golang 实现 🎵</td>
@@ -958,10 +974,18 @@ NeriPlayer 支持将本地元数据同步到 **用户自己的 GitHub 仓库**�
   <td><a href="https://github.com/hoowhoami/EchoMusic">EchoMusic</a></td>
   <td>桌面端第三方音乐播放器（内置本地服务基于 KuGouMusicApi）</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/sansenjian/qq-music-api">qq-music-api</a></td>
+  <td>QQ音乐 Node.js API 实现</td>
+</tr>
 </table>
 
 > 🐶 本项目的**酷狗概念版接口实现**（搜索、播放 URL、音质档位、登录与风控策略画像）
 > 参考了 [EchoMusic](https://github.com/hoowhoami/EchoMusic) 项目；
+> 仅对齐接口行为与策略，未复制其代码。
+
+> 🎵 本项目的**QQ 音乐接口实现**（搜索、播放 URL、排行榜/歌单频道、扫码登录与凭证刷新）
+> 参考了 [qq-music-api](https://github.com/sansenjian/qq-music-api) 项目；
 > 仅对齐接口行为与策略，未复制其代码。
 
 ---
@@ -987,6 +1011,7 @@ NeriPlayer 使用 **GPL-3.0** 开源许可证发布。
 
 这意味着：
 
+- 🔱 本项目 Fork 自 [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer)，同样以 GPL-3.0 发布。
 - ✅ 你可以自由使用、修改和分发本软件。
 - ⚠️ 按根目录 GPL-3.0 分发修改版时，须继续遵守 GPL-3.0。
 - 🧩 `app/src/main/cpp/README.md` 仅为其中列出的 NeriPlayer 自有 Native 源码
@@ -1006,7 +1031,7 @@ NeriPlayer 使用 **GPL-3.0** 开源许可证发布。
 <p align="center">
   <img src="https://moe-counter.lxchapu.com/:neriplayer?theme=moebooru" alt="访问计数 (Moe Counter)">
   <br/>
-  <a href="https://starchart.cc/cwuom/NeriPlayer">
-    <img src="https://starchart.cc/cwuom/NeriPlayer.svg" alt="Star 历史趋势图">
+  <a href="https://starchart.cc/ZhengHaoF/NeriPlayer">
+    <img src="https://starchart.cc/ZhengHaoF/NeriPlayer.svg" alt="Star 历史趋势图">
   </a>
 </p>

@@ -349,7 +349,7 @@ object AppContainer {
     val kugouSession by lazy { KugouSession(kugouCookieStore) }
     val kugouSearchApi by lazy { KugouSearchApi(kugouSession) }
 
-    /** QQ音乐会话（guid 持久化；匿名播放走 web 协议，暂不含登录态）。 */
+    /** QQ音乐会话（guid 持久化；匿名走 web 协议；登录态经 QQMusicCookieStore 持久化）。 */
     val qqMusicSession by lazy { QQMusicSession(application) }
 
     val neteaseClient by lazy {

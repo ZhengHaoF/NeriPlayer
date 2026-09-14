@@ -50,6 +50,9 @@
     <string name="qqmusic_login_scanned">已扫码，请在手机上确认</string>
     <string name="qqmusic_login_expired">二维码已过期，请关闭后重试</string>
     <string name="qqmusic_login_error">状态获取异常，请重试</string>
+    <string name="qqmusic_login_qr_create_failed">二维码创建失败</string>
+    <string name="qqmusic_login_status_failed">状态获取失败</string>
+    <string name="qqmusic_login_confirmed_no_credential">登录已确认，但未取到凭证，请重试</string>
     <string name="settings_youtube_login_methods">浏览器/Cookie 导入</string>
     <string name="settings_youtube_auth_missing">未读取到可用的 YouTube / YouTube Music 鉴权信息</string>
     <string name="settings_youtube_auth_verifying">正在校验登录状态，请稍候…</string>

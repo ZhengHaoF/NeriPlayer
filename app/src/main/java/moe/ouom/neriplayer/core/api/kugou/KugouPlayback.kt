@@ -205,12 +205,13 @@ private suspend fun KugouSession.tryResolveSongUrl(
         "resolved kugou url: hash=$hash requested=$quality actual=$actualQuality " +
             "bitrate=${bitRate}kbps ext=$extName"
     )
+    // 不设 cacheKeyOverride：缓存 key 统一走 computeCacheKey（首个请求档位），
+    // 避免写入用 actualQuality、查找用偏好档导致的 key 不对称。
     return SongUrlResult.Success(
         url = url,
         mimeType = mimeType,
         expectedContentLength = fileSize,
-        audioInfo = audioInfo,
-        cacheKeyOverride = "kugou-$hash-$actualQuality"
+        audioInfo = audioInfo
     )
 }
 

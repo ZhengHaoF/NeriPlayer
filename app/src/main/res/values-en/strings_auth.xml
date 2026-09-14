@@ -50,6 +50,9 @@
     <string name="qqmusic_login_scanned">Scanned. Confirm on your phone</string>
     <string name="qqmusic_login_expired">QR code expired. Close and try again</string>
     <string name="qqmusic_login_error">Failed to read status. Please try again</string>
+    <string name="qqmusic_login_qr_create_failed">Failed to create QR code</string>
+    <string name="qqmusic_login_status_failed">Failed to get status</string>
+    <string name="qqmusic_login_confirmed_no_credential">Login confirmed, but no credentials received. Please try again</string>
     <string name="settings_youtube_login_methods">Browser/Cookie Import</string>
     <string name="settings_youtube_auth_missing">No usable YouTube / YouTube Music auth information was captured</string>
     <string name="settings_youtube_auth_verifying">Verifying sign-in state, please wait…</string>

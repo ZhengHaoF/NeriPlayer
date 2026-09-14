@@ -64,6 +64,9 @@ internal fun QQMusicQrLoginSheet(
     val scannedText = stringResource(R.string.qqmusic_login_scanned)
     val expiredText = stringResource(R.string.qqmusic_login_expired)
     val errorStatusText = stringResource(R.string.qqmusic_login_error)
+    val qrCreateFailedText = stringResource(R.string.qqmusic_login_qr_create_failed)
+    val statusFailedText = stringResource(R.string.qqmusic_login_status_failed)
+    val confirmedNoCredentialText = stringResource(R.string.qqmusic_login_confirmed_no_credential)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -132,7 +135,7 @@ internal fun QQMusicQrLoginSheet(
             loginClient.createTicket()
         } catch (error: Exception) {
             NPLogger.e("QQMusicQrLogin", "create ticket failed", error)
-            errorText = error.message ?: "二维码创建失败"
+            errorText = error.message ?: qrCreateFailedText
             loading = false
             return@LaunchedEffect
         }
@@ -147,13 +150,13 @@ internal fun QQMusicQrLoginSheet(
                 loginClient.poll(ticket)
             } catch (error: Exception) {
                 NPLogger.e("QQMusicQrLogin", "poll failed", error)
-                errorText = error.message ?: "状态获取失败"
+                errorText = error.message ?: statusFailedText
                 return@LaunchedEffect
             }
             when (status) {
                 QQMusicQrLoginStatus.SUCCESS -> {
                     if (credential == null || !credential.isLoggedIn) {
-                        statusText = "登录已确认，但未取到凭证，请重试"
+                        statusText = confirmedNoCredentialText
                     } else {
                         session.applyCredential(credential)
                         NPLogger.d(

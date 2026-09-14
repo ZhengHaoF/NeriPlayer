@@ -7,18 +7,9 @@
 <h3>✨ A native Android audio player that combines multi-source streaming, local control, rich lyrics, and self-hosted sync 🎵</h3>
 
 <p>
-  <a href="https://github.com/cwuom/NeriPlayer/releases">
-    <img alt="Downloads" src="https://img.shields.io/github/downloads/cwuom/NeriPlayer/total?style=social" />
-  </a>
-  <a href="https://github.com/cwuom/NeriPlayer/releases">
-    <img alt="Release" src="https://img.shields.io/github/v/release/cwuom/NeriPlayer?include_prereleases&label=Release" />
-  </a>
   <img alt="Android 9+" src="https://img.shields.io/badge/Android-9%2B-3DDC84?logo=android&logoColor=white" />
-  <a href="https://t.me/ouom_pub">
-    <img alt="Telegram" src="https://img.shields.io/badge/Telegram-@ouom__pub-blue" />
-  </a>
-  <a href="https://t.me/neriplayer_ci">
-    <img alt="CI Builds" src="https://img.shields.io/badge/CI_Builds-@neriplayer__ci-orange" />
+  <a href="https://github.com/cwuom/NeriPlayer">
+    <img alt="Forked from cwuom/NeriPlayer" src="https://img.shields.io/badge/Forked_from-cwuom%2FNeriPlayer-blue?logo=github" />
   </a>
 </p>
 
@@ -39,9 +30,12 @@ user-owned data.
 
 🛠️ <strong>Active development</strong>
 
-<a href="https://trendshift.io/repositories/23906" target="_blank"><img src="https://trendshift.io/api/badge/repositories/23906" alt="cwuom%2FNeriPlayer | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-
 </div>
+
+> [!NOTE]
+> This repository is a fork of [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer).
+> On top of the upstream project, it adds **KuGou Concept** and **QQ Music**
+> sources and more. See [Fork Notes](#fork-notes) for details.
 
 > [!WARNING]
 > This project is for learning and research purposes only. Do not use it for illegal purposes.
@@ -62,6 +56,38 @@ user-owned data.
 
 ---
 
+## Fork Notes
+
+This repository is forked from [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer).
+Thanks to the upstream maintainer and all contributors. Besides fully inheriting
+the upstream capabilities, the main changes in this fork are:
+
+- 🐶 **KuGou Concept source**:
+  search, playback URL, multi-quality tiers with automatic fallback, QR login,
+  a library page (account content and playlist details), and lyrics/cover paths.
+  The API implementation was informed by
+  [EchoMusic](https://github.com/hoowhoami/EchoMusic); only API behavior and
+  strategy were aligned, no code was copied.
+- 🎵 **QQ Music source**:
+  explore search with anonymous playback, rank/hot-playlist channels, audio
+  quality preferences, QR login with a QIMEI device identity, playback-time
+  lyrics, playlists and library user playlists, plus vkey rate limiting and
+  VIP-resolution retry control. The API implementation was informed by
+  [qq-music-api](https://github.com/sansenjian/qq-music-api); only API behavior
+  and strategy were aligned, no code was copied.
+- 📚 **Integration plan documents**:
+  [docs/接入酷狗概念版-实施方案.md](./docs/接入酷狗概念版-实施方案.md) and
+  [docs/接入QQ音乐-实施方案.md](./docs/接入QQ音乐-实施方案.md) (Chinese).
+- 🧱 **Build adaptation**: Kotlin incremental compilation is disabled for
+  cross-drive Windows builds to avoid failures caused by cross-drive paths.
+- 🧹 **UI fix**: explore-page lists avoid the mini player.
+
+Everything else, including features, privacy policy, and usage notes, is
+inherited from upstream; see the
+[upstream README](https://github.com/cwuom/NeriPlayer#readme).
+
+---
+
 ## Start here
 
 If you only want to try the app, start with [Getting Started](#getting-started).
@@ -73,7 +99,7 @@ If you want to self-host Listen Together, jump to
 
 ```text
 NeriPlayer
-├── Multi-source playback: NetEase / Bilibili / YouTube Music
+├── Multi-source playback: NetEase / Bilibili / YouTube Music / KuGou Concept / QQ Music
 ├── Local-first data: cache, downloads, playlists, history, stats, settings
 ├── User-owned sync: GitHub / WebDAV metadata sync
 ├── Rich playback: Media3, lyrics, effects, fluid background, home widgets, launcher shortcuts, floating/status-bar lyrics
@@ -84,9 +110,11 @@ NeriPlayer
 
 ## About
 
-NeriPlayer is a native Android audio player built with **Jetpack Compose + Media3**.
+NeriPlayer is a native Android audio player built with **Jetpack Compose + Media3**,
+and a fork of [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer).
 It does not build a public cloud service. Instead, it integrates online content
-from **NetEase Cloud Music**, **Bilibili**, and **YouTube Music** when the user
+from **NetEase Cloud Music**, **Bilibili**, **YouTube Music**, **KuGou Concept**,
+and **QQ Music** when the user
 has the corresponding third-party platform account capability. It also provides
 local playback, downloads, caching, playlist management, and several sync/backup
 options.
@@ -300,32 +328,14 @@ Current positioning:
 
 ## Getting Started
 
-### a. Download a Release build (recommended)
+> 🚧 Download channels are pending: this repository has not published a Release
+> yet. For now, build and install it yourself via the local build steps below.
 
-1. Go to [GitHub Releases](https://github.com/cwuom/NeriPlayer/releases).
-2. Which APK should you choose?
-   - Most phones should use `arm64-v8a`.
-   - Older 32-bit devices should use `armeabi-v7a`.
-   - `x86` / `x86_64` are mainly for emulators, Intel devices, or Chromebooks.
-
-> [!IMPORTANT]
-> The Release channel is not a strict stable channel. Builds are usually pushed
-> manually after a batch of features is completed and may still contain issues.
-
-### b. Download a CI build
-
-1. Go to [GitHub Actions](https://github.com/cwuom/NeriPlayer/actions), download
-   the Artifacts from the latest successful build, and extract them.
-2. Or visit [NeriPlayer CI Builds](https://t.me/neriplayer_ci).
-
-> The master CI artifact is `arm64-v8a` by default; the manual Release workflow
-> builds multi-ABI APKs.
-
-### c. Local build
+### Local build
 
 1. Clone the repository and initialize submodules:
    ```bash
-   git clone --recursive https://github.com/cwuom/NeriPlayer.git
+   git clone --recursive https://github.com/ZhengHaoF/NeriPlayer.git
    cd NeriPlayer
    ```
 2. Open the project with the latest stable Android Studio and sync dependencies.
@@ -353,7 +363,8 @@ For release build and signing details, see
 ## Key Features
 
 - 🎧 **Multi-source exploration and playback**:
-  supports NetEase Cloud Music, Bilibili, YouTube Music, and local audio.
+  supports NetEase Cloud Music, Bilibili, YouTube Music, KuGou Concept,
+  QQ Music, and local audio.
 - 🏠 **Home recommendations and continue listening**:
   the Home page supports recently used playlists, all available NetEase recommendation
   sources, Radar playlists, and recommendation cards. It shows all available
@@ -361,7 +372,8 @@ For release build and signing details, see
   feeds together; refreshing updates every section. International mode prioritizes
   YouTube Music home shelves.
 - 🗂️ **Categorized Library browsing**:
-  `Library` includes Local, Favorites, NetEase, YouTube Music, and Bilibili areas.
+  `Library` includes Local, Favorites, NetEase, YouTube Music, Bilibili,
+  KuGou Concept, and QQ Music areas.
   YouTube can be fully disabled under Settings > General, which hides its entry
   points and stops related background warmups.
   Local content can switch between playlists/artists with search and artist
@@ -369,7 +381,8 @@ For release build and signing details, see
   between playlists/albums; Bilibili separates created favorites, subscribed
   favorites, and collections.
 - 🔍 **Layered search**:
-  `Explore` searches NetEase / Bilibili / YouTube Music separately.
+  `Explore` searches NetEase / Bilibili / YouTube Music / KuGou Concept /
+  QQ Music separately.
   NetEase supports song, playlist, and artist categories, while NetEase and
   Bilibili results load the next page near the end of the list. The Link
   Recognition tab accepts either a direct URL or full share text containing a
@@ -628,8 +641,14 @@ For release build and signing details, see
   PoToken, and JS Challenge support. Content access remains bound by platform rules
   and the user's account permissions.
 - **QQ Music**:
-  currently used only for playback metadata and lyrics completion. Login,
-  playback, and library data are not implemented.
+  explore search with anonymous playback, rank/hot-playlist channels,
+  multi-quality playback with audio quality preferences, QR login (QIMEI
+  device identity), playlist browsing, library user playlists, and
+  playback metadata/lyrics completion. VIP content still follows platform rules.
+- **KuGou Concept**:
+  search, playback URL, multi-quality tiers with automatic fallback, QR login,
+  library account content (cloud drive/listening history/favorites) and
+  playlist details, and lyrics retrieval.
 - **Local audio**:
   external share/open import, device scanning, authorized-folder scanning,
   local file playback, local artist grouping, sharing, and local playlist management.
@@ -976,10 +995,13 @@ and community feedback. They are not fixed-date commitments.
 - [ ] Video playback
 - [ ] Comment section
 - [ ] More third-party playback, library, and account capabilities
-- [ ] Fuller QQ Music account support, library data, and a more stable auth path
 
 ### Shipped recently
 
+- [x] KuGou Concept integration: search, playback, multi-quality tiers with
+  automatic fallback, QR login, and a library page
+- [x] QQ Music integration: explore with anonymous playback, rank/hot-playlist
+  channels, quality settings, QR login, playlists, and a library page
 - [x] Dual-scene main-tab transitions, interruptible reverse switching,
   advanced-glass owner handoff, and drawer-style detail feedback by default
 - [x] Standardized Snackbar feedback overlays, playlist deletion undo, and batch export undo
@@ -1046,8 +1068,9 @@ and community feedback. They are not fixed-date commitments.
 - [x] Lyricon integration / external lyrics output
 - [x] Safe mode and startup crash logs
 
-> ⚠️ QQ Music is currently used mainly for playback metadata completion.
-> Full account capabilities, library data, and a more stable auth flow are still in development.
+> 🎵 The core paths for QQ Music and KuGou Concept (search, playback, QR login,
+> audio quality, and library pages) have landed. Fuller account capabilities
+> and risk-control compatibility are still being polished.
 
 ---
 
@@ -1062,7 +1085,7 @@ We will keep improving the project over time.
 
 - Before reporting, enable developer mode by tapping the **version number** 7 times in Settings.
 - After developer mode is enabled, regular file logging is enabled. Crash logs are stored separately.
-- Open [Issues](https://github.com/cwuom/NeriPlayer/issues) and include:
+- Open [Issues](https://github.com/ZhengHaoF/NeriPlayer/issues) and include:
   OS version, device model, app version, reproduction steps, and key logs.
 - Windows:
   ```bash
@@ -1110,7 +1133,8 @@ We will keep improving the project over time.
   later through cache cleanup.
 - Bilibili mainly provides video search, favorites, collections, and audio playback.
   It is not a full video discovery client.
-- QQ Music is only a playback metadata/lyrics completion source.
+- QQ Music and KuGou Concept now provide core search, playback, login, and
+  library paths; platform risk control or API changes may temporarily break them.
 - GitHub/WebDAV sync is not end-to-end encrypted. Full config export files may
   contain auth data and must be protected by the user.
 - Data Saver writes raw GZIP bytes to `backup-raw.bin`. New Android and Desktop builds
@@ -1150,6 +1174,10 @@ We will keep improving the project over time.
 
 <table>
 <tr>
+  <td><a href="https://github.com/cwuom/NeriPlayer">NeriPlayer (upstream)</a></td>
+  <td>⭐ The upstream project this repo is forked from; most core capabilities come from it</td>
+</tr>
+<tr>
   <td><a href="https://github.com/chaunsin/netease-cloud-music">netease-cloud-music</a></td>
   <td>✨ NetEase Cloud Music Golang implementation 🎵</td>
 </tr>
@@ -1185,11 +1213,20 @@ We will keep improving the project over time.
   <td><a href="https://github.com/hoowhoami/EchoMusic">EchoMusic</a></td>
   <td>Desktop third-party music player (local service built on KuGouMusicApi)</td>
 </tr>
+<tr>
+  <td><a href="https://github.com/sansenjian/qq-music-api">qq-music-api</a></td>
+  <td>Node.js API implementation for QQ Music</td>
+</tr>
 </table>
 
 > 🐶 The **KuGou Concept API implementation** in this project
 > (search, playback URL, audio-quality tiers, login and risk-control behavior)
 > was informed by [EchoMusic](https://github.com/hoowhoami/EchoMusic);
+> only API behavior and strategy were aligned, no code was copied.
+
+> 🎵 The **QQ Music API implementation** in this project
+> (search, playback URL, rank/playlist channels, QR login and credential refresh)
+> was informed by [qq-music-api](https://github.com/sansenjian/qq-music-api);
 > only API behavior and strategy were aligned, no code was copied.
 
 ---
@@ -1217,6 +1254,9 @@ NeriPlayer is released under **GPL-3.0**.
 
 This means:
 
+- 🔱 This project is a fork of
+  [cwuom/NeriPlayer](https://github.com/cwuom/NeriPlayer) and is also
+  released under GPL-3.0.
 - ✅ You can freely use, modify, and distribute this software.
 - ⚠️ Modified distributions using the repository-root GPL-3.0 grant must keep
   complying with GPL-3.0.
@@ -1239,7 +1279,7 @@ Before contributing, please read [CONTRIBUTING_EN.md](./CONTRIBUTING_EN.md).
 <p align="center">
   <img src="https://moe-counter.lxchapu.com/:neriplayer?theme=moebooru" alt="Moe Counter">
   <br/>
-  <a href="https://starchart.cc/cwuom/NeriPlayer">
-    <img src="https://starchart.cc/cwuom/NeriPlayer.svg" alt="Star History Chart">
+  <a href="https://starchart.cc/ZhengHaoF/NeriPlayer">
+    <img src="https://starchart.cc/ZhengHaoF/NeriPlayer.svg" alt="Star History Chart">
   </a>
 </p>

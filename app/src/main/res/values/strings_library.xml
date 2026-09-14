@@ -38,7 +38,6 @@
     <string name="library_name_reserved">该名称已保留为\"%s\"，请换一个名称哦~</string>
     <string name="library_name_exists">已存在同名歌单，请换一个名称</string>
     <string name="library_create_new">＋ 新建歌单</string>
-    <string name="library_qqmusic_coming">QQ音乐功能开发中…</string>
     <string name="library_qqmusic_playlists">我的歌单</string>
     <string name="library_qqmusic_login_hint">登录QQ音乐后查看我的歌单与收藏</string>
     <string name="library_qqmusic_login_action">登录QQ音乐</string>

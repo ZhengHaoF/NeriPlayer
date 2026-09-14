@@ -65,6 +65,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.bili.BiliClient
+import moe.ouom.neriplayer.core.api.kugou.KUGOU_FREE_QUALITY
 import moe.ouom.neriplayer.core.api.kugou.KUGOU_VIP_QUALITY
 import moe.ouom.neriplayer.core.api.qqmusic.QQMUSIC_CHANNEL_ID
 import moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_FREE_QUALITY
@@ -205,6 +206,8 @@ import moe.ouom.neriplayer.core.player.persistence.updateUserLyricOffsetImpl
 import moe.ouom.neriplayer.core.player.timer.SleepTimerManager
 import moe.ouom.neriplayer.core.player.timer.SleepTimerMode
 import moe.ouom.neriplayer.core.player.url.YOUTUBE_PLAYBACK_PREFER_M4A
+import moe.ouom.neriplayer.core.player.url.buildKugouQualityCandidates
+import moe.ouom.neriplayer.core.player.url.buildQQMusicQualityCandidates
 import moe.ouom.neriplayer.core.player.url.refreshCurrentSongUrlImpl
 import moe.ouom.neriplayer.core.player.url.safeCustomPlaybackCacheKey
 import moe.ouom.neriplayer.core.player.url.stripListenTogetherStreamQualityMetadata
@@ -2454,12 +2457,18 @@ object PlayerManager {
             }
             isKugouTrack(song) -> {
                 val kugouHash = song.audioId ?: song.id.toString()
-                val kugouQuality = moe.ouom.neriplayer.core.api.kugou.KUGOU_FREE_QUALITY
+                val kugouQuality = buildKugouQualityCandidates(
+                    preferredQuality = kugouPreferredQuality,
+                    isLoggedIn = kugouSession.isLoggedIn
+                ).firstOrNull() ?: KUGOU_FREE_QUALITY
                 "kugou-$kugouHash-$kugouQuality"
             }
             isQQMusicTrack(song) -> {
                 val qqSongMid = song.audioId ?: song.id.toString()
-                val qqQuality = moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_FREE_QUALITY
+                val qqQuality = buildQQMusicQualityCandidates(
+                    preferredQuality = qqMusicPreferredQuality,
+                    isLoggedIn = qqMusicSession.isLoggedIn
+                ).firstOrNull() ?: QQ_MUSIC_FREE_QUALITY
                 "qqmusic-$qqSongMid-$qqQuality"
             }
             else -> buildNeteasePlaybackCacheKey(

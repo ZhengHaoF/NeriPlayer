@@ -195,12 +195,13 @@ private suspend fun QQMusicSession.tryResolveQQMusicUrl(
         mimeType = mimeType
     )
     NPLogger.d(TAG, "resolved QQ Music url: songmid=$songMid quality=$actualQuality")
+    // 不设 cacheKeyOverride：缓存 key 统一走 computeCacheKey（首个请求档位），
+    // 避免写入用 actualQuality、查找用偏好档导致的 key 不对称。
     QQMusicResolveOutcome.Playable(
         SongUrlResult.Success(
             url = url,
             mimeType = mimeType,
-            audioInfo = audioInfo,
-            cacheKeyOverride = "qqmusic-$songMid-$actualQuality"
+            audioInfo = audioInfo
         )
     )
 }
