@@ -44,3 +44,7 @@ AGENTS.md
 /ksp-annotations/build/
 /ksp-processor/build/
 /docs-private/
+
+# 构建日志与外部 agent 会话残留
+/build_*.log
+/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*/
