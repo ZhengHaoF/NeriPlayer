@@ -116,6 +116,7 @@ import moe.ouom.neriplayer.ui.effect.glass.captureAdvancedGlassBackdrop
 import moe.ouom.neriplayer.ui.effect.glass.isAdvancedGlassBackendSupported
 import moe.ouom.neriplayer.ui.effect.glass.rememberAdvancedGlassBackdrop
 import moe.ouom.neriplayer.ui.screen.tab.KugouQrLoginSheet
+import moe.ouom.neriplayer.ui.screen.tab.QQMusicQrLoginSheet
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.LoginSuccessDialog
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsBiliAuthDialogs
 import moe.ouom.neriplayer.ui.screen.tab.settings.auth.SettingsNeteaseAuthDialogs
@@ -203,11 +204,13 @@ internal fun shouldWarnStartupNoPlatformConnected(
     biliState: SavedCookieAuthState,
     neteaseState: SavedCookieAuthState,
     youTubeState: YouTubeAuthState,
-    kugouLoggedIn: Boolean
+    kugouLoggedIn: Boolean,
+    qqMusicLoggedIn: Boolean
 ): Boolean = biliState == SavedCookieAuthState.Missing &&
     neteaseState == SavedCookieAuthState.Missing &&
     youTubeState == YouTubeAuthState.Missing &&
-    !kugouLoggedIn
+    !kugouLoggedIn &&
+    !qqMusicLoggedIn
 
 internal fun hasFinishedStartupNotificationPermissionWarning(
     attempts: Int
@@ -370,6 +373,8 @@ fun StartupOnboardingScreen(
     var enhancedAdvancedBlurPromptVisible by rememberSaveable { mutableStateOf(false) }
     var showKugouSheet by remember { mutableStateOf(false) }
     var showKugouLogoutDialog by remember { mutableStateOf(false) }
+    var showQqMusicSheet by remember { mutableStateOf(false) }
+    var showQqMusicLogoutDialog by remember { mutableStateOf(false) }
 
     var inlineMessage by remember { mutableStateOf<String?>(null) }
     var loginSuccessTitle by remember { mutableStateOf<String?>(null) }
@@ -418,6 +423,8 @@ fun StartupOnboardingScreen(
     val youTubeVm: YouTubeAuthViewModel = viewModel()
     val youTubeState by youTubeVm.uiState.collectAsStateWithLifecycle()
     val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow
+        .collectAsStateWithLifecycle()
+    val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow
         .collectAsStateWithLifecycle()
     val githubVm: GitHubSyncViewModel = viewModel()
     val githubState by githubVm.uiState.collectAsStateWithLifecycle()
@@ -659,7 +666,8 @@ fun StartupOnboardingScreen(
                 biliState = biliState.health.state,
                 neteaseState = neteaseState.health.state,
                 youTubeState = youTubeState.health.state,
-                kugouLoggedIn = kugouLoggedIn
+                kugouLoggedIn = kugouLoggedIn,
+                qqMusicLoggedIn = qqMusicLoggedIn
             )
         ) {
             noPlatformWarningVisible = true
@@ -800,6 +808,7 @@ fun StartupOnboardingScreen(
                     youTubeState = youTubeState.health.state,
                     hasSavedYouTubeAuth = youTubeState.hasSavedAuth,
                     kugouLoggedIn = kugouLoggedIn,
+                    qqMusicLoggedIn = qqMusicLoggedIn,
                     onOpenBili = {
                         inlineMessage = null
                         biliSheetTab = 0
@@ -834,6 +843,14 @@ fun StartupOnboardingScreen(
                     onKugouLogout = {
                         inlineMessage = null
                         showKugouLogoutDialog = true
+                    },
+                    onOpenQqMusic = {
+                        inlineMessage = null
+                        showQqMusicSheet = true
+                    },
+                    onQqMusicLogout = {
+                        inlineMessage = null
+                        showQqMusicLogoutDialog = true
                     }
                 )
                 StartupStep.PlaybackSources -> StartupPlaybackSourceContent(
@@ -1267,12 +1284,36 @@ fun StartupOnboardingScreen(
                 )
             }
             if (showKugouLogoutDialog) {
-                StartupKugouLogoutDialog(
+                StartupPlatformLogoutDialog(
+                    title = composeResources.getString(R.string.platform_kugou),
+                    message = composeResources.getString(R.string.settings_kugou_logout_confirm),
                     onConfirm = {
                         showKugouLogoutDialog = false
                         AppContainer.kugouSession.logout()
                     },
                     onDismiss = { showKugouLogoutDialog = false }
+                )
+            }
+            if (showQqMusicSheet) {
+                QQMusicQrLoginSheet(
+                    onDismiss = { showQqMusicSheet = false },
+                    onLoggedIn = {
+                        showQqMusicSheet = false
+                        loginSuccessTitle = composeResources.getString(
+                            R.string.settings_qqmusic_login_success
+                        )
+                    }
+                )
+            }
+            if (showQqMusicLogoutDialog) {
+                StartupPlatformLogoutDialog(
+                    title = composeResources.getString(R.string.settings_qq_music),
+                    message = composeResources.getString(R.string.settings_qqmusic_logout_confirm),
+                    onConfirm = {
+                        showQqMusicLogoutDialog = false
+                        AppContainer.qqMusicSession.logout()
+                    },
+                    onDismiss = { showQqMusicLogoutDialog = false }
                 )
             }
             if (noPlatformWarningVisible) {
@@ -1394,9 +1435,12 @@ private fun PlatformContent(
     youTubeState: YouTubeAuthState,
     hasSavedYouTubeAuth: Boolean,
     kugouLoggedIn: Boolean,
+    qqMusicLoggedIn: Boolean,
     onOpenBili: () -> Unit,
     onOpenKugou: () -> Unit,
     onKugouLogout: () -> Unit,
+    onOpenQqMusic: () -> Unit,
+    onQqMusicLogout: () -> Unit,
     onManageBili: () -> Unit,
     onOpenNetease: () -> Unit,
     onManageNetease: () -> Unit,
@@ -1473,6 +1517,23 @@ private fun PlatformContent(
             stringResource(R.string.onboarding_platform_action_connect)
         },
         onClick = if (kugouLoggedIn) onKugouLogout else onOpenKugou
+    )
+    Spacer(Modifier.height(12.dp))
+    PlatformCard(
+        icon = painterResource(R.drawable.ic_qq_music),
+        title = stringResource(R.string.settings_qq_music),
+        status = if (qqMusicLoggedIn) {
+            stringResource(R.string.onboarding_platform_status_connected)
+        } else {
+            stringResource(R.string.onboarding_platform_status_not_connected)
+        },
+        connected = qqMusicLoggedIn,
+        actionText = if (qqMusicLoggedIn) {
+            stringResource(R.string.onboarding_platform_action_logout)
+        } else {
+            stringResource(R.string.onboarding_platform_action_connect)
+        },
+        onClick = if (qqMusicLoggedIn) onQqMusicLogout else onOpenQqMusic
     )
     Spacer(Modifier.height(18.dp))
     HintCard(body = stringResource(R.string.onboarding_platforms_hint))
@@ -2180,17 +2241,19 @@ private fun WebDavSyncCard(
 }
 
 @Composable
-private fun StartupKugouLogoutDialog(
+private fun StartupPlatformLogoutDialog(
+    title: String,
+    message: String,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(stringResource(R.string.platform_kugou))
+            Text(title)
         },
         text = {
-            Text(stringResource(R.string.settings_kugou_logout_confirm))
+            Text(message)
         },
         confirmButton = {
             HapticTextButton(onClick = onConfirm) {

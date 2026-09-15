@@ -403,7 +403,8 @@ class StartupOnboardingProgressTest {
                 biliState = SavedCookieAuthState.Missing,
                 neteaseState = SavedCookieAuthState.Missing,
                 youTubeState = YouTubeAuthState.Missing,
-                kugouLoggedIn = false
+                kugouLoggedIn = false,
+                qqMusicLoggedIn = false
             )
         )
         assertEquals(
@@ -412,7 +413,8 @@ class StartupOnboardingProgressTest {
                 biliState = SavedCookieAuthState.Valid,
                 neteaseState = SavedCookieAuthState.Missing,
                 youTubeState = YouTubeAuthState.Missing,
-                kugouLoggedIn = false
+                kugouLoggedIn = false,
+                qqMusicLoggedIn = false
             )
         )
         assertEquals(
@@ -421,7 +423,28 @@ class StartupOnboardingProgressTest {
                 biliState = SavedCookieAuthState.Checking,
                 neteaseState = SavedCookieAuthState.Missing,
                 youTubeState = YouTubeAuthState.Missing,
-                kugouLoggedIn = false
+                kugouLoggedIn = false,
+                qqMusicLoggedIn = false
+            )
+        )
+        assertEquals(
+            false,
+            shouldWarnStartupNoPlatformConnected(
+                biliState = SavedCookieAuthState.Missing,
+                neteaseState = SavedCookieAuthState.Missing,
+                youTubeState = YouTubeAuthState.Missing,
+                kugouLoggedIn = false,
+                qqMusicLoggedIn = true
+            )
+        )
+        assertEquals(
+            false,
+            shouldWarnStartupNoPlatformConnected(
+                biliState = SavedCookieAuthState.Missing,
+                neteaseState = SavedCookieAuthState.Missing,
+                youTubeState = YouTubeAuthState.Missing,
+                kugouLoggedIn = true,
+                qqMusicLoggedIn = false
             )
         )
     }
