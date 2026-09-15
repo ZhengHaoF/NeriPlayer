@@ -1,10 +1,10 @@
 # NeriPlayer 接入 QQ音乐 · 实施方案（完整版）
 
-> 状态：**阶段 1–5 已实现且真机验收通过；阶段 6 已完成 QPS 限速与 vkey/VIP 重试语义（待真机回归）** · 本文最后同步 2026-09-14
+> 状态：**阶段 1–5 已实现且真机验收通过；阶段 6 已完成 QPS 限速与 vkey/VIP 重试语义（待真机回归）；引导页 QQ 音乐登录入口已补** · 本文最后同步 2026-09-15
 > 范围：完整版（匿名播放 + 登录 + 高音质 + 用户内容）
 > 落地方式（**已决策**）：**内嵌 Kotlin 适配层**，不引入 Node 中转
 > 登录路线（**已决策**）：**QR 扫码登录（路线 A）** —— 连锁依赖见 §5.4 / §7.2
-> 参考蓝本：[L-1124/QQMusicApi](https://github.com/L-1124/QQMusicApi)（Python 版，另参考其 Node.js ESM + Koa 移植实现）
+> 参考蓝本：[L-1124/QQMusicApi](https://github.com/L-1124/QQMusicApi)（Python 版，另参考其 Node.js ESM + Koa 移植实现）；本地另有 [sansenjian/qq-music-api](file:///D:/work/qq-music-api)（Node），**无云盘接口**
 
 ---
 
@@ -24,19 +24,22 @@
 
 在应用中把 QQ音乐从当前的「元数据 / 歌词匹配源」提升为**独立播放源**，与网易云 / YouTube Music / B 站 / 酷狗概念版并列。
 
-| 模块 | 说明 | 优先级 |
+| 模块 | 说明 | 优先级 / 状态 |
 | --- | --- | --- |
-| 播放（匿名） | vkey 取址 → 128k 档（C400 / M500），覆盖免费曲目 | P0 |
-| 探索页搜索源 | `SearchSource.QQ_MUSIC`，搜索结果可直接入队播放 | P0 |
-| 歌词 | 复用现有 QQ音乐歌词链路（已含 base64 解码 + 未翻译占位处理 + AMLL 优先）；**播放歌词管线 `PlayerLyricsProvider` 已接入 QQ（阶段 1 补记，见下）** | P0（已完成） |
-| 音质偏好设置 | `qqMusicAudioQuality`，接入设置页与 PlayerManager 音质管道 | P1 |
-| 登录 | **QQ 扫码登录（QR）**，解锁高音质与受限曲库 · **含 QIMEI + session 前置** | P1 |
-| 高音质 | 登录后逐档上探（M800 / C600 / O800 / F000 等） | P1 |
-| 媒体库 tab | 替换现有 `QqMusicPlaylistList` 占位，接入「我的」内容 | P1（已完成） |
-| 榜单 / 推荐 / 歌单 | 官方榜单、推荐歌单、相似歌曲 | P2 |
-| 用户歌单 / 收藏 | 依赖登录态 | P2 |
-| 云盘 | QQ音乐云盘（需确认接口可用性） | P3 |
-| QRC 逐字歌词 | 需移植自定义 TripleDES（约 344 行 JS） | P3（可延后） |
+| 播放（匿名） | vkey 取址 → 128k 档（C400 / M500），覆盖免费曲目 | P0 · **已完成** |
+| 探索页搜索源 | `SearchSource.QQ_MUSIC`，搜索结果可直接入队播放 | P0 · **已完成** |
+| 歌词 | 复用现有 QQ音乐歌词链路；播放歌词管线 `PlayerLyricsProvider` 已接入 QQ | P0 · **已完成** |
+| 音质偏好设置 | `qqMusicAudioQuality`，接入设置页与 PlayerManager 音质管道 | P1 · **已完成** |
+| 登录 | **QQ 扫码登录（QR）**，解锁高音质与受限曲库 · 含 QIMEI + session | P1 · **已完成** |
+| 高音质 | 登录后逐档上探（M800 / C600 / O800 / F000 等） | P1 · **已完成** |
+| 媒体库 tab | 替换现有 `QqMusicPlaylistList` 占位，接入「我的」内容 | P1 · **已完成** |
+| 榜单 / 推荐 / 歌单 | 官方榜单、推荐歌单（探索页发现内容） | P2 · **已完成** |
+| 用户歌单 | 登录后「我的歌单」列表与详情 | P2 · **已完成** |
+| 引导页登录入口 | 首次安装引导「连接平台」步骤含 QQ 音乐卡片 | P2 · **已完成**（2026-09-15） |
+| 用户收藏外部歌单 | `PlaylistFavRead` / `CgiGetPlaylistFavInfo`（增强，当前仅覆盖创建歌单） | P2 · **未做** |
+| 云盘 | QQ音乐云盘 | P3 · **未做**（蓝本与本地 `qq-music-api` 均无接口） |
+| QRC 逐字歌词 | 需移植自定义 TripleDES（约 344 行 JS） | P3 · **未做**（可延后） |
+| 自动切源兜底 | 匿名不可播后自动切其他源 | P3 · **未做**（依赖跨平台切源前置能力） |
 
 **边界与说明：**
 - 仅做「播放源」，不做 QQ音乐客户端完整复刻；评论、MV、直播、数字专辑购买不在本期范围。
@@ -62,7 +65,7 @@
 | URL 解析分发 | [PlayerManagerUrlExtensions.kt](../../app/src/main/java/moe/ouom/neriplayer/core/player/url/PlayerManagerUrlExtensions.kt) L336 起 | ✅ 已实现 `isQQMusicTrack` 分支 + `getQQMusicSongUrl`（阶段 1） |
 | 音质偏好管道 | `PlaybackPreferenceSnapshot` / `AutoSettingsSchema` / `PlayerManagerLifecycleExtensions` | ✅ 已实现（阶段 3：`qqMusicAudioQuality` 全链路 + 设置页选项 + 会员档提示；登录态档位已随阶段 4 接入） |
 
-**⚠️ 关键缺口（阶段 1 已消除，当前剩余 P0 为登录+高音质）**：匿名播放链路（`QQMusicPlayback` + `PlaybackAudioSource.QQ_MUSIC` + `resolveSongUrl` 分支）已于阶段 1 落地，见 §8。
+**关键缺口说明**：匿名播放、登录、高音质、资料库、探索页等 P0/P1 目标均已在阶段 1–5 落地（见 §8）；当前无阻塞性缺口，剩余为 P3 可选项（云盘 / QRC / 自动切源）与阶段 6 真机回归。
 
 ### 3.2 探索页搜索源现状（阶段 2 已完成）
 
@@ -95,32 +98,34 @@ YOUTUBE_MUSIC, NETEASE, BILIBILI, KUGOU, QQ_MUSIC, LINK_RECOGNITION
 
 ```
 ┌──────────────────────── NeriPlayer (Android) ────────────────────────┐
-│                                                                      │
-│  UI 层：探索页(新增 QQ音乐搜索源) / 媒体库 tab(替换占位) / 设置(音质)  │
+│  UI 层：探索页(QQ_MUSIC 搜索 + 发现) / 媒体库「我的歌单」 / 设置      │
+│        (音质 + 扫码登录) / 首次安装引导「连接平台」                    │
 │     │                                                                │
 │  core/player（PlayerManager）                                        │
 │     │  SongUrlResult ← PlayerUrlResolver ← PlaybackAudioSource.QQ_MUSIC
 │     ▼                                                                │
-│  core/api/qqmusic（新增包 · 待实现）                                  │
-│   ├── QQMusicSession      （guid 持久化、登录态、musickey 存储）        │
-│   ├── QQMusicDevice       （QIMEI 注册 + getSession · 仅登录阶段需要）  │
-│   ├── QQMusicPlayback     （vkey 取址 + 音质降级链 → SongUrlResult）   │
-│   ├── QQMusicModels       （SongItem 构建 / QQMUSIC_CHANNEL_ID）      │
-│   ├── QQMusicChannel      （榜单 / 推荐 / 歌单 · P2）                 │
-│   ├── QQMusicUserApi      （用户歌单 / 收藏 · P2）                    │
-│   ├── QQMusicQrLoginClient（QQ 扫码登录 · P1 · 依赖 QQMusicDevice）    │
-│   └── QQMusicSigner       （zzc_sign / hash33 · 仅签名接口需要）       │
+│  core/api/qqmusic（已实现包）                                         │
+│   ├── QQMusicSession          （guid 持久化、登录态、凭证续期）         │
+│   ├── QQMusicDevice           （QIMEI 注册 + getSession）              │
+│   ├── QQMusicPlayback         （vkey 取址 + 音质降级链）               │
+│   ├── QQMusicCrypto           （hash33 / AES / RSA / MD5 等）          │
+│   ├── QQMusicQrLoginClient    （QQ 扫码登录，依赖 QQMusicDevice）       │
+│   ├── QQMusicCredentialRefresh（refreshKey 续期 / 登出降级）           │
+│   ├── QQMusicModels           （SongItem / QQMUSIC_CHANNEL_ID）        │
+│   ├── QQMusicChannel          （榜单 / 热门歌单 / 歌单歌曲）            │
+│   ├── QQMusicUserApi          （用户创建歌单）                         │
+│   └── QQMusicVkeyRateLimiter  （约 3 QPS，挂在 requestVkey 前）         │
 │  data/auth/qqmusic/QQMusicCookieStore（musickey/uin 加密持久化）      │
+│  core/api/search/QQMusicSearchApi（搜索 / 详情 / 歌词，匿名可用）      │
 │                                                                      │
-│  core/api/search/QQMusicSearchApi（已存在，仅需小幅扩展）             │
-│                                                                      │
+│  未单独落地：QQMusicSigner（zzc_sign）—— 现有链路不需要                │
 └────────────── 无本地代理：App 内 OkHttp 直连 QQ音乐域名 ───────────────┘
 ```
 
 **要点：**
 - **匿名阶段（阶段 1–3）：无需 QIMEI、无需 session**。播放走 web 平台协议（`platform=20` / `ct=24`，见 §5.5 实测），相比酷狗（需 `dfid/mid/guid` 注册）是显著的减法。
-- **登录阶段（阶段 4）：必须补 `QQMusicDevice`**。路线 A 的 `QQLogin` 走 Android 协议 → 需 session → 需 QIMEI。这是选定 QR 路线后的既定成本，不是可选项。
-- **仍需持久化 `guid`**：`CgiGetVkey` 的 `guid` 参数应在安装后生成一次并持久化（建议取设备指纹派生），避免每次随机导致风控画像漂移。登录阶段的 QIMEI 与它同源复用同一身份。
+- **登录阶段（阶段 4）：`QQMusicDevice` 已落地**。路线 A 的 `QQLogin` 走 Android 协议 → 需 session → 需 QIMEI。
+- **已持久化 `guid`**：`CgiGetVkey` 的 `guid` 安装后生成一次并复用；登录阶段 QIMEI 独立于登录态持久化，退出登录不重置。
 - 与现有全部平台一致：App 内 OkHttp 直连，无中间服务。
 
 ### 4.2 已否决方案：Node 中转服务（存档）
@@ -154,13 +159,13 @@ YOUTUBE_MUSIC, NETEASE, BILIBILI, KUGOU, QQ_MUSIC, LINK_RECOGNITION
 | 歌曲详情 | `GET https://u.y.qq.com/cgi-bin/musicu.fcg?data={songinfo}` | `music.pf_song_detail_svr` / `get_song_detail_yqq`，param `song_mid` |
 | 歌词 | 同上 `music.musichallSong.PlayLyricInfo` / `GetPlayLyricInfo` | 参数 `songMID` + `trans=1&qrc=0&crypt=0`；返回 base64 明文歌词 |
 
-### 5.2 播放取址（P0 核心，待实现）
+### 5.2 播放取址（P0 核心 · **已实现**）
 
 | 能力 | 接口 | 说明 |
 | --- | --- | --- |
 | **匿名取址（采用）** | `GET https://u.y.qq.com/cgi-bin/musicu.fcg?format=json&data={...}` | module `vkey.GetVkeyServer` / method `CgiGetVkey`；param `guid` / `songmid[]` / `songtype[]` / `uin:"0"` / `loginflag:1` / `platform:"20"`；comm `{uin:0, format:"json", ct:24, cv:0}` |
 | 带音质指定 | 同上，加 `filename: ["{QUALITY}{mid}{mid}.{ext}"]` | **实测用 `songmid` 即可成功**（服务端按 songmid 自行解析出正确的 media_mid 生成 purl）；QQMusicapi 注释称部分 VIP 音质需 `media_mid`，故实现取「优先 `media_mid`、缺失回退 `songmid`」（存于 `SongItem.subAudioId`）；不传 filename 时服务端默认给 C400 |
-| 登录态取址 | 同上，`uin` 换成真实 musicid，并携带 `qm_keyst` / `qqmusic_key` cookie | 解锁更高档位与受限曲目（**待验证**） |
+| 登录态取址 | 同上，`uin` 换成真实 musicid，并携带 `qm_keyst` / `qqmusic_key` cookie | 解锁更高档位与受限曲目 · **已真机验证（阶段 4）** |
 | 项目蓝本参照 | QQMusicapi `song.js` → `music.vkey.GetVkey` / `UrlGetVkey`（`platform:"23"`） | 该路径走 Android 协议，**需 QIMEI + session**，本项目**不采用** |
 
 **响应结构（扁平在 `req_0.data` 下）：**
@@ -193,8 +198,9 @@ result 语义（QQMusicapi exceptions/注释已对齐）：
 **建议降级链（对齐酷狗的设计，从用户偏好档起逐档下探）：**
 
 ```kotlin
-QQMUSIC_QUALITY_FALLBACK_ORDER = ["F000", "M800", "C600", "M500", "C400"]
-// 未登录 → 只保留 ["M500", "C400"]，避免必然被拒的会员档请求
+// PlayerUrlResolver.kt 实际实现
+QQMUSIC_QUALITY_FALLBACK_ORDER = listOf("F000", "O800", "M800", "C600", "M500", "C400")
+// 未登录 → 只保留 QQMUSIC_FREE_QUALITY_KEYS = setOf("M500", "C400")，避免必然被拒的会员档请求
 ```
 
 > 注：`M500` 与 `C400` 谁优先可作为偏好项。AAC 96k 与 MP3 128k 听感接近，但 QQ音乐官方对免费曲目默认下发 C400，建议**默认 `M500` 优先**（兼容性更好、体积略小）。
@@ -208,10 +214,10 @@ QQMUSIC_QUALITY_FALLBACK_ORDER = ["F000", "M800", "C600", "M500", "C400"]
 | 二维码获取 | `GET https://ssl.ptlogin2.qq.com/ptqrshow` | 参数 `appid=716027609` + `pt_3rd_aid=100497308`；从 Set-Cookie 取 **`qrsig`**（后续轮询凭据） |
 | 扫码状态轮询 | `GET https://ssl.ptlogin2.qq.com/ptqrlogin` | 参数含 `ptqrtoken = hash33(qrsig)`；响应是 JS 文本，需正则提取状态码；状态：0=过期 / 1=等待 / 2=待确认 / **4=成功**（返回 `sigx` + `uin`） |
 | 换取凭证 | `POST https://ssl.ptlogin2.graph.qq.com/check_sig` → `POST https://graph.qq.com/oauth2.0/authorize` → `musicu.fcg` 的 `QQConnectLogin.LoginServer` / `QQLogin` | 三步链路：`check_sig` 取 `p_skey`（**cookie 名兼容 `p_skey` / `p-skey` / `pskey` / `ptsigx` / `skey`**，见 `login.js:421-426`）→ `authorize` 换 `code`（从 302 Location 正则提取）→ `QQLogin` 换 **`musickey` / `musicid` / `refreshKey`**；`comm.tmeLoginType = 2` |
-| 手机验证码 | `music.login.LoginServer` / `SendPhoneAuthCode` + `Login` | P2，非必须 |
-| 凭证刷新 | `music.login.LoginServer` / `Login`（`loginMode: 2`，见 `login.js:refreshCredential`） | 登录态维护。按 `loginType` 分三套 param（1 / 2 / default） |
+| 手机验证码 | `music.login.LoginServer` / `SendPhoneAuthCode` + `Login` | P2 · **未做**（非必须） |
+| 凭证刷新 | `music.login.LoginServer` / `Login`（`loginMode: 2`，见 `login.js:refreshCredential`） | ✅ **已实现**（`QQMusicCredentialRefresh`）：按 `loginType` 分三套 param；仅鉴权过期码登出，其余保留凭证；每日至多一次 + 播放失败后短节流重试 |
 | 用户歌单 | `musicu.fcg` 的 `music.musicasset.PlaylistBaseRead` / `GetPlaylistByUin` | ✅ 已实现（阶段 5，对齐上游 [L-1124/QQMusicApi](https://github.com/L-1124/QQMusicApi) `user.get_created_songlist`）；Android comm + cookie；param 仅 `{uin}`；响应在 `req_0.data.v_playlist[]`（字段 camelCase：`tid`/`dirName`/`picUrl`/`songNum`/`play_cnt`）<br/>⚠️ **勿用** `music.songlist.UserSonglistService` / `GetUserSonglist`（实测 500003/860100001）；`fcg_get_user_channel.fcg` 已 404 |
-| 榜单 / 推荐 | 需在实现时以抓包校验（QQMusicapi 未完整覆盖） | P2，**信息缺口见 §10** |
+| 榜单 / 热门歌单 | `QQMusicChannel.kt` | ✅ **已实现**（阶段 2+）：qzone 榜单列表/歌曲 + 热门歌单 + 歌单歌曲；GBK 按 GB18030 解码；`Referer: https://c.y.qq.com/` + `Cookie: uin=0` |
 
 **⚠️ 登录链路的关键约束（已决策路线 A，本节即既定成本）**：
 
@@ -399,7 +405,7 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 3. 步骤 4 与 `refreshCredential` 都走 Android comm → **依赖前置 1、2 已就绪**，且 QIMEI/session 过期（24h）时需先静默刷新再重试登录。
 4. `refreshKey` 用于后续凭证续期（`music.login.LoginServer / Login`，`loginMode: 2`，按 `loginType` 分三套参数）。
 
-**仍待验证**：登录后高音质档位（`F000` / `M800` / `C600` / `O800`）是否真正解锁 —— 需真实账号做 1 次手工实验（阶段 4 开工前完成）。
+**已验证（阶段 4 真机验收 2026-09-13）**：登录后高音质档位（`F000` / `M800` / `C600` / `O800`）可解锁；登出后回落匿名档位。
 
 ### 7.3 凭证与登录态存储
 
@@ -511,9 +517,17 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 - [x] vkey 失效自动重解析（复用 `SongUrlResolutionRetry`）+ VIP 不可播不重试
   - 失败重解析：`resolveSongUrl` 已包一层 `retrySongUrlResolution`（Failure 重试 5 次）；播放中 403 等 IO 错误走 `shouldAttemptUrlRefresh` → `refreshCurrentSongUrl` 再取址
   - VIP（`result=104003`）改为返回 `SongUrlResult.Unplayable`：不参与外层重试，避免连打降级链；文案在 `resolveSongUrl` 收口弹出（离线缓存回退成功时不弹）
-- [ ] 适配层单元测试补齐（已有：限速器 / Unplayable 不重试 / 音质降级链 / purl 档位解析；酷狗适配层仍零测试，QQ 不应再扩）
+- [x] 部分适配层单测（已有：限速器 `QQMusicVkeyRateLimiterTest` / 音质降级链 `QQMusicQualityChainTest` / purl 档位解析 `QQMusicActualQualityFromPurlTest` / 歌词响应 `QQMusicLyricResponseTest`；**仍可继续补**）
 - [ ] QRC 逐字歌词（移植 344 行 TripleDES，可选）
 - [ ] 自动切源兜底（**取决于 §7.1 的前置依赖是否先补**）
+- [ ] 阶段 6 限速 / VIP 语义的真机回归
+
+### 追加：引导页登录入口（2026-09-15）
+
+- [x] 首次安装引导「连接平台」步骤增加 QQ 音乐卡片（`StartupOnboardingScreen`）
+- [x] 未登录 → `QQMusicQrLoginSheet`；已登录 → 确认后 `AppContainer.qqMusicSession.logout()`
+- [x] `shouldWarnStartupNoPlatformConnected` 计入 `qqMusicLoggedIn`（只登 QQ 不再弹「尚未连接任何平台」）
+- [x] 退出确认对话框与酷狗共用 `StartupPlatformLogoutDialog`
 
 ---
 
@@ -524,13 +538,13 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 | **匿名覆盖率仅约 25%** | 用户搜到多半播不了，体验差于其他源 | 明确「需会员」文案 + 优先补自动切源；必要时把 QQ音乐定位为「补充源」而非主源 |
 | **「不可播」比例高导致口碑问题** | 用户误判为 Bug | 失败原因区分 `104003`（需会员）/ 网络错误；UI 给出可操作指引（登录 / 切源） |
 | 登录后高音质解锁~~未验证~~ **已验证** | ~~阶段 4 可能白做~~ 解锁确认有效 | ~~阶段 4 开工前先做一次手工验证~~ 已于 2026-09-13 真机验收关闭 |
-| **QIMEI 移植成本（路线 A 既定）** | 阶段 4 工作量上升 | 全为标准密码学原语，且 `NeteaseCrypto` 已有 AES/RSA/MD5 可复用；公钥/SECRET 为固定常量，估计 100–150 行 |
+| ~~**QIMEI 移植成本（路线 A 既定）**~~ | ~~阶段 4 工作量上升~~ **已落地** | `QQMusicDevice` / `QQMusicCrypto` 已实现并真机验收 |
 | **QIMEI / session 24h 过期** | 登录与高音质取址间歇性失效 | 签发时间落盘；请求前检查时效，过期静默重注册再重试；注册做并发串行化 |
 | QR 登录 4 步链路脆弱 | 上游任一环节变更即失效 | 链路封装在 `QQMusicQrLoginClient` 单文件便于热修；各步骤独立可测 |
 | `check_sig` 的 cookie 名多形态 | 取 `p_skey` 失败导致登录中断 | 按 QQMusicapi 实现做多候选兼容（`p_skey` / `p-skey` / `pskey` / `ptsigx` / `skey`） |
 | `guid` / 设备画像漂移触发风控 | 取址失败率上升 | 安装后生成一次并持久化，跨请求复用；退出登录不重置 |
 | vkey 时效约 2 小时 | 长时间播放中断 | 已有重解析机制，验证其在 QQ音乐分支生效 |
-| **自动切源能力缺失（前置依赖）** | 无法兜底，风险被放大 | **建议单独评估并先行补齐**（酷狗阶段 5 同样缺口） |
+| **自动切源能力缺失** | 无法兜底，风险被放大 | **暂不阻塞 QQ 接入**；P3 单独评估（酷狗阶段 5 同样缺口） |
 | `SongItem.id` 为 `Long`、songmid 为字符串 | 潜在碰撞 / 标识丢失 | 照搬酷狗范式：`audioId` 存 songmid，`id` 用 `hashCode()` |
 | 版权 / 合规 | 法律风险 | 不绕过付费墙；仅取平台下发的免费档位；登录用用户自有账号权限；README 声明 |
 | 平台协议变更 | 播放失效 | 取址逻辑集中在 `QQMusicPlayback.kt` 单文件；若变异频繁，可重新评估 §4.2 的 Node 中转方案 |
@@ -545,35 +559,26 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 2. **登录路线**：**QR 扫码（路线 A）**，否决 WebView cookie（存档见 §7.2）。
    - **已知连锁代价**：路线 A ⇒ 必须同时移植 **QIMEI 注册 + getSession**（归入 `QQMusicDevice`，见 §5.4 / §7.2 / 阶段 4a）。此代价已确认接受。
 
-**待决策：**
+**原「待决策」项（现均已关闭）：**
 
 > 分组说明：**【阻塞开工】** = 不定就没法动阶段 1；**【条件项】** = 需要用户提供条件；**【形态项】** = 影响改动面，阶段 2/5 之前定即可。
 
 **【阻塞开工】**
 
-1. **交付范围**：先交付「阶段 1 + 2」的匿名最小切片（能搜能播 128k）验证手感，还是直接推进到登录 + 高音质？
-2. **「不可播」（`result=104003`）的默认交互**（QQ音乐特有，因匿名覆盖率仅约 25%，此为高频路径）：
-   - 选项 A：**提示「需 QQ音乐会员」+ 提供手动切源按钮** —— 不依赖前置能力，改动小
-   - 选项 B：**静默自动切源**（网易云 / B 站）—— 体验最顺，但**依赖切源能力先落地**，与第 3 项耦合
-   - 选项 C：提示 + 自动切源（用户可关）
-3. **自动切源是否作为前置依赖先行补齐**：该能力（酷狗→B站/网易云）目前**同样缺失**，是跨平台的基础能力，不只服务 QQ音乐。若选 2-B / 2-C，则必须先做或并行做。
+1. **交付范围** —— **已按完整版推进并完成阶段 1–5**（匿名 + 登录 + 高音质 + 用户内容）。
+2. **「不可播」（`result=104003`）的默认交互** —— **已定为选项 A**：提示「需 QQ音乐会员 / 登录」；静默自动切源未做（见第 3 项）。
+3. **自动切源是否作为前置依赖先行补齐** —— **暂不补**。跨平台自动切源仍是缺口，QQ 音乐不阻塞在它上面；列为 P3。
 
 **【条件项】**
 
-4. **登录后高音质解锁验证**（~~阶段 4 开工前置~~ **已随阶段 4 真机验收完成 2026-09-13：解锁确认**）。
+4. **登录后高音质解锁验证** —— **已关闭**（阶段 4 真机验收 2026-09-13：解锁确认）。
 
 **【形态项】**
 
-5. **探索页 QQ音乐搜索源的位置**：`SearchSource` 当前顺序为 `YOUTUBE_MUSIC, NETEASE, BILIBILI, KUGOU, LINK_RECOGNITION`。
-   - 建议：插在 `KUGOU` 之后、`LINK_RECOGNITION` 之前（与媒体库 tab 顺序一致）
-6. **探索页是否做 QQ音乐默认内容**（未搜索时的发现内容：榜单 / 推荐歌单）：
-   - 参照酷狗有 `KugouExploreContent`（每日推荐/排行榜/热门歌单横滑卡片）；QQ音乐是否同等对待？
-   - ⚠️ 该功能依赖「榜单 / 推荐接口的 module + method」，属信息缺口（见下），需先抓包确认可行性
-7. **媒体库 QQ音乐 tab 的内容范围**（**已定，2026-09-14 用户确认选项 A**）：
-   - 选项 A：仅个人内容（我的歌单 / 收藏）+ 未登录空态 —— **已采用**，与项目「媒体库 = 我的内容」分层原则一致
-   - 选项 B：A + 榜单/推荐（会与探索页职责重叠）—— 未采用
-   - 选项 C：本阶段不做，保持占位 —— 未采用
-8. **音质偏好默认档位**（**已定，阶段 3 落地）**：默认 `M500` 优先（文档 §5.3 理由）；设置页选项 = 标准(M500) / 较高(C600) / 极高(M800) / 无损(F000)，`O800`/`C400` 不单列（由降级链隐式覆盖）。登录已实现（阶段 4），未登录选会员档弹提示（见 §8 阶段 3）。
+5. **探索页 QQ音乐搜索源的位置** —— **已落地**：`SearchSource` 顺序为 `YOUTUBE_MUSIC, NETEASE, BILIBILI, KUGOU, QQ_MUSIC, LINK_RECOGNITION`（插在 KUGOU 之后）。
+6. **探索页是否做 QQ音乐默认内容** —— **已落地**：`QQMusicExploreContent` 含排行榜 + 热门歌单（无每日推荐板块）。
+7. **媒体库 QQ音乐 tab 的内容范围** —— **已定选项 A**（2026-09-14）：仅个人内容 + 未登录空态。
+8. **音质偏好默认档位** —— **已定并落地**：默认 `M500` 优先；设置页选项覆盖标准/较高/极高/无损；`O800`/`C400` 由降级链隐式覆盖。
 
 **由实施方（助手）自行决定的技术细节（如有异议请提出）：**
 
@@ -591,14 +596,14 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 5. `QQMusicapi` 本地未安装依赖、未登录过；其 `device.json` 表明匿名 Android 链路曾跑通。
 6. 匿名失败码为 `104003`（无权限 / 需 VIP），是最高频的失败原因。
 
-**信息缺口（实施时需补齐）：**
+**信息缺口：**
 
-1. **榜单 / 推荐歌单接口的 module + method**（QQMusicapi 未完整覆盖，`song.js` 仅有 `getSimilar` / `getRelatedSonglist`）。
+1. ~~**榜单 / 推荐歌单接口的 module + method**~~ **已补齐（阶段 2+）**：`QQMusicChannel` 走 qzone / musicu，装机验证通过。
 2. ~~**用户歌单 / 收藏接口的 module + method**~~ **已补齐（阶段 5）**：`music.musicasset.PlaylistBaseRead` / `GetPlaylistByUin`（`GetUserSonglist` 实测 500003 不可用，已改用正确接口）。
-3. ~~**登录后高音质解锁的实际效果**（需真实账号，阶段 4 开工前置）~~ **已补齐（阶段 4 验收）**：解锁确认有效。
-4. **`sip` 数组的稳定性**：实测返回 `http://`（非 https）CDN，需确认 Android 端 `cleartextTraffic` 策略是否放行（项目已支持其他源 http 直链，但要单独确认 QQ音乐域名）。
-5. **QQ音乐云盘**是否存在可用接口（QQMusicapi 未覆盖）。
-6. **QIMEI payload 的 `reserved` 字段是否需要跟随设备真实信息**（QQMusicapi 中 `brand` / `model` / `procVersion` 等取自设备文件；本项目是否需要伪造一致画像，影响风控通过率）。
+3. ~~**登录后高音质解锁的实际效果**~~ **已补齐（阶段 4 验收）**：解锁确认有效。
+4. ~~**`sip` 数组的 cleartextTraffic**~~ **无阻塞**：真机已可播放；http CDN 与其他源策略一致，登录/播放验收通过。
+5. **QQ音乐云盘** —— **仍无可用接口线索**。[L-1124/QQMusicApi](https://github.com/L-1124/QQMusicApi) 未覆盖；本地 `D:\work\qq-music-api`（sansenjian/qq-music-api）亦无云盘 / 上传相关实现。P3 维持不做。
+6. ~~**QIMEI payload 的 `reserved` 字段是否需要跟随设备真实信息**~~ **已定为固定伪造画像**（MI 6 / Android 10，对齐 QQMusicapi `device.json`），真机验收通过；退出登录不重置 QIMEI。
 
 ---
 
@@ -606,11 +611,11 @@ QIMEI_HOST = "https://api.tencentmusic.com/tme/trpc/proxy"
 
 - **主蓝本**：[L-1124/QQMusicApi](https://github.com/L-1124/QQMusicApi)（Python 版；另参考其 Node.js ESM + Koa 移植实现，约 3000 行核心代码）
   - 取址：`src/modules/song.js`（`getUrls` / `getPlayUrls`）
-  - 签名：`src/algorithms/sign.js`（`zzcSign`）、`src/algorithms/tripledes.js`、`src/algorithms/qrc.js`
+  - 签名：`src/algorithms/sign.js`（`zzcSign`）、`src/algorithms/tripledes.js`、`src/algorithms/qrc.js`（**现有链路未用到 zzcSign / QRC**）
   - 登录：`src/modules/login.js`（`_getQQQr` / `checkQrcode` / `_authorizeQQQr`）
   - 设备指纹：`src/utils/qimei.js`、`src/utils/device.js`
   - 平台策略：`src/versioning.js`（ANDROID / DESKTOP / WEB 三套 comm 参数）
-- **上游原版**：[L-1124/QQMusicApi](https://github.com/L-1124/QQMusicApi)（Python）
+- **交叉参照**：`D:\work\qq-music-api`（sansenjian/qq-music-api，Node）—— 无云盘接口；用户内容覆盖歌单/收藏/喜欢等
 - **项目内参照实现**：
   - [KugouPlayback.kt](../../app/src/main/java/moe/ouom/neriplayer/core/api/kugou/KugouPlayback.kt)（播放适配层范式）
   - [KugouModels.kt](../../app/src/main/java/moe/ouom/neriplayer/core/api/kugou/KugouModels.kt)（字符串 id 承载范式）
