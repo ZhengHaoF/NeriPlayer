@@ -35,6 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -43,9 +44,12 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.core.api.kugou.KugouChannelContent
+import moe.ouom.neriplayer.core.api.kugou.loadKugouChannelContent
 import moe.ouom.neriplayer.core.api.netease.mergeNeteaseSessionCookies
 import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicHomeShelf
 import moe.ouom.neriplayer.core.di.AppContainer
+import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle
 import moe.ouom.neriplayer.data.auth.youtube.buildRefreshObserverFingerprint
 import moe.ouom.neriplayer.data.model.SongItem
@@ -61,6 +65,7 @@ private const val HOME_PRIVATE_FM_MAX_BATCHES = 10
 private const val HOME_MAX_FAILURE_BEFORE_WARNING = 3
 private const val HOME_YT_MUSIC_PLAYLIST_LIMIT = 24
 private const val HOME_INITIAL_LOAD_DEFER_MS = 250L
+private const val HOME_NETEASE_PROBE_TIMEOUT_MS = 30_000L
 private const val HOME_SECTION_LOAD_PARALLELISM = 6
 private const val HOME_SECTION_LOAD_PARALLELISM_PER_GROUP = 2
 
@@ -128,6 +133,20 @@ internal fun shouldHandleInitialNeteaseHomeCookieEmission(
     emittedCookies: Map<String, String>
 ): Boolean = !isFirstEmission || initialCookies != emittedCookies
 
+/**
+ * 网易云源是否有可展示内容：任一展示板块有真实数据即视为有内容。
+ * 雷达歌单失败时的硬编码兜底不算「有数据」，否则永远不会降级到下一个源。
+ */
+internal fun neteaseHomeHasData(state: HomeUiState): Boolean =
+    state.playlistSections.any { it.section.items.isNotEmpty() } ||
+        state.trendingSongSections.any { it.section.items.isNotEmpty() } ||
+        state.radarSongSections.any { it.section.items.isNotEmpty() } ||
+        (state.radarPlaylists.items.isNotEmpty() && !state.radarPlaylistsFromFallback)
+
+/** 酷狗源是否有可展示内容：每日推荐/榜单/热门歌单任一非空即视为有内容。 */
+internal fun kugouContentHasData(content: KugouChannelContent): Boolean =
+    content.ranks.isNotEmpty() || content.playlists.isNotEmpty() || content.dailyRecommend.isNotEmpty()
+
 internal enum class HomeSectionLoadGroup {
     PLAYLISTS,
     TRENDING_SONGS,
@@ -191,6 +210,13 @@ data class HomeNeteasePlaylistSectionState(
     val section: HomeSectionState<PlaylistSummary> = HomeSectionState()
 )
 
+/** 酷狗概念版首页内容（每日推荐 + 排行榜 + 热门歌单）。 */
+data class HomeKugouSectionState(
+    val content: KugouChannelContent? = null,
+    val loading: Boolean = false,
+    val error: String? = null
+)
+
 data class HomeUiState(
     val playlistSections: List<HomeNeteasePlaylistSectionState> = emptyList(),
     val trendingSongSections: List<HomeNeteaseSongSectionState> = emptyList(),
@@ -199,7 +225,11 @@ data class HomeUiState(
     val ytMusicPlaylists: HomeSectionState<YouTubeMusicPlaylist> = HomeSectionState(),
     val ytMusicHomeShelves: HomeSectionState<YouTubeMusicHomeShelf> = HomeSectionState(),
     val hasLogin: Boolean = false,
-    val internationalizationEnabled: Boolean = false
+    val internationalizationEnabled: Boolean = false,
+    val activeSource: HomeContentSource? = null,
+    val kugouSections: HomeKugouSectionState = HomeKugouSectionState(),
+    /** 雷达歌单当前是否为失败后的硬编码兜底（不计入源「有数据」）。 */
+    val radarPlaylistsFromFallback: Boolean = false
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -213,7 +243,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         cookies
     }
     private var hasRecommendLogin = !initialRecommendCookies["MUSIC_U"].isNullOrBlank()
-    private val _uiState = MutableStateFlow(createHomeUiState(hasRecommendLogin, loading = true))
+    private val _uiState = MutableStateFlow(
+        createHomeUiState(hasRecommendLogin, loading = true).copy(
+            activeSource = DEFAULT_HOME_CONTENT_SOURCE_ORDER.first()
+        )
+    )
     val uiState: StateFlow<HomeUiState> = _uiState
 
     private var playlistJob: Job? = null
@@ -221,6 +255,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var radarSongsJob: Job? = null
     private val homeSectionLoadCoordinator = HomeSectionLoadCoordinator()
     private var radarPlaylistsJob: Job? = null
+    private var homeContentJob: Job? = null
     private var ytMusicHomeJob: Job? = null
     private var ytMusicHomeRefreshPending = false
     private var ytMusicHomeLoadGeneration: Long = 0L
@@ -422,7 +457,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (accountContextChanged) {
                     _uiState.update { state ->
-                        state.copy(radarPlaylists = HomeSectionState())
+                        state.copy(
+                            radarPlaylists = HomeSectionState(),
+                            radarPlaylistsFromFallback = false
+                        )
                     }
                 }
                 if (
@@ -433,7 +471,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 ) {
                     homeRecommendationsBootstrapped = true
-                    refreshNeteaseHome()
+                    refreshHomeContent()
                 }
             }
         }
@@ -441,7 +479,14 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             delay(HOME_INITIAL_LOAD_DEFER_MS)
             if (!homeRecommendationsBootstrapped) {
                 homeRecommendationsBootstrapped = true
-                refreshNeteaseHome()
+                refreshHomeContent()
+            }
+        }
+        // 首页内容源排序变化时按新顺序重新探测（主源恢复后自然回切）
+        viewModelScope.launch {
+            AppContainer.settingsRepo.homeContentSourceOrderFlow.drop(1).collect { order ->
+                NPLogger.d(TAG, "home content source order changed: $order")
+                refreshHomeContent()
             }
         }
     }
@@ -460,6 +505,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 trendingSongSections = clearSongSectionLoading(state.trendingSongSections),
                 radarSongSections = clearSongSectionLoading(state.radarSongSections),
                 radarPlaylists = state.radarPlaylists.copy(loading = false, error = null),
+                kugouSections = state.kugouSections.copy(loading = false, error = null),
                 ytMusicPlaylists = state.ytMusicPlaylists.copy(loading = false, error = null),
                 ytMusicHomeShelves = state.ytMusicHomeShelves.copy(loading = false, error = null)
             )
@@ -467,11 +513,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun cancelHomeNetworkJobs() {
+        homeContentJob?.cancel()
+        cancelNeteaseSectionJobs()
+        cancelYouTubeHomeJobs()
+    }
+
+    private fun cancelNeteaseSectionJobs() {
         playlistJob?.cancel()
         hotSongsJob?.cancel()
         radarSongsJob?.cancel()
         radarPlaylistsJob?.cancel()
-        cancelYouTubeHomeJobs()
     }
 
     private fun cancelYouTubeHomeJobs() {
@@ -482,11 +533,110 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun refreshNeteaseHome() {
+        refreshHomeContent()
+    }
+
+    /**
+     * 首页内容源刷新入口：按「首页展示排序」设置依次探测内容源。
+     * 当前源所有展示接口均无数据（失败或为空）时自动降级到下一个源；
+     * 每次刷新都会重新按序探测，主源恢复数据后自然回切。
+     * 探测期间 activeSource 指向当前源，便于 UI 立即展示对应 loading/error。
+     */
+    private fun refreshHomeContent() {
         if (offlineMode) return
 
+        homeContentJob?.cancel()
+        cancelNeteaseSectionJobs()
+        homeContentJob = viewModelScope.launch {
+            val orderedSources = parseHomeContentSourceOrder(
+                AppContainer.settingsRepo.homeContentSourceOrderFlow.first()
+            )
+            NPLogger.d(TAG, "refreshHomeContent: sources=$orderedSources")
+            for (source in orderedSources) {
+                _uiState.update { state -> state.copy(activeSource = source) }
+                val hasData = when (source) {
+                    HomeContentSource.NETEASE -> probeNeteaseSource()
+                    HomeContentSource.KUGOU -> probeKugouSource()
+                }
+                if (hasData) {
+                    NPLogger.d(TAG, "refreshHomeContent: active source=$source")
+                    return@launch
+                }
+                if (source == HomeContentSource.NETEASE) {
+                    cancelNeteaseSectionJobs()
+                    _uiState.update { state ->
+                        state.copy(
+                            playlistSections = emptyList(),
+                            trendingSongSections = emptyList(),
+                            radarSongSections = emptyList(),
+                            radarPlaylists = HomeSectionState(),
+                            radarPlaylistsFromFallback = false
+                        )
+                    }
+                } else {
+                    _uiState.update { state ->
+                        state.copy(kugouSections = HomeKugouSectionState())
+                    }
+                }
+            }
+            NPLogger.d(TAG, "refreshHomeContent: no source has data")
+            _uiState.update { state -> state.copy(activeSource = null) }
+        }
+    }
+
+    /** 加载网易云全部板块并等待完成，返回是否有可展示内容。 */
+    private suspend fun probeNeteaseSource(): Boolean {
         refreshRecommend()
         loadHomeRecommendations(force = true)
         refreshRadarPlaylists()
+        val deadline = System.currentTimeMillis() + HOME_NETEASE_PROBE_TIMEOUT_MS
+        while (System.currentTimeMillis() < deadline) {
+            val state = _uiState.value
+            val songSections = state.trendingSongSections + state.radarSongSections
+            val playlistSections = state.playlistSections
+            val settled =
+                (songSections.isEmpty() || songSections.all { !it.section.loading }) &&
+                    (playlistSections.isEmpty() || playlistSections.all { !it.section.loading }) &&
+                    !state.radarPlaylists.loading
+            if (settled) break
+            delay(200)
+        }
+        return neteaseHomeHasData(_uiState.value)
+    }
+
+    /** 加载酷狗概念版默认内容（每日推荐/榜单/热门歌单），返回是否有可展示内容。 */
+    private suspend fun probeKugouSource(): Boolean {
+        _uiState.update { state ->
+            state.copy(kugouSections = HomeKugouSectionState(loading = true))
+        }
+        return try {
+            val content = withContext(Dispatchers.IO) {
+                PlayerManager.kugouSession.loadKugouChannelContent()
+            }
+            val hasData = kugouContentHasData(content)
+            NPLogger.d(
+                TAG,
+                "probeKugouSource: hasData=$hasData ranks=${content.ranks.size} " +
+                    "playlists=${content.playlists.size} daily=${content.dailyRecommend.size}"
+            )
+            _uiState.update { state ->
+                state.copy(
+                    kugouSections = HomeKugouSectionState(
+                        content = content.takeIf { hasData },
+                        loading = false
+                    )
+                )
+            }
+            hasData
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            NPLogger.e(TAG, "probeKugouSource failed", e)
+            _uiState.update { state ->
+                state.copy(kugouSections = HomeKugouSectionState(error = buildHomeErrorMessage(e)))
+            }
+            false
+        }
     }
 
     /** 拉首页推荐歌单 */
@@ -647,7 +797,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     NPLogger.d(TAG, "refreshRadarPlaylists success: count=${result.items.size}")
                     _uiState.value = _uiState.value.copy(
-                        radarPlaylists = HomeSectionState(items = result.items)
+                        radarPlaylists = HomeSectionState(items = result.items),
+                        radarPlaylistsFromFallback = false
                     )
                 }
                 is RetryLoadResult.Failure -> {
@@ -658,7 +809,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.value = _uiState.value.copy(
                         radarPlaylists = HomeSectionState(
                             items = NeteaseRadarPlaylistDefinitions.map { it.toPlaylistSummary() }
-                        )
+                        ),
+                        radarPlaylistsFromFallback = true
                     )
                 }
             }

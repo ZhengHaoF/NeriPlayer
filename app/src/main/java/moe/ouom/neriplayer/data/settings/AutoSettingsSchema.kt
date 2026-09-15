@@ -516,6 +516,21 @@ object AutoSettingsSchema {
         val homeCardRecommended = autoSetting(
             titleRes = R.string.settings_home_card_netease_recommended
         )
+
+        @AutoSetting(
+            key = "home_content_source_order",
+            type = SettingValueType.String,
+            defaultString = "netease,kugou",
+            order = 70,
+            ui = SettingUiType.Custom
+        )
+        val homeContentSourceOrder = autoStringSetting(
+            key = "home_content_source_order",
+            defaultValue = "netease,kugou",
+            titleRes = R.string.settings_home_content_source_order,
+            descriptionRes = R.string.settings_home_content_source_order_desc,
+            icon = AutoSettingIcon.Home
+        )
     }
 
     /*

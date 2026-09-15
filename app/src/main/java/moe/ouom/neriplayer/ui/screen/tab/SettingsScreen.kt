@@ -53,6 +53,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.AltRoute
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.BrightnessAuto
@@ -596,6 +597,7 @@ fun SettingsScreen(
     preemptAudioFocus: Boolean,
     onPreemptAudioFocusChange: (Boolean) -> Unit,
     onNavigateToDownloadManager: () -> Unit = {},
+    onNavigateToHomeSettings: () -> Unit = {},
     maxCacheSizeBytes: Long,
     onMaxCacheSizeBytesChange: (Long) -> Unit,
     onClearCacheClick: (StorageCacheClearOptions) -> Unit,
@@ -1612,6 +1614,7 @@ fun SettingsScreen(
                                 onShowHomeRadarCardChange = onShowHomeRadarCardChange,
                                 showHomeRecommendedCard = showHomeRecommendedCard,
                                 onShowHomeRecommendedCardChange = onShowHomeRecommendedCardChange,
+                                onNavigateToHomeSettings = onNavigateToHomeSettings,
                                 backgroundImageUri = backgroundImageUri,
                                 onPickBackgroundImage = {
                                     photoPickerLauncher.launch(
@@ -3318,6 +3321,7 @@ private fun SettingsPersonalizationPageContent(
     onShowHomeRadarCardChange: (Boolean) -> Unit,
     showHomeRecommendedCard: Boolean,
     onShowHomeRecommendedCardChange: (Boolean) -> Unit,
+    onNavigateToHomeSettings: () -> Unit = {},
     backgroundImageUri: String?,
     onPickBackgroundImage: () -> Unit,
     onClearBackgroundImage: () -> Unit,
@@ -3457,6 +3461,35 @@ private fun SettingsPersonalizationPageContent(
                 highlightTargetId = highlightTargetId,
                 highlightPulse = highlightPulse,
                 onHighlightFinished = onHighlightFinished
+            )
+
+            ListItem(
+                modifier = Modifier.settingsItemClickable(onClick = onNavigateToHomeSettings),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Outlined.Home,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                headlineContent = {
+                    Text(stringResource(R.string.settings_home_content_source_order))
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.settings_home_content_source_order_desc),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
             )
 
             LazyAnimatedVisibility(visible = !homeStartAvailable) {

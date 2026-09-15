@@ -42,6 +42,7 @@
     <string name="kugou_rank">排行榜</string>
     <string name="kugou_playlist">热门歌单</string>
     <string name="kugou_playlist_login_hint">登录酷狗概念版后即可查看歌单歌曲</string>
+    <string name="kugou_home_empty">酷狗暂无可展示内容</string>
     <string name="explore_link_input_label">链接或分享文案</string>
     <string name="explore_link_input_placeholder">粘贴网易云、B 站或 YouTube 链接</string>
     <string name="explore_link_input_hint">支持歌曲、视频、歌单和歌手链接，也可直接粘贴含标题和短链接的整段分享文案</string>

@@ -42,6 +42,7 @@
     <string name="kugou_rank">Charts</string>
     <string name="kugou_playlist">Hot Playlists</string>
     <string name="kugou_playlist_login_hint">Playlist tracks will unlock after KuGou Concept sign-in</string>
+    <string name="kugou_home_empty">No KuGou content available right now</string>
     <string name="explore_link_input_label">Link or share text</string>
     <string name="explore_link_input_placeholder">Paste a NetEase, Bilibili, or YouTube link</string>
     <string name="explore_link_input_hint">Supports song, video, playlist, and artist links, including full share text containing a title and short link</string>

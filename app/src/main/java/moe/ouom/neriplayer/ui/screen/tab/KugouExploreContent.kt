@@ -404,3 +404,222 @@ private fun KugouSongRow(
         }
     }
 }
+
+/**
+ * 首页嵌入用的酷狗内容板块（非 Lazy 版）：每日推荐 + 排行榜 + 热门歌单。
+ * loading/error 由调用方（首页 grid）处理，本组件只负责渲染已有内容与弹层；
+ * 点击榜单/歌单弹出底部歌曲列表，点击歌曲走 [onSongClick]（带队列播放）。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun KugouHomeSections(
+    content: KugouChannelContent?,
+    onRetry: () -> Unit,
+    onSongClick: (List<SongItem>, Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val playlistLoginHint = stringResource(R.string.kugou_playlist_login_hint)
+    val scope = rememberCoroutineScope()
+    val sheetState = rememberModalBottomSheetState()
+
+    var sheetOpen by remember { mutableStateOf(false) }
+    var sheetTitle by remember { mutableStateOf("") }
+    var sheetSongs by remember { mutableStateOf<List<SongItem>?>(null) }
+    var sheetPlaceholder by remember { mutableStateOf<String?>(null) }
+
+    fun openSheet(title: String, load: suspend () -> List<SongItem>) {
+        sheetTitle = title
+        sheetSongs = null
+        sheetPlaceholder = null
+        sheetOpen = true
+        scope.launch {
+            runCatching { load() }.onSuccess { list ->
+                NPLogger.d(TAG, "home sheet loaded: $title songs=${list.size}")
+                sheetSongs = list
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                NPLogger.e(TAG, "home sheet load failed: $title", e)
+                sheetSongs = emptyList()
+            }
+        }
+    }
+
+    fun openPlaylistPlaceholder(title: String, message: String) {
+        sheetTitle = title
+        sheetSongs = emptyList()
+        sheetPlaceholder = message
+        sheetOpen = true
+    }
+
+    val safeContent = content ?: KugouChannelContent()
+    val isEmpty = safeContent.dailyRecommend.isEmpty() &&
+        safeContent.ranks.isEmpty() &&
+        safeContent.playlists.isEmpty()
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (isEmpty) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 40.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = stringResource(R.string.kugou_home_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.action_retry),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+                        .clickable(onClick = onRetry)
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+            }
+        } else {
+            if (safeContent.dailyRecommend.isNotEmpty()) {
+                SectionHeader(stringResource(R.string.kugou_daily_recommend))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(safeContent.dailyRecommend) { song ->
+                        KugouVerticalSongCard(song = song) {
+                            onSongClick(
+                                safeContent.dailyRecommend,
+                                safeContent.dailyRecommend.indexOf(song)
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+
+            if (safeContent.ranks.isNotEmpty()) {
+                SectionHeader(stringResource(R.string.kugou_rank))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(safeContent.ranks) { rank ->
+                        KugouCoverCard(
+                            title = rank.rankName,
+                            subtitle = if (rank.playCount > 0L) {
+                                formatPlayCount(context, rank.playCount)
+                            } else {
+                                null
+                            },
+                            coverUrl = rank.coverUrl
+                        ) {
+                            openSheet(rank.rankName) {
+                                AppContainer.kugouSession.fetchKugouRankSongs(rank.rankId)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+
+            if (safeContent.playlists.isNotEmpty()) {
+                SectionHeader(stringResource(R.string.kugou_playlist))
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(safeContent.playlists) { playlist ->
+                        KugouCoverCard(
+                            title = playlist.name,
+                            subtitle = playlist.creator,
+                            coverUrl = playlist.coverUrl
+                        ) {
+                            openPlaylistPlaceholder(
+                                title = playlist.name,
+                                message = playlistLoginHint
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (sheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { sheetOpen = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                Modifier
+                    .heightIn(max = 520.dp)
+                    .padding(bottom = 24.dp)
+            ) {
+                Text(
+                    text = sheetTitle,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+                HorizontalDivider()
+                when {
+                    sheetPlaceholder != null -> {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp, horizontal = 24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = sheetPlaceholder!!,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    sheetSongs == null -> {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    }
+
+                    sheetSongs!!.isEmpty() -> {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.search_no_result),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
+                    else -> {
+                        LazyColumn(Modifier.weight(1f)) {
+                            items(sheetSongs!!) { song ->
+                                KugouSongRow(song = song) {
+                                    val index = sheetSongs!!.indexOf(song)
+                                    sheetOpen = false
+                                    onSongClick(sheetSongs!!, index)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

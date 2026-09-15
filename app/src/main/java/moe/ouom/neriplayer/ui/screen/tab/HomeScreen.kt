@@ -140,6 +140,7 @@ import moe.ouom.neriplayer.data.model.sameIdentityAs
 import moe.ouom.neriplayer.data.platform.youtube.stableYouTubeMusicId
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.ui.viewmodel.tab.HomeContentSource
 import moe.ouom.neriplayer.ui.viewmodel.tab.HomeNeteasePlaylistSectionState
 import moe.ouom.neriplayer.ui.viewmodel.tab.HomeNeteaseSongSectionState
 import moe.ouom.neriplayer.ui.viewmodel.tab.HomeSectionState
@@ -183,6 +184,8 @@ private const val HomeScrollKeyYtEmptyFeedError = "home:ytmusic:empty-feed:error
 private const val HomeScrollKeyNeteaseRadarPlaylists = "home:netease:radar-playlists"
 private const val HomeScrollKeyNeteaseRadarPlaylistsHeader = "$HomeScrollKeyNeteaseRadarPlaylists:header"
 private const val HomeScrollKeyNeteaseRadarPlaylistsContent = "$HomeScrollKeyNeteaseRadarPlaylists:content"
+private const val HomeScrollKeyKugouHome = "home:kugou:home"
+private const val HomeScrollKeyNoSourceData = "home:no-source-data"
 
 internal fun shouldShowHomeContinueSection(
     showContinueCard: Boolean,
@@ -710,7 +713,28 @@ fun HomeScreen(
                                     }
                                 }
                             }
-                        } else {
+                        } else if (ui.activeSource == HomeContentSource.KUGOU) {
+                            item(
+                                key = registerGridItemKey(HomeScrollKeyKugouHome),
+                                span = { GridItemSpan(maxLineSpan) }
+                            ) {
+                                when {
+                                    ui.kugouSections.loading && ui.kugouSections.content == null -> {
+                                        SectionLoadingState(homeLoadingText)
+                                    }
+                                    ui.kugouSections.error != null && ui.kugouSections.content == null -> {
+                                        SectionErrorState(detail = ui.kugouSections.error ?: "")
+                                    }
+                                    else -> {
+                                        KugouHomeSections(
+                                            content = ui.kugouSections.content,
+                                            onRetry = { vm.refreshNeteaseHome() },
+                                            onSongClick = onSongClick
+                                        )
+                                    }
+                                }
+                            }
+                        } else if (ui.activeSource == HomeContentSource.NETEASE) {
                             if (showNeteaseRadar) {
                                 ui.radarSongSections
                                     .filter { it.source == NeteaseHomeSongSource.PERSONAL_RADAR }
@@ -831,6 +855,16 @@ fun HomeScreen(
                                         offlineMode = offlineMode
                                     )
                                 }
+                            }
+                        } else {
+                            // 所有内容源均无数据
+                            item(
+                                key = registerGridItemKey(HomeScrollKeyNoSourceData),
+                                span = { GridItemSpan(maxLineSpan) }
+                            ) {
+                                SectionErrorState(
+                                    detail = stringResource(R.string.home_no_source_data)
+                                )
                             }
                         }
                     }

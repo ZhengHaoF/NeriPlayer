@@ -60,6 +60,8 @@
     <string name="settings_home_card_netease_recommended">推荐歌单</string>
     <string name="settings_home_card_netease_recommended_desc">显示为你推荐、每日推荐、精品、热门和 ACG 歌单</string>
     <string name="settings_home_card_netease_login_required">登录网易云后会加入每日推荐和私人 FM 等个性化源</string>
+    <string name="settings_home_content_source_order">首页展示排序</string>
+    <string name="settings_home_content_source_order_desc">设置首页内容源优先级；当前源无数据时自动切换下一个</string>
     <string name="settings_personalization_start_section">启动与输入</string>
     <string name="settings_personalization_start_section_desc">设置默认入口和键盘弹出</string>
     <string name="settings_personalization_home_section">首页栏目</string>

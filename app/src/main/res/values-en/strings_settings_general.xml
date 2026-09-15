@@ -60,6 +60,8 @@
     <string name="settings_home_card_netease_recommended">Recommended Playlists</string>
     <string name="settings_home_card_netease_recommended_desc">Show For You, Daily, High-Quality, Hot, and ACG playlists.</string>
     <string name="settings_home_card_netease_login_required">Signing in to NetEase also adds Daily Picks and Private FM sources.</string>
+    <string name="settings_home_content_source_order">Home display order</string>
+    <string name="settings_home_content_source_order_desc">Sets home content source priority; falls back to the next source when the current one has no data.</string>
     <string name="settings_personalization_start_section">Start and Input</string>
     <string name="settings_personalization_start_section_desc">Set the default entry and keyboard behavior.</string>
     <string name="settings_personalization_home_section">Home Sections</string>
