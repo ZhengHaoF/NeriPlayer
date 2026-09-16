@@ -119,7 +119,8 @@ internal fun HomeSettingsScreen(
                         title = stringResource(R.string.home_settings_source_order_section),
                         description = stringResource(R.string.home_settings_source_order_section_desc)
                     )
-                    HomeContentSource.entries.forEach { source ->
+                    val orderedSources = order + HomeContentSource.entries.filter { it !in order }
+                    orderedSources.forEach { source ->
                         val index = order.indexOf(source)
                         val enabled = index >= 0
                         HomeSourceRow(

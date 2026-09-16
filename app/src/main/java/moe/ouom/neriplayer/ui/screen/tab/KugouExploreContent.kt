@@ -28,6 +28,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,7 @@ import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.kugou.KugouChannelContent
 import moe.ouom.neriplayer.core.api.kugou.KugouRankMeta
+import moe.ouom.neriplayer.core.api.kugou.fetchKugouPlaylistSongs
 import moe.ouom.neriplayer.core.api.kugou.fetchKugouRankSongs
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
@@ -74,6 +76,7 @@ internal fun KugouExploreContent(
     val playlistLoginHint = stringResource(R.string.kugou_playlist_login_hint)
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
+    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
 
     var sheetOpen by remember { mutableStateOf(false) }
     var sheetTitle by remember { mutableStateOf("") }
@@ -202,10 +205,17 @@ internal fun KugouExploreContent(
                                     subtitle = playlist.creator,
                                     coverUrl = playlist.coverUrl
                                 ) {
-                                    openPlaylistPlaceholder(
-                                        title = playlist.name,
-                                        message = playlistLoginHint
-                                    )
+                                    if (kugouLoggedIn) {
+                                        openSheet(playlist.name) {
+                                            AppContainer.kugouSession
+                                                .fetchKugouPlaylistSongs(playlist.globalCollectionId)
+                                        }
+                                    } else {
+                                        openPlaylistPlaceholder(
+                                            title = playlist.name,
+                                            message = playlistLoginHint
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -422,6 +432,7 @@ internal fun KugouHomeSections(
     val playlistLoginHint = stringResource(R.string.kugou_playlist_login_hint)
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
+    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
 
     var sheetOpen by remember { mutableStateOf(false) }
     var sheetTitle by remember { mutableStateOf("") }
@@ -538,10 +549,17 @@ internal fun KugouHomeSections(
                             subtitle = playlist.creator,
                             coverUrl = playlist.coverUrl
                         ) {
-                            openPlaylistPlaceholder(
-                                title = playlist.name,
-                                message = playlistLoginHint
-                            )
+                            if (kugouLoggedIn) {
+                                openSheet(playlist.name) {
+                                    AppContainer.kugouSession
+                                        .fetchKugouPlaylistSongs(playlist.globalCollectionId)
+                                }
+                            } else {
+                                openPlaylistPlaceholder(
+                                    title = playlist.name,
+                                    message = playlistLoginHint
+                                )
+                            }
                         }
                     }
                 }
