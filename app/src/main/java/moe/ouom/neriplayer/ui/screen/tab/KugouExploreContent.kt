@@ -434,10 +434,24 @@ internal fun KugouHomeSections(
     val sheetState = rememberModalBottomSheetState()
     val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
 
+    // 私人FM
+    val fmVm: moe.ouom.neriplayer.ui.viewmodel.tab.KugouFmViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    var fmSheetOpen by remember { mutableStateOf(false) }
+    val fmSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     var sheetOpen by remember { mutableStateOf(false) }
     var sheetTitle by remember { mutableStateOf("") }
     var sheetSongs by remember { mutableStateOf<List<SongItem>?>(null) }
     var sheetPlaceholder by remember { mutableStateOf<String?>(null) }
+
+    // FM底部弹层
+    if (fmSheetOpen) {
+        KugouPersonalFmSheet(
+            fmVm = fmVm,
+            sheetState = fmSheetState,
+            onDismiss = { fmSheetOpen = false }
+        )
+    }
 
     fun openSheet(title: String, load: suspend () -> List<SongItem>) {
         sheetTitle = title
@@ -494,6 +508,14 @@ internal fun KugouHomeSections(
                 )
             }
         } else {
+            // 红心Radio入口卡片（放在最顶部）
+            KugouFmHomeCard(
+                fmVm = fmVm,
+                onClick = { fmSheetOpen = true },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+            Spacer(Modifier.height(16.dp))
+
             if (safeContent.dailyRecommend.isNotEmpty()) {
                 SectionHeader(stringResource(R.string.kugou_daily_recommend))
                 LazyRow(
