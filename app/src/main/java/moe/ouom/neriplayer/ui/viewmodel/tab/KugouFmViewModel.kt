@@ -74,6 +74,12 @@ class KugouFmViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
+        // 同步 PlayerManager 播放状态，确保迷你播放器暂停时卡片按钮也更新
+        viewModelScope.launch {
+            PlayerManager.isPlayingFlow.collect { isPlaying ->
+                _uiState.update { it.copy(isPlaying = isPlaying) }
+            }
+        }
     }
 
     /** 预加载一批推荐到 buffer（不播放）。 */
@@ -174,12 +180,11 @@ class KugouFmViewModel(application: Application) : AndroidViewModel(application)
             it.copy(
                 buffer = newBuffer,
                 currentTrack = track,
-                isPlaying = true,
                 loading = false,
                 error = null
             )
         }
-        // 实际播放交给 PlayerManager
+        // 实际播放交给 PlayerManager（isPlaying 由 isPlayingFlow 驱动）
         PlayerManager.playPlaylist(newBuffer, 0)
         NPLogger.d(TAG, "playTrack: ${track.name} - ${track.artist}")
         // 播放后检查是否需要补充
@@ -217,7 +222,6 @@ class KugouFmViewModel(application: Application) : AndroidViewModel(application)
                     it.copy(
                         buffer = merged,
                         currentTrack = next,
-                        isPlaying = next != null,
                         loading = false
                     )
                 }
@@ -248,8 +252,8 @@ class KugouFmViewModel(application: Application) : AndroidViewModel(application)
             startPlayback()
             return
         }
+        // isPlaying 由 isPlayingFlow 驱动，无需手动翻转
         PlayerManager.togglePlayPause()
-        _uiState.update { it.copy(isPlaying = !it.isPlaying) }
     }
 
     /** buffer 不足时自动补充。 */
