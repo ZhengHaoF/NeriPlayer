@@ -51,6 +51,7 @@
     <string name="kugou_fm_dislike">Dislike</string>
     <string name="kugou_fm_next">Next</string>
     <string name="kugou_fm_upcoming">Up next</string>
+    <string name="kugou_fm_settings">Switch mode/source</string>
     <string name="explore_link_input_label">Link or share text</string>
     <string name="explore_link_input_placeholder">Paste a NetEase, Bilibili, or YouTube link</string>
     <string name="explore_link_input_hint">Supports song, video, playlist, and artist links, including full share text containing a title and short link</string>

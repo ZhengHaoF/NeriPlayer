@@ -511,7 +511,7 @@ internal fun KugouHomeSections(
             // 红心Radio入口卡片（放在最顶部）
             KugouFmHomeCard(
                 fmVm = fmVm,
-                onClick = { fmSheetOpen = true },
+                onOpenSettings = { fmSheetOpen = true },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
             Spacer(Modifier.height(16.dp))

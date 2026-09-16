@@ -51,6 +51,7 @@
     <string name="kugou_fm_dislike">不喜欢</string>
     <string name="kugou_fm_next">下一首</string>
     <string name="kugou_fm_upcoming">待播</string>
+    <string name="kugou_fm_settings">切换模式/曲库</string>
     <string name="explore_link_input_label">链接或分享文案</string>
     <string name="explore_link_input_placeholder">粘贴网易云、B 站或 YouTube 链接</string>
     <string name="explore_link_input_hint">支持歌曲、视频、歌单和歌手链接，也可直接粘贴含标题和短链接的整段分享文案</string>

@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.SkipNext
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -84,12 +85,12 @@ private val FmOrangeDark = Color(0xFFEA580C)
 
 /**
  * 首页红心Radio入口卡片（横滑区最前）。
- * 显示当前FM推荐歌曲封面+歌名；点击打开完整FM弹层。
+ * 点击卡片 → 直接开始播放；点击右上角切换图标 → 打开模式/曲库选择弹层。
  */
 @Composable
 internal fun KugouFmHomeCard(
     fmVm: KugouFmViewModel,
-    onClick: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val ui by fmVm.uiState.collectAsState()
@@ -113,11 +114,14 @@ internal fun KugouFmHomeCard(
             .height(120.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(gradient)
-            .clickable(onClick = onClick)
+            .clickable { fmVm.startPlayback() }
             .padding(14.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Icon(
                     imageVector = Icons.Outlined.Favorite,
                     contentDescription = null,
@@ -129,8 +133,25 @@ internal fun KugouFmHomeCard(
                     text = stringResource(R.string.kugou_fm_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = Color.White,
+                    modifier = Modifier.weight(1f)
                 )
+                // 切换图标（右上角）
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.2f))
+                        .clickable { onOpenSettings() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Tune,
+                        contentDescription = stringResource(R.string.kugou_fm_settings),
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
             Spacer(Modifier.height(8.dp))
             if (ui.loading) {
@@ -171,7 +192,7 @@ internal fun KugouFmHomeCard(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Outlined.PlayArrow,
+                imageVector = if (ui.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
                 contentDescription = null,
                 tint = FmOrangeDark,
                 modifier = Modifier.size(20.dp)
