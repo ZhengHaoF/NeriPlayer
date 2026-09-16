@@ -62,6 +62,16 @@
     <string name="settings_home_card_netease_login_required">登录网易云后会加入每日推荐和私人 FM 等个性化源</string>
     <string name="settings_home_content_source_order">首页展示排序</string>
     <string name="settings_home_content_source_order_desc">设置首页内容源优先级；当前源无数据时自动切换下一个</string>
+    <string name="settings_tab_order">标签页排序</string>
+    <string name="settings_tab_order_desc">调整探索页与媒体库的标签顺序，可隐藏不常用的音源</string>
+    <string name="tab_order_title">标签页排序</string>
+    <string name="tab_order_explore_section">探索页标签</string>
+    <string name="tab_order_explore_section_desc">拖动调整顺序；关闭开关可隐藏该标签</string>
+    <string name="tab_order_library_section">媒体库标签</string>
+    <string name="tab_order_keep_one_visible">至少保留一个标签页</string>
+    <string name="tab_order_local_pinned">固定在第一位</string>
+    <string name="tab_order_link_desc">通过分享链接或口令识别歌曲</string>
+    <string name="tab_order_reset_default">恢复默认</string>
     <string name="settings_personalization_start_section">启动与输入</string>
     <string name="settings_personalization_start_section_desc">设置默认入口和键盘弹出</string>
     <string name="settings_personalization_home_section">首页栏目</string>

@@ -439,8 +439,10 @@ fun ExploreScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val youtubeEnabled by AppContainer.settingsRepo.youtubeEnabledFlow
         .collectAsStateWithLifecycle(initialValue = YouTubeFeatureGate.isEnabled())
-    val orderedSearchSources = remember(isInternational, youtubeEnabled) {
-        exploreSearchSourceDisplayOrder(isInternational, youtubeEnabled)
+    val exploreTabOrderRaw by AppContainer.settingsRepo.exploreTabOrderFlow
+        .collectAsStateWithLifecycle(initialValue = "")
+    val orderedSearchSources = remember(isInternational, youtubeEnabled, exploreTabOrderRaw) {
+        resolveExploreTabOrder(exploreTabOrderRaw, isInternational, youtubeEnabled)
     }
     val initialSearchPage = remember(orderedSearchSources, ui.selectedSearchSource) {
         orderedSearchSources.indexOf(ui.selectedSearchSource).takeIf { it >= 0 } ?: 0
@@ -449,6 +451,14 @@ fun ExploreScreen(
         initialPage = initialSearchPage,
         pageCount = { orderedSearchSources.size }
     )
+    // 当前选中的搜索源被隐藏时, 回落到第一个可见源
+    LaunchedEffect(orderedSearchSources) {
+        if (orderedSearchSources.isNotEmpty() &&
+            ui.selectedSearchSource !in orderedSearchSources
+        ) {
+            vm.setSearchSource(orderedSearchSources.first())
+        }
+    }
     val miniPlayerHeight = LocalMiniPlayerHeight.current
     val snackbarHostState = remember { SnackbarHostState() }
     val windowWidthDp = currentWindowWidthDp()

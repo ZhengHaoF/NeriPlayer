@@ -57,13 +57,15 @@ import moe.ouom.neriplayer.ui.screen.DownloadManagerScreen
 import moe.ouom.neriplayer.ui.screen.DownloadProgressScreen
 import moe.ouom.neriplayer.ui.screen.tab.SettingsScreen
 import moe.ouom.neriplayer.ui.screen.tab.settings.page.HomeSettingsScreen
+import moe.ouom.neriplayer.ui.screen.tab.settings.page.TabOrderSettingsScreen
 import moe.ouom.neriplayer.util.platform.LanguageManager
 
 internal enum class SettingsScreenState {
     Settings,
     DownloadManager,
     DownloadProgress,
-    HomeSettings
+    HomeSettings,
+    TabOrderSettings
 }
 
 private fun SettingsScreenState.saveableKey(): String = "settings_host:${name}"
@@ -74,6 +76,7 @@ private val SettingsScreenState.navigationDepth: Int
         SettingsScreenState.DownloadManager -> 1
         SettingsScreenState.DownloadProgress -> 2
         SettingsScreenState.HomeSettings -> 1
+        SettingsScreenState.TabOrderSettings -> 1
     }
 
 internal fun SettingsScreenState.nextTowards(
@@ -81,11 +84,13 @@ internal fun SettingsScreenState.nextTowards(
 ): SettingsScreenState = when {
     navigationDepth < requestedState.navigationDepth -> when (requestedState) {
         SettingsScreenState.HomeSettings -> SettingsScreenState.HomeSettings
+        SettingsScreenState.TabOrderSettings -> SettingsScreenState.TabOrderSettings
         else -> when (this) {
             SettingsScreenState.Settings -> SettingsScreenState.DownloadManager
             SettingsScreenState.DownloadManager -> SettingsScreenState.DownloadProgress
             SettingsScreenState.DownloadProgress -> SettingsScreenState.DownloadProgress
             SettingsScreenState.HomeSettings -> SettingsScreenState.HomeSettings
+            SettingsScreenState.TabOrderSettings -> SettingsScreenState.TabOrderSettings
         }
     }
     navigationDepth > requestedState.navigationDepth -> when (this) {
@@ -93,6 +98,7 @@ internal fun SettingsScreenState.nextTowards(
         SettingsScreenState.DownloadManager -> SettingsScreenState.Settings
         SettingsScreenState.DownloadProgress -> SettingsScreenState.DownloadManager
         SettingsScreenState.HomeSettings -> SettingsScreenState.Settings
+        SettingsScreenState.TabOrderSettings -> SettingsScreenState.Settings
     }
     else -> this
 }
@@ -346,6 +352,7 @@ fun SettingsHostScreen(
                 SettingsScreenState.DownloadProgress -> SettingsScreenState.DownloadManager
                 SettingsScreenState.DownloadManager -> SettingsScreenState.Settings
                 SettingsScreenState.HomeSettings -> SettingsScreenState.Settings
+                SettingsScreenState.TabOrderSettings -> SettingsScreenState.Settings
                 SettingsScreenState.Settings -> SettingsScreenState.Settings
                 }
             )
@@ -534,6 +541,9 @@ fun SettingsHostScreen(
                             onNavigateToHomeSettings = {
                                 requestScreen(SettingsScreenState.HomeSettings)
                             },
+                            onNavigateToTabOrderSettings = {
+                                requestScreen(SettingsScreenState.TabOrderSettings)
+                            },
                             maxCacheSizeBytes = maxCacheSizeBytes,
                             onMaxCacheSizeBytesChange = onMaxCacheSizeBytesChange,
                             onClearCacheClick = onClearCacheClick,
@@ -563,6 +573,12 @@ fun SettingsHostScreen(
 
                             SettingsScreenState.HomeSettings -> {
                                 HomeSettingsScreen(
+                                    onBack = { requestScreen(SettingsScreenState.Settings) }
+                                )
+                            }
+
+                            SettingsScreenState.TabOrderSettings -> {
+                                TabOrderSettingsScreen(
                                     onBack = { requestScreen(SettingsScreenState.Settings) }
                                 )
                             }

@@ -456,6 +456,12 @@ class SettingsRepository(private val context: Context) {
     val homeContentSourceOrderFlow: Flow<String> =
         autoSettingsRepository.homeContentSourceOrderFlow
 
+    val exploreTabOrderFlow: Flow<String> =
+        autoSettingsRepository.exploreTabOrderFlow
+
+    val libraryTabOrderFlow: Flow<String> =
+        autoSettingsRepository.libraryTabOrderFlow
+
     val playbackFadeInFlow: Flow<Boolean> =
         dataStoreSettingFlow { it[SettingsKeys.PLAYBACK_FADE_IN] ?: true }
 
@@ -1114,6 +1120,14 @@ class SettingsRepository(private val context: Context) {
     }
     suspend fun setHomeContentSourceOrder(order: String) {
         autoSettingsRepository.setHomeContentSourceOrder(order)
+    }
+
+    suspend fun setExploreTabOrder(order: String) {
+        autoSettingsRepository.setExploreTabOrder(order)
+    }
+
+    suspend fun setLibraryTabOrder(order: String) {
+        autoSettingsRepository.setLibraryTabOrder(order)
     }
 
     suspend fun setPlaybackFadeIn(enabled: Boolean) {

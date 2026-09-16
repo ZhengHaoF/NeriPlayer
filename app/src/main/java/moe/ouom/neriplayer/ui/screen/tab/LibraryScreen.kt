@@ -335,8 +335,10 @@ fun LibraryScreen(
         .collectAsStateWithLifecycle(initialValue = false)
     val youtubeEnabled by AppContainer.settingsRepo.youtubeEnabledFlow
         .collectAsStateWithLifecycle(initialValue = YouTubeFeatureGate.isEnabled())
-    val orderedTabs = remember(isInternational, youtubeEnabled) {
-        libraryTabDisplayOrder(isInternational, youtubeEnabled)
+    val libraryTabOrderRaw by AppContainer.settingsRepo.libraryTabOrderFlow
+        .collectAsStateWithLifecycle(initialValue = "")
+    val orderedTabs = remember(isInternational, youtubeEnabled, libraryTabOrderRaw) {
+        resolveLibraryTabOrder(libraryTabOrderRaw, isInternational, youtubeEnabled)
     }
     val initialPage = remember(orderedTabs, initialTab) {
         orderedTabs.indexOf(initialTab.asVisibleLibraryTab()).takeIf { it >= 0 } ?: 0
@@ -415,6 +417,14 @@ fun LibraryScreen(
         val targetPage = orderedTabs.indexOf(initialTab.asVisibleLibraryTab()).takeIf { it >= 0 } ?: 0
         if (pagerState.currentPage != targetPage) {
             pagerState.scrollToPage(targetPage)
+        }
+    }
+
+    // 当前所在 tab 被隐藏时, 回落到第一个可见 tab (本地)
+    LaunchedEffect(orderedTabs) {
+        if (orderedTabs.getOrNull(pagerState.currentPage) == null) {
+            pagerState.scrollToPage(0)
+            onTabChange(orderedTabs.first())
         }
     }
 

@@ -531,6 +531,36 @@ object AutoSettingsSchema {
             descriptionRes = R.string.settings_home_content_source_order_desc,
             icon = AutoSettingIcon.Home
         )
+
+        @AutoSetting(
+            key = "explore_tab_order",
+            type = SettingValueType.String,
+            defaultString = "",
+            order = 71,
+            ui = SettingUiType.Custom
+        )
+        val exploreTabOrder = autoStringSetting(
+            key = "explore_tab_order",
+            defaultValue = "",
+            titleRes = R.string.settings_tab_order,
+            descriptionRes = R.string.settings_tab_order_desc,
+            icon = AutoSettingIcon.Tab
+        )
+
+        @AutoSetting(
+            key = "library_tab_order",
+            type = SettingValueType.String,
+            defaultString = "",
+            order = 72,
+            ui = SettingUiType.Custom
+        )
+        val libraryTabOrder = autoStringSetting(
+            key = "library_tab_order",
+            defaultValue = "",
+            titleRes = R.string.settings_tab_order,
+            descriptionRes = R.string.settings_tab_order_desc,
+            icon = AutoSettingIcon.LibraryMusic
+        )
     }
 
     /*

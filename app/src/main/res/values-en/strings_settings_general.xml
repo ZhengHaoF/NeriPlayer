@@ -62,6 +62,16 @@
     <string name="settings_home_card_netease_login_required">Signing in to NetEase also adds Daily Picks and Private FM sources.</string>
     <string name="settings_home_content_source_order">Home display order</string>
     <string name="settings_home_content_source_order_desc">Sets home content source priority; falls back to the next source when the current one has no data.</string>
+    <string name="settings_tab_order">Tab order</string>
+    <string name="settings_tab_order_desc">Reorder the Explore and Library tabs; hide sources you rarely use.</string>
+    <string name="tab_order_title">Tab order</string>
+    <string name="tab_order_explore_section">Explore tabs</string>
+    <string name="tab_order_explore_section_desc">Drag to reorder; turn off a switch to hide the tab.</string>
+    <string name="tab_order_library_section">Library tabs</string>
+    <string name="tab_order_keep_one_visible">Keep at least one tab visible.</string>
+    <string name="tab_order_local_pinned">Pinned to the first position</string>
+    <string name="tab_order_link_desc">Recognize songs from shared links or codes.</string>
+    <string name="tab_order_reset_default">Reset to default</string>
     <string name="settings_personalization_start_section">Start and Input</string>
     <string name="settings_personalization_start_section_desc">Set the default entry and keyboard behavior.</string>
     <string name="settings_personalization_home_section">Home Sections</string>

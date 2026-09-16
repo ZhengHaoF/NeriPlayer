@@ -71,6 +71,7 @@ import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Tab
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material.icons.outlined.ZoomInMap
@@ -598,6 +599,7 @@ fun SettingsScreen(
     onPreemptAudioFocusChange: (Boolean) -> Unit,
     onNavigateToDownloadManager: () -> Unit = {},
     onNavigateToHomeSettings: () -> Unit = {},
+    onNavigateToTabOrderSettings: () -> Unit = {},
     maxCacheSizeBytes: Long,
     onMaxCacheSizeBytesChange: (Long) -> Unit,
     onClearCacheClick: (StorageCacheClearOptions) -> Unit,
@@ -1615,6 +1617,7 @@ fun SettingsScreen(
                                 showHomeRecommendedCard = showHomeRecommendedCard,
                                 onShowHomeRecommendedCardChange = onShowHomeRecommendedCardChange,
                                 onNavigateToHomeSettings = onNavigateToHomeSettings,
+                                onNavigateToTabOrderSettings = onNavigateToTabOrderSettings,
                                 backgroundImageUri = backgroundImageUri,
                                 onPickBackgroundImage = {
                                     photoPickerLauncher.launch(
@@ -3322,6 +3325,7 @@ private fun SettingsPersonalizationPageContent(
     showHomeRecommendedCard: Boolean,
     onShowHomeRecommendedCardChange: (Boolean) -> Unit,
     onNavigateToHomeSettings: () -> Unit = {},
+    onNavigateToTabOrderSettings: () -> Unit = {},
     backgroundImageUri: String?,
     onPickBackgroundImage: () -> Unit,
     onClearBackgroundImage: () -> Unit,
@@ -3479,6 +3483,35 @@ private fun SettingsPersonalizationPageContent(
                 supportingContent = {
                     Text(
                         text = stringResource(R.string.settings_home_content_source_order_desc),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+            )
+
+            ListItem(
+                modifier = Modifier.settingsItemClickable(onClick = onNavigateToTabOrderSettings),
+                leadingContent = {
+                    Icon(
+                        imageVector = Icons.Outlined.Tab,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
+                },
+                headlineContent = {
+                    Text(stringResource(R.string.settings_tab_order))
+                },
+                supportingContent = {
+                    Text(
+                        text = stringResource(R.string.settings_tab_order_desc),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
