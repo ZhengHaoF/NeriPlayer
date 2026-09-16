@@ -22,6 +22,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -33,6 +34,7 @@ import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.model.stableKey
 import top.ghhccghk.multiplatform.kugouapi.model.FmAction
 
 private const val TAG = "KugouFmVM"
@@ -74,12 +76,30 @@ class KugouFmViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
-        // 同步 PlayerManager 播放状态，确保迷你播放器暂停时卡片按钮也更新
+        // 卡片状态只反映 FM 自己的队列：别的平台在播时仍显示「播放」
         viewModelScope.launch {
-            PlayerManager.isPlayingFlow.collect { isPlaying ->
-                _uiState.update { it.copy(isPlaying = isPlaying) }
-            }
+            combine(
+                PlayerManager.isPlayingFlow,
+                PlayerManager.currentSongFlow
+            ) { isPlaying, playingSong -> isPlaying to playingSong }
+                .collect { (isPlaying, playingSong) ->
+                    _uiState.update { state ->
+                        val isFmSong = state.isFmQueueSong(playingSong)
+                        state.copy(
+                            isPlaying = isPlaying && isFmSong,
+                            // 播放器自动切歌时同步卡片标题
+                            currentTrack = if (isFmSong) playingSong else state.currentTrack
+                        )
+                    }
+                }
         }
+    }
+
+    /** 这首歌是否属于 FM 当前的播放队列。 */
+    private fun KugouFmUiState.isFmQueueSong(song: SongItem?): Boolean {
+        if (song == null) return false
+        val key = song.stableKey()
+        return buffer.any { it.stableKey() == key }
     }
 
     /** 预加载一批推荐到 buffer（不播放）。 */
@@ -250,6 +270,12 @@ class KugouFmViewModel(application: Application) : AndroidViewModel(application)
         val state = _uiState.value
         if (state.currentTrack == null) {
             startPlayback()
+            return
+        }
+        // 当前播放的不属于 FM 队列时先切回 FM，避免误暂停其他平台的播放
+        if (!state.isFmQueueSong(PlayerManager.currentSongFlow.value)) {
+            val resume = state.currentTrack ?: return
+            playTrack(resume, state.buffer)
             return
         }
         // isPlaying 由 isPlayingFlow 驱动，无需手动翻转

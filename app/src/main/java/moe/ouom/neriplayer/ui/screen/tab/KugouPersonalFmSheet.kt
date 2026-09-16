@@ -166,18 +166,21 @@ internal fun KugouFmHomeCard(
                 )
             }
         }
-        // 播放按钮（右下角）
+        // 播放/暂停按钮（右下角）：自行消费点击，不再穿透到整张卡片的「开始播放」
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.95f)),
+                .background(Color.White.copy(alpha = 0.95f))
+                .clickable { fmVm.togglePlayPause() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (ui.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                contentDescription = null,
+                contentDescription = stringResource(
+                    if (ui.isPlaying) R.string.player_pause else R.string.player_play
+                ),
                 tint = FmOrangeDark,
                 modifier = Modifier.size(20.dp)
             )
