@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.playlist
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import android.os.Parcelable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -150,7 +151,7 @@ fun QQMusicPlaylistDetailScreen(
 
     QQMusicSongListScaffold(
         title = playlist.name,
-        emptyText = stringResource(R.string.library_qqmusic_playlist_songs_empty),
+        emptyText = stringResource(CoreCommonR.string.library_qqmusic_playlist_songs_empty),
         snapshot = snapshot,
         onBack = onBack,
         onRetry = { retryToken++ },
@@ -200,12 +201,12 @@ private fun QQMusicSongListScaffold(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = stringResource(R.string.library_qqmusic_load_failed),
+                            text = stringResource(CoreCommonR.string.library_qqmusic_load_failed),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(8.dp))
                         TextButton(onClick = onRetry) {
-                            Text(stringResource(R.string.action_retry))
+                            Text(stringResource(CoreCommonR.string.action_retry))
                         }
                     }
                 }
@@ -278,7 +279,7 @@ private fun QQMusicDetailScaffold(
                     HapticIconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back)
+                            contentDescription = stringResource(CoreCommonR.string.action_back)
                         )
                     }
                 },
@@ -287,7 +288,7 @@ private fun QQMusicDetailScaffold(
                         HapticIconButton(onClick = onPlayAll) {
                             Icon(
                                 Icons.AutoMirrored.Outlined.PlaylistPlay,
-                                contentDescription = stringResource(R.string.cd_play_all)
+                                contentDescription = stringResource(CoreCommonR.string.cd_play_all)
                             )
                         }
                     }
@@ -334,7 +335,7 @@ private fun QQMusicPlaylistHeader(
             Spacer(Modifier.height(6.dp))
             val metaParts = buildList {
                 if (playlist.songCount > 0) {
-                    add(stringResource(R.string.library_qqmusic_song_count, playlist.songCount))
+                    add(stringResource(CoreCommonR.string.library_qqmusic_song_count, playlist.songCount))
                 }
                 if (playlist.playCount > 0L) add(formatPlayCount(context, playlist.playCount))
                 playlist.creator?.takeIf { it.isNotBlank() }?.let { add(it) }

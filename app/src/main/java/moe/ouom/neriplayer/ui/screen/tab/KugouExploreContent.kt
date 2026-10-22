@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.tab
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -73,7 +74,7 @@ internal fun KugouExploreContent(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val playlistLoginHint = stringResource(R.string.kugou_playlist_login_hint)
+    val playlistLoginHint = stringResource(CoreCommonR.string.kugou_playlist_login_hint)
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
     val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
@@ -124,7 +125,7 @@ internal fun KugouExploreContent(
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = stringResource(R.string.action_retry),
+                        text = stringResource(CoreCommonR.string.action_retry),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
@@ -148,7 +149,7 @@ internal fun KugouExploreContent(
             ) {
                 if (safeContent.dailyRecommend.isNotEmpty()) {
                     item {
-                        SectionHeader(stringResource(R.string.kugou_daily_recommend))
+                        SectionHeader(stringResource(CoreCommonR.string.kugou_daily_recommend))
                     }
                     item {
                         LazyRow(
@@ -167,7 +168,7 @@ internal fun KugouExploreContent(
 
                 if (safeContent.ranks.isNotEmpty()) {
                     item {
-                        SectionHeader(stringResource(R.string.kugou_rank))
+                        SectionHeader(stringResource(CoreCommonR.string.kugou_rank))
                     }
                     item {
                         LazyRow(
@@ -192,7 +193,7 @@ internal fun KugouExploreContent(
 
                 if (safeContent.playlists.isNotEmpty()) {
                     item {
-                        SectionHeader(stringResource(R.string.kugou_playlist))
+                        SectionHeader(stringResource(CoreCommonR.string.kugou_playlist))
                     }
                     item {
                         LazyRow(
@@ -261,7 +262,7 @@ internal fun KugouExploreContent(
                     sheetSongs!!.isEmpty() -> {
                         Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
                             Text(
-                                text = stringResource(R.string.search_no_result),
+                                text = stringResource(CoreCommonR.string.search_no_result),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -429,7 +430,7 @@ internal fun KugouHomeSections(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val playlistLoginHint = stringResource(R.string.kugou_playlist_login_hint)
+    val playlistLoginHint = stringResource(CoreCommonR.string.kugou_playlist_login_hint)
     val scope = rememberCoroutineScope()
     val sheetState = rememberModalBottomSheetState()
     val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
@@ -491,13 +492,13 @@ internal fun KugouHomeSections(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = stringResource(R.string.kugou_home_empty),
+                    text = stringResource(CoreCommonR.string.kugou_home_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Spacer(Modifier.height(12.dp))
                 Text(
-                    text = stringResource(R.string.action_retry),
+                    text = stringResource(CoreCommonR.string.action_retry),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
@@ -517,7 +518,7 @@ internal fun KugouHomeSections(
             Spacer(Modifier.height(16.dp))
 
             if (safeContent.dailyRecommend.isNotEmpty()) {
-                SectionHeader(stringResource(R.string.kugou_daily_recommend))
+                SectionHeader(stringResource(CoreCommonR.string.kugou_daily_recommend))
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -535,7 +536,7 @@ internal fun KugouHomeSections(
             }
 
             if (safeContent.ranks.isNotEmpty()) {
-                SectionHeader(stringResource(R.string.kugou_rank))
+                SectionHeader(stringResource(CoreCommonR.string.kugou_rank))
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -560,7 +561,7 @@ internal fun KugouHomeSections(
             }
 
             if (safeContent.playlists.isNotEmpty()) {
-                SectionHeader(stringResource(R.string.kugou_playlist))
+                SectionHeader(stringResource(CoreCommonR.string.kugou_playlist))
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -640,7 +641,7 @@ internal fun KugouHomeSections(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = stringResource(R.string.search_no_result),
+                                text = stringResource(CoreCommonR.string.search_no_result),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

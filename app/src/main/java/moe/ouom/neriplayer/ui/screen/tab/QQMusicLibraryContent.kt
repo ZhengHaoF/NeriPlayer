@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.tab
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -135,14 +136,14 @@ private fun QQMusicUserPlaylistList(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = stringResource(R.string.library_qqmusic_load_failed),
+                        text = stringResource(CoreCommonR.string.library_qqmusic_load_failed),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = { retryToken++ }) {
-                        Text(stringResource(R.string.action_retry))
+                        Text(stringResource(CoreCommonR.string.action_retry))
                     }
                 }
             }
@@ -156,7 +157,7 @@ private fun QQMusicUserPlaylistList(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = stringResource(R.string.library_qqmusic_playlists_empty),
+                    text = stringResource(CoreCommonR.string.library_qqmusic_playlists_empty),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center
@@ -228,7 +229,7 @@ private fun QQMusicPlaylistListRow(
             supportingContent = {
                 val subtitle = buildList {
                     if (playlist.songCount > 0) {
-                        add(stringResource(R.string.library_qqmusic_song_count, playlist.songCount))
+                        add(stringResource(CoreCommonR.string.library_qqmusic_song_count, playlist.songCount))
                     }
                     playlist.creator?.takeIf { it.isNotBlank() }?.let { add(it) }
                     if (playlist.playCount > 0L) add(formatPlayCount(context, playlist.playCount))
@@ -295,9 +296,9 @@ private fun QQMusicLibraryLoginEmptyState(
             Text(
                 text = stringResource(
                     if (offlineMode) {
-                        R.string.library_qqmusic_offline_hint
+                        CoreCommonR.string.library_qqmusic_offline_hint
                     } else {
-                        R.string.library_qqmusic_login_hint
+                        CoreCommonR.string.library_qqmusic_login_hint
                     }
                 ),
                 style = MaterialTheme.typography.bodyMedium,
@@ -307,7 +308,7 @@ private fun QQMusicLibraryLoginEmptyState(
             if (!offlineMode) {
                 Spacer(Modifier.height(20.dp))
                 Button(onClick = onLogin) {
-                    Text(stringResource(R.string.library_qqmusic_login_action))
+                    Text(stringResource(CoreCommonR.string.library_qqmusic_login_action))
                 }
             }
         }

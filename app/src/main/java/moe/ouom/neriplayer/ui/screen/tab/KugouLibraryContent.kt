@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.tab
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -87,21 +88,21 @@ internal fun KugouLibraryContent(
         item(key = "kugou_entry_cloud") {
             KugouLibraryEntryRow(
                 icon = Icons.Outlined.Cloud,
-                title = stringResource(R.string.library_kugou_cloud),
+                title = stringResource(CoreCommonR.string.library_kugou_cloud),
                 onClick = { onOpenDetail(KugouLibraryEntryKind.CLOUD) }
             )
         }
         item(key = "kugou_entry_history") {
             KugouLibraryEntryRow(
                 icon = Icons.Outlined.History,
-                title = stringResource(R.string.library_kugou_history),
+                title = stringResource(CoreCommonR.string.library_kugou_history),
                 onClick = { onOpenDetail(KugouLibraryEntryKind.HISTORY) }
             )
         }
         item(key = "kugou_entry_playlists") {
             KugouLibraryEntryRow(
                 icon = Icons.AutoMirrored.Filled.QueueMusic,
-                title = stringResource(R.string.library_kugou_playlists),
+                title = stringResource(CoreCommonR.string.library_kugou_playlists),
                 onClick = { onOpenDetail(KugouLibraryEntryKind.USER_PLAYLISTS) }
             )
         }
@@ -169,9 +170,9 @@ private fun KugouLibraryLoginEmptyState(
             Text(
                 text = stringResource(
                     if (offlineMode) {
-                        R.string.library_kugou_offline_hint
+                        CoreCommonR.string.library_kugou_offline_hint
                     } else {
-                        R.string.library_kugou_login_hint
+                        CoreCommonR.string.library_kugou_login_hint
                     }
                 ),
                 style = MaterialTheme.typography.bodyMedium,
@@ -181,7 +182,7 @@ private fun KugouLibraryLoginEmptyState(
             if (!offlineMode) {
                 Spacer(Modifier.height(20.dp))
                 Button(onClick = onLogin) {
-                    Text(stringResource(R.string.library_kugou_login_action))
+                    Text(stringResource(CoreCommonR.string.library_kugou_login_action))
                 }
             }
         }

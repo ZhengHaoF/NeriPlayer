@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.tab
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -112,7 +113,7 @@ internal fun QQMusicExploreContent(
                     )
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        text = stringResource(R.string.action_retry),
+                        text = stringResource(CoreCommonR.string.action_retry),
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier
@@ -136,7 +137,7 @@ internal fun QQMusicExploreContent(
             ) {
                 if (safeContent.ranks.isNotEmpty()) {
                     item {
-                        QQMusicSectionHeader(stringResource(R.string.qqmusic_rank))
+                        QQMusicSectionHeader(stringResource(CoreCommonR.string.qqmusic_rank))
                     }
                     item {
                         LazyRow(
@@ -165,7 +166,7 @@ internal fun QQMusicExploreContent(
 
                 if (safeContent.playlists.isNotEmpty()) {
                     item {
-                        QQMusicSectionHeader(stringResource(R.string.qqmusic_playlist))
+                        QQMusicSectionHeader(stringResource(CoreCommonR.string.qqmusic_playlist))
                     }
                     item {
                         LazyRow(
@@ -216,7 +217,7 @@ internal fun QQMusicExploreContent(
                     sheetSongs!!.isEmpty() -> {
                         Box(Modifier.fillMaxWidth().padding(vertical = 48.dp), contentAlignment = Alignment.Center) {
                             Text(
-                                text = stringResource(R.string.search_no_result),
+                                text = stringResource(CoreCommonR.string.search_no_result),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

@@ -22,6 +22,7 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.page
  * File: moe.ouom.neriplayer.ui.screen.tab.settings.page/TabOrderSectionCard
  */
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -174,7 +175,7 @@ internal fun <T> TabOrderSectionCard(
         ListItem(
             modifier = Modifier.settingsItemClickable(onClick = onReset),
             headlineContent = {
-                Text(stringResource(R.string.tab_order_reset_default))
+                Text(stringResource(CoreCommonR.string.tab_order_reset_default))
             },
             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
         )

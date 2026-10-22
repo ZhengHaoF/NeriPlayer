@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.playlist
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import android.content.Context
 import android.os.Parcelable
 import androidx.compose.foundation.background
@@ -152,12 +153,12 @@ fun KugouSongListDetailScreen(
     offlineMode: Boolean = false
 ) {
     val titleResId = when (kind) {
-        KugouLibraryEntryKind.HISTORY -> R.string.library_kugou_history
-        else -> R.string.library_kugou_cloud
+        KugouLibraryEntryKind.HISTORY -> CoreCommonR.string.library_kugou_history
+        else -> CoreCommonR.string.library_kugou_cloud
     }
     val emptyResId = when (kind) {
-        KugouLibraryEntryKind.HISTORY -> R.string.library_kugou_history_empty
-        else -> R.string.library_kugou_cloud_empty
+        KugouLibraryEntryKind.HISTORY -> CoreCommonR.string.library_kugou_history_empty
+        else -> CoreCommonR.string.library_kugou_cloud_empty
     }
     var retryToken by remember { mutableIntStateOf(0) }
     val snapshot by produceState<KugouSongListSnapshot?>(
@@ -210,7 +211,7 @@ fun KugouUserPlaylistDetailScreen(
 
     val resolved = playlists
     KugouDetailScaffold(
-        title = stringResource(R.string.library_kugou_playlists),
+        title = stringResource(CoreCommonR.string.library_kugou_playlists),
         onBack = onBack
     ) { padding ->
         when {
@@ -233,7 +234,7 @@ fun KugouUserPlaylistDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.library_kugou_playlists_empty),
+                        text = stringResource(CoreCommonR.string.library_kugou_playlists_empty),
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -301,7 +302,7 @@ fun KugouPlaylistDetailScreen(
 
     KugouSongListScaffold(
         title = playlist.name,
-        emptyText = stringResource(R.string.library_kugou_playlist_songs_empty),
+        emptyText = stringResource(CoreCommonR.string.library_kugou_playlist_songs_empty),
         snapshot = snapshot,
         onBack = onBack,
         onRetry = { retryToken++ },
@@ -351,12 +352,12 @@ private fun KugouSongListScaffold(
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = stringResource(R.string.library_kugou_load_failed),
+                            text = stringResource(CoreCommonR.string.library_kugou_load_failed),
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(Modifier.height(8.dp))
                         TextButton(onClick = onRetry) {
-                            Text(stringResource(R.string.action_retry))
+                            Text(stringResource(CoreCommonR.string.action_retry))
                         }
                     }
                 }
@@ -429,7 +430,7 @@ private fun KugouDetailScaffold(
                     HapticIconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back)
+                            contentDescription = stringResource(CoreCommonR.string.action_back)
                         )
                     }
                 },
@@ -438,7 +439,7 @@ private fun KugouDetailScaffold(
                         HapticIconButton(onClick = onPlayAll) {
                             Icon(
                                 Icons.AutoMirrored.Outlined.PlaylistPlay,
-                                contentDescription = stringResource(R.string.cd_play_all)
+                                contentDescription = stringResource(CoreCommonR.string.cd_play_all)
                             )
                         }
                     }

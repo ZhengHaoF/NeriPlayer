@@ -48,7 +48,7 @@ internal enum class SettingsAccountPlatform(val key: String, val iconRes: Int, v
     Netease("netease", CoreCommonR.drawable.ic_netease_cloud_music, CoreCommonR.string.platform_netease),
     Bilibili("bilibili", CoreCommonR.drawable.ic_bilibili, CoreCommonR.string.platform_bilibili),
     YouTube("youtube", CoreCommonR.drawable.ic_youtube, CoreCommonR.string.common_youtube),
-    QqMusic("qq", R.drawable.ic_qq_music, CoreCommonR.string.settings_qq_music)
+    QqMusic("qq", CoreCommonR.drawable.ic_qq_music, CoreCommonR.string.settings_qq_music)
 }
 
 internal data class SettingsAccountCardUiState(

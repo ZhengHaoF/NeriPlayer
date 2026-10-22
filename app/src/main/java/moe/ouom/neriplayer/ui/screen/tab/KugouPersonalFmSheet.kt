@@ -13,6 +13,7 @@ package moe.ouom.neriplayer.ui.screen.tab
  * File: moe.ouom.neriplayer.ui.screen.tab/KugouPersonalFmSheet
  */
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -114,7 +115,7 @@ internal fun KugouFmHomeCard(
                 )
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    text = stringResource(R.string.kugou_fm_title),
+                    text = stringResource(CoreCommonR.string.kugou_fm_title),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
@@ -131,7 +132,7 @@ internal fun KugouFmHomeCard(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Tune,
-                        contentDescription = stringResource(R.string.kugou_fm_settings),
+                        contentDescription = stringResource(CoreCommonR.string.kugou_fm_settings),
                         tint = Color.White,
                         modifier = Modifier.size(14.dp)
                     )
@@ -154,13 +155,13 @@ internal fun KugouFmHomeCard(
                 )
             } else if (!ui.loggedIn) {
                 Text(
-                    text = stringResource(R.string.kugou_fm_login_hint),
+                    text = stringResource(CoreCommonR.string.kugou_fm_login_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.85f)
                 )
             } else {
                 Text(
-                    text = stringResource(R.string.kugou_fm_empty),
+                    text = stringResource(CoreCommonR.string.kugou_fm_empty),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.White.copy(alpha = 0.85f)
                 )
@@ -179,7 +180,7 @@ internal fun KugouFmHomeCard(
             Icon(
                 imageVector = if (ui.isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
                 contentDescription = stringResource(
-                    if (ui.isPlaying) R.string.player_pause else R.string.player_play
+                    if (ui.isPlaying) CoreCommonR.string.player_pause else CoreCommonR.string.player_play
                 ),
                 tint = FmOrangeDark,
                 modifier = Modifier.size(20.dp)
@@ -227,7 +228,7 @@ internal fun KugouPersonalFmSheet(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = stringResource(R.string.kugou_fm_title),
+                        text = stringResource(CoreCommonR.string.kugou_fm_title),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -235,7 +236,7 @@ internal fun KugouPersonalFmSheet(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
-                        contentDescription = stringResource(R.string.action_close)
+                        contentDescription = stringResource(CoreCommonR.string.action_close)
                     )
                 }
             }
@@ -244,7 +245,7 @@ internal fun KugouPersonalFmSheet(
 
             // 模式切换
             Text(
-                text = stringResource(R.string.kugou_fm_mode_label),
+                text = stringResource(CoreCommonR.string.kugou_fm_mode_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -267,7 +268,7 @@ internal fun KugouPersonalFmSheet(
 
             // 曲库切换
             Text(
-                text = stringResource(R.string.kugou_fm_pool_label),
+                text = stringResource(CoreCommonR.string.kugou_fm_pool_label),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

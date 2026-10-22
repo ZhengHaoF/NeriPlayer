@@ -1,5 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.tab
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
@@ -57,16 +58,16 @@ internal fun QQMusicQrLoginSheet(
     var errorText by remember { mutableStateOf<String?>(null) }
     val session = remember { AppContainer.qqMusicSession }
     val loginClient = remember(session) { QQMusicQrLoginClient(session.client, session.device) }
-    val titleText = stringResource(R.string.qqmusic_login_title)
-    val qrContentDesc = stringResource(R.string.qqmusic_login_qr_content_desc)
-    val cancelText = stringResource(R.string.action_cancel)
-    val waitingText = stringResource(R.string.qqmusic_login_waiting)
-    val scannedText = stringResource(R.string.qqmusic_login_scanned)
-    val expiredText = stringResource(R.string.qqmusic_login_expired)
-    val errorStatusText = stringResource(R.string.qqmusic_login_error)
-    val qrCreateFailedText = stringResource(R.string.qqmusic_login_qr_create_failed)
-    val statusFailedText = stringResource(R.string.qqmusic_login_status_failed)
-    val confirmedNoCredentialText = stringResource(R.string.qqmusic_login_confirmed_no_credential)
+    val titleText = stringResource(CoreCommonR.string.qqmusic_login_title)
+    val qrContentDesc = stringResource(CoreCommonR.string.qqmusic_login_qr_content_desc)
+    val cancelText = stringResource(CoreCommonR.string.action_cancel)
+    val waitingText = stringResource(CoreCommonR.string.qqmusic_login_waiting)
+    val scannedText = stringResource(CoreCommonR.string.qqmusic_login_scanned)
+    val expiredText = stringResource(CoreCommonR.string.qqmusic_login_expired)
+    val errorStatusText = stringResource(CoreCommonR.string.qqmusic_login_error)
+    val qrCreateFailedText = stringResource(CoreCommonR.string.qqmusic_login_qr_create_failed)
+    val statusFailedText = stringResource(CoreCommonR.string.qqmusic_login_status_failed)
+    val confirmedNoCredentialText = stringResource(CoreCommonR.string.qqmusic_login_confirmed_no_credential)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

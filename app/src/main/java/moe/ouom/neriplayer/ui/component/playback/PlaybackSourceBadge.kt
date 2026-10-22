@@ -113,12 +113,12 @@ fun PlaybackSourceBadge(
             PlaybackSourceType.KUGOU -> {
                 Icon(
                     imageVector = Icons.Outlined.LibraryMusic,
-                    contentDescription = stringResource(R.string.explore_tab_kugou),
+                    contentDescription = stringResource(CoreCommonR.string.explore_tab_kugou),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = stringResource(R.string.explore_tab_kugou),
+                    text = stringResource(CoreCommonR.string.explore_tab_kugou),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -127,12 +127,12 @@ fun PlaybackSourceBadge(
             PlaybackSourceType.QQ_MUSIC -> {
                 Icon(
                     imageVector = Icons.Outlined.LibraryMusic,
-                    contentDescription = stringResource(R.string.explore_tab_qqmusic),
+                    contentDescription = stringResource(CoreCommonR.string.explore_tab_qqmusic),
                     tint = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = stringResource(R.string.explore_tab_qqmusic),
+                    text = stringResource(CoreCommonR.string.explore_tab_qqmusic),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface
                 )

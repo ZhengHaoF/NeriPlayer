@@ -22,6 +22,7 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.page
  * File: moe.ouom.neriplayer.ui.screen.tab.settings.page/TabOrderSettingsScreen
  */
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -75,7 +76,7 @@ internal fun TabOrderSettingsScreen(
     val listState = rememberLazyListState()
     val topAppBarState = rememberTopAppBarState()
     val snackbarHostState = remember { SnackbarHostState() }
-    val keepOneTabText = stringResource(R.string.tab_order_keep_one_visible)
+    val keepOneTabText = stringResource(CoreCommonR.string.tab_order_keep_one_visible)
 
     val allowedExplore = remember(isInternational, youtubeEnabled) {
         exploreSearchSourceDisplayOrder(isInternational, youtubeEnabled)
@@ -141,7 +142,7 @@ internal fun TabOrderSettingsScreen(
                 key = "explore:${source.tabId}",
                 labelRes = exploreTabLabelRes(source),
                 descRes = if (source == SearchSource.LINK_RECOGNITION) {
-                    R.string.tab_order_link_desc
+                    CoreCommonR.string.tab_order_link_desc
                 } else {
                     null
                 },
@@ -153,7 +154,7 @@ internal fun TabOrderSettingsScreen(
                 key = "explore:${source.tabId}",
                 labelRes = exploreTabLabelRes(source),
                 descRes = if (source == SearchSource.LINK_RECOGNITION) {
-                    R.string.tab_order_link_desc
+                    CoreCommonR.string.tab_order_link_desc
                 } else {
                     null
                 },
@@ -168,7 +169,7 @@ internal fun TabOrderSettingsScreen(
                 key = "library:${tab.tabId}",
                 labelRes = libraryTabLabelRes(tab),
                 descRes = if (tab == LibraryTab.LOCAL) {
-                    R.string.tab_order_local_pinned
+                    CoreCommonR.string.tab_order_local_pinned
                 } else {
                     null
                 },
@@ -189,15 +190,15 @@ internal fun TabOrderSettingsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         MiuixSettingsDetailScaffold(
-            title = stringResource(R.string.tab_order_title),
+            title = stringResource(CoreCommonR.string.tab_order_title),
             onBack = onBack,
             listState = listState,
             topAppBarState = topAppBarState
         ) {
             item(key = "explore_card") {
                 TabOrderSectionCard(
-                    title = stringResource(R.string.tab_order_explore_section),
-                    description = stringResource(R.string.tab_order_explore_section_desc),
+                    title = stringResource(CoreCommonR.string.tab_order_explore_section),
+                    description = stringResource(CoreCommonR.string.tab_order_explore_section_desc),
                     items = exploreItems,
                     onPersistOrder = ::persistExplore,
                     onToggle = ::toggleExplore,
@@ -206,8 +207,8 @@ internal fun TabOrderSettingsScreen(
             }
             item(key = "library_card") {
                 TabOrderSectionCard(
-                    title = stringResource(R.string.tab_order_library_section),
-                    description = stringResource(R.string.tab_order_explore_section_desc),
+                    title = stringResource(CoreCommonR.string.tab_order_library_section),
+                    description = stringResource(CoreCommonR.string.tab_order_explore_section_desc),
                     items = libraryItems,
                     onPersistOrder = { order ->
                         persistLibrary(
@@ -229,20 +230,20 @@ internal fun TabOrderSettingsScreen(
 }
 
 private fun exploreTabLabelRes(source: SearchSource): Int = when (source) {
-    SearchSource.YOUTUBE_MUSIC -> R.string.explore_tab_youtube
-    SearchSource.NETEASE -> R.string.platform_netease_short
-    SearchSource.BILIBILI -> R.string.platform_bilibili
-    SearchSource.KUGOU -> R.string.explore_tab_kugou
-    SearchSource.QQ_MUSIC -> R.string.explore_tab_qqmusic
-    SearchSource.LINK_RECOGNITION -> R.string.explore_tab_links
+    SearchSource.YOUTUBE_MUSIC -> CoreCommonR.string.explore_tab_youtube
+    SearchSource.NETEASE -> CoreCommonR.string.platform_netease_short
+    SearchSource.BILIBILI -> CoreCommonR.string.platform_bilibili
+    SearchSource.KUGOU -> CoreCommonR.string.explore_tab_kugou
+    SearchSource.QQ_MUSIC -> CoreCommonR.string.explore_tab_qqmusic
+    SearchSource.LINK_RECOGNITION -> CoreCommonR.string.explore_tab_links
 }
 
 private fun libraryTabLabelRes(tab: LibraryTab): Int = when (tab) {
-    LibraryTab.LOCAL -> R.string.library_tab_local
-    LibraryTab.FAVORITE -> R.string.library_tab_favorite
-    LibraryTab.YTMUSIC -> R.string.library_tab_youtube_music
-    LibraryTab.NETEASE, LibraryTab.NETEASEALBUM -> R.string.library_tab_netease
-    LibraryTab.BILI -> R.string.library_tab_bilibili
-    LibraryTab.QQMUSIC -> R.string.library_tab_qqmusic
-    LibraryTab.KUGOU -> R.string.library_tab_kugou
+    LibraryTab.LOCAL -> CoreCommonR.string.library_tab_local
+    LibraryTab.FAVORITE -> CoreCommonR.string.library_tab_favorite
+    LibraryTab.YTMUSIC -> CoreCommonR.string.library_tab_youtube_music
+    LibraryTab.NETEASE, LibraryTab.NETEASEALBUM -> CoreCommonR.string.library_tab_netease
+    LibraryTab.BILI -> CoreCommonR.string.library_tab_bilibili
+    LibraryTab.QQMUSIC -> CoreCommonR.string.library_tab_qqmusic
+    LibraryTab.KUGOU -> CoreCommonR.string.library_tab_kugou
 }

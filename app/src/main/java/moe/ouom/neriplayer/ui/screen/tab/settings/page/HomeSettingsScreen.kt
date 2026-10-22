@@ -13,6 +13,7 @@ package moe.ouom.neriplayer.ui.screen.tab.settings.page
  * File: moe.ouom.neriplayer.ui.screen.tab.settings.page/HomeSettingsScreen
  */
 
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -61,7 +62,7 @@ internal fun HomeSettingsScreen(
     val topAppBarState = rememberTopAppBarState()
     val order = remember(rawOrder) { parseHomeContentSourceOrder(rawOrder) }
     val snackbarHostState = remember { SnackbarHostState() }
-    val keepOneSourceText = stringResource(R.string.home_settings_keep_one_source)
+    val keepOneSourceText = stringResource(CoreCommonR.string.home_settings_keep_one_source)
 
     fun persist(newOrder: List<HomeContentSource>) {
         scope.launch {
@@ -106,15 +107,15 @@ internal fun HomeSettingsScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         MiuixSettingsDetailScaffold(
-            title = stringResource(R.string.home_settings_title),
+            title = stringResource(CoreCommonR.string.home_settings_title),
             onBack = onBack,
             listState = listState,
             topAppBarState = topAppBarState
         ) {
             item(key = "source_order") {
                 TabOrderSectionCard(
-                    title = stringResource(R.string.home_settings_source_order_section),
-                    description = stringResource(R.string.home_settings_source_order_section_desc),
+                    title = stringResource(CoreCommonR.string.home_settings_source_order_section),
+                    description = stringResource(CoreCommonR.string.home_settings_source_order_section_desc),
                     items = sourceItems,
                     onPersistOrder = ::persist,
                     onToggle = ::toggle,
@@ -123,7 +124,7 @@ internal fun HomeSettingsScreen(
             }
             item(key = "notice") {
                 Text(
-                    text = stringResource(R.string.home_settings_youtube_notice),
+                    text = stringResource(CoreCommonR.string.home_settings_youtube_notice),
                     modifier = Modifier.padding(horizontal = 18.dp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -140,11 +141,11 @@ internal fun HomeSettingsScreen(
 }
 
 private fun homeSourceLabelRes(source: HomeContentSource): Int = when (source) {
-    HomeContentSource.NETEASE -> R.string.home_settings_source_netease
-    HomeContentSource.KUGOU -> R.string.home_settings_source_kugou
+    HomeContentSource.NETEASE -> CoreCommonR.string.home_settings_source_netease
+    HomeContentSource.KUGOU -> CoreCommonR.string.home_settings_source_kugou
 }
 
 private fun homeSourceDescRes(source: HomeContentSource): Int = when (source) {
-    HomeContentSource.NETEASE -> R.string.home_settings_source_netease_desc
-    HomeContentSource.KUGOU -> R.string.home_settings_source_kugou_desc
+    HomeContentSource.NETEASE -> CoreCommonR.string.home_settings_source_netease_desc
+    HomeContentSource.KUGOU -> CoreCommonR.string.home_settings_source_kugou_desc
 }
