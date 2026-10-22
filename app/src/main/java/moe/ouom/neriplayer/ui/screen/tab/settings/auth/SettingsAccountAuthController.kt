@@ -1,5 +1,11 @@
 package moe.ouom.neriplayer.ui.screen.tab.settings.auth
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import moe.ouom.neriplayer.core.di.AppContainer
+import moe.ouom.neriplayer.ui.screen.tab.KugouQrLoginSheet
+import moe.ouom.neriplayer.ui.screen.tab.QQMusicQrLoginSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableIntState
@@ -35,6 +41,10 @@ internal class SettingsAuthDialogState(
     var showBiliSavedCookieDialog by mutableStateOf(false)
     var showYouTubeSheet by mutableStateOf(false)
     var showYouTubeSavedCookieDialog by mutableStateOf(false)
+    var showKugouSheet by mutableStateOf(false)
+    var showKugouLogoutConfirm by mutableStateOf(false)
+    var showQqMusicSheet by mutableStateOf(false)
+    var showQqMusicLogoutConfirm by mutableStateOf(false)
     var loginSuccessTitleRes by mutableStateOf<Int?>(null)
 }
 
@@ -136,6 +146,36 @@ internal class SettingsAccountAuthController(
     fun dismissYouTubeSavedCookieDialog() { dialogs.showYouTubeSavedCookieDialog = false }
     fun dismissLoginSuccess() { dialogs.loginSuccessTitleRes = null }
 
+    fun openKugouSheet() { dialogs.showKugouSheet = true }
+    fun dismissKugouSheet() { dialogs.showKugouSheet = false }
+    fun askKugouLogout() { dialogs.showKugouLogoutConfirm = true }
+    fun dismissKugouLogout() { dialogs.showKugouLogoutConfirm = false }
+    fun openQqMusicSheet() { dialogs.showQqMusicSheet = true }
+    fun dismissQqMusicSheet() { dialogs.showQqMusicSheet = false }
+    fun askQqMusicLogout() { dialogs.showQqMusicLogoutConfirm = true }
+    fun dismissQqMusicLogout() { dialogs.showQqMusicLogoutConfirm = false }
+
+    /** 扫码成功后由 sheet 回调：关面板并复用上游的统一成功提示。 */
+    fun onKugouLoggedIn() {
+        dialogs.showKugouSheet = false
+        dialogs.loginSuccessTitleRes = CoreCommonR.string.settings_kugou_login_success
+    }
+
+    fun onQqMusicLoggedIn() {
+        dialogs.showQqMusicSheet = false
+        dialogs.loginSuccessTitleRes = CoreCommonR.string.settings_qqmusic_login_success
+    }
+
+    fun logoutKugou() {
+        dismissKugouLogout()
+        AppContainer.kugouSession.logout()
+    }
+
+    fun logoutQqMusic() {
+        dismissQqMusicLogout()
+        AppContainer.qqMusicSession.logout()
+    }
+
     fun logoutNetease() {
         dismissNeteaseSavedCookieDialog()
         neteaseVm.clearCookies()
@@ -158,7 +198,8 @@ internal class SettingsAccountAuthActions(controller: SettingsAccountAuthControl
             SettingsAccountPlatform.Netease -> openNeteaseSheet()
             SettingsAccountPlatform.Bilibili -> openBiliSheet()
             SettingsAccountPlatform.YouTube -> openYouTubeSheet()
-            SettingsAccountPlatform.QqMusic -> Unit
+            SettingsAccountPlatform.QqMusic -> openQqMusicSheet()
+            SettingsAccountPlatform.Kugou -> openKugouSheet()
         }
     }
 
@@ -167,7 +208,8 @@ internal class SettingsAccountAuthActions(controller: SettingsAccountAuthControl
             SettingsAccountPlatform.Netease -> openNeteaseSavedCookieDialog()
             SettingsAccountPlatform.Bilibili -> openBiliSavedCookieDialog()
             SettingsAccountPlatform.YouTube -> openYouTubeSavedCookieDialog()
-            SettingsAccountPlatform.QqMusic -> Unit
+            SettingsAccountPlatform.QqMusic -> askQqMusicLogout()
+            SettingsAccountPlatform.Kugou -> askKugouLogout()
         }
     }
 
@@ -191,6 +233,18 @@ internal class SettingsAccountAuthActions(controller: SettingsAccountAuthControl
     val openYouTubeSheet: () -> Unit = controller::openYouTubeSheet
     val logoutYouTube: () -> Unit = controller::logoutYouTube
     val dismissLoginSuccess: () -> Unit = controller::dismissLoginSuccess
+    val openKugouSheet: () -> Unit = controller::openKugouSheet
+    val dismissKugouSheet: () -> Unit = controller::dismissKugouSheet
+    val onKugouLoggedIn: () -> Unit = controller::onKugouLoggedIn
+    val dismissKugouLogout: () -> Unit = controller::dismissKugouLogout
+    val logoutKugou: () -> Unit = controller::logoutKugou
+    val askKugouLogout: () -> Unit = controller::askKugouLogout
+    val askQqMusicLogout: () -> Unit = controller::askQqMusicLogout
+    val openQqMusicSheet: () -> Unit = controller::openQqMusicSheet
+    val dismissQqMusicSheet: () -> Unit = controller::dismissQqMusicSheet
+    val onQqMusicLoggedIn: () -> Unit = controller::onQqMusicLoggedIn
+    val dismissQqMusicLogout: () -> Unit = controller::dismissQqMusicLogout
+    val logoutQqMusic: () -> Unit = controller::logoutQqMusic
 }
 
 private class SettingsAuthEventEffects(
@@ -240,6 +294,7 @@ internal fun SettingsAccountAuthDialogs(
     SettingsNeteaseAccountAuthDialogs(controller, inlineMessage, onInlineMessageChange)
     SettingsBiliAccountAuthDialogs(controller, inlineMessage, onInlineMessageChange)
     SettingsYouTubeAccountAuthDialogs(controller, inlineMessage, onInlineMessageChange)
+    SettingsKuGouAccountAuthDialogs(controller)
     SettingsAccountLoginSuccessDialog(controller)
 }
 
@@ -321,4 +376,63 @@ private fun SettingsAccountLoginSuccessDialog(controller: SettingsAccountAuthCon
             onDismiss = controller.actions.dismissLoginSuccess
         )
     }
+}
+
+/**
+ * 酷狗概念版 / QQ 音乐的扫码面板与登出确认。
+ *
+ * 上游把这两个平台做成了"可见但不可用"的占位（`openPlatformLogin` 里是 `Unit`），
+ * fork 有真实扫码登录，所以复用上游的枚举与统一成功提示，只补渲染和动作。
+ */
+@Composable
+private fun SettingsKuGouAccountAuthDialogs(controller: SettingsAccountAuthController) {
+    val dialogs = controller.dialogs
+    val actions = controller.actions
+    if (dialogs.showKugouSheet) {
+        KugouQrLoginSheet(
+            onDismiss = actions.dismissKugouSheet,
+            onLoggedIn = actions.onKugouLoggedIn
+        )
+    }
+    if (dialogs.showQqMusicSheet) {
+        QQMusicQrLoginSheet(
+            onDismiss = actions.dismissQqMusicSheet,
+            onLoggedIn = actions.onQqMusicLoggedIn
+        )
+    }
+    if (dialogs.showKugouLogoutConfirm) {
+        SettingsLogoutConfirmation(
+            messageRes = CoreCommonR.string.settings_kugou_logout_confirm,
+            onDismiss = actions.dismissKugouLogout,
+            onConfirm = actions.logoutKugou
+        )
+    }
+    if (dialogs.showQqMusicLogoutConfirm) {
+        SettingsLogoutConfirmation(
+            messageRes = CoreCommonR.string.settings_qqmusic_logout_confirm,
+            onDismiss = actions.dismissQqMusicLogout,
+            onConfirm = actions.logoutQqMusic
+        )
+    }
+}
+
+@Composable
+private fun SettingsLogoutConfirmation(
+    messageRes: Int,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(CoreCommonR.string.settings_saved_cookie_logout)) },
+        text = { Text(stringResource(messageRes)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(CoreCommonR.string.settings_saved_cookie_logout))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(CoreCommonR.string.action_cancel)) }
+        }
+    )
 }

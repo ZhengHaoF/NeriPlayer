@@ -101,8 +101,13 @@ internal fun StartupPlatformAccounts(
             SettingsAccountPlatform.Bilibili -> loadBiliAccountProfile(biliAuthorization)
             SettingsAccountPlatform.YouTube -> loadYouTubeAccountProfile(youtubeAuthorization)
             SettingsAccountPlatform.QqMusic -> null
+            SettingsAccountPlatform.Kugou -> null
         }
     }
+    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow
+        .collectAsStateWithLifecycle(initialValue = false)
     StartupPlatformAccountsContent(
         accounts = listOf(
             SettingsAccountCardUiState(
@@ -129,7 +134,16 @@ internal fun StartupPlatformAccounts(
                 profile = profiles.youtube.profile,
                 profileLoading = profiles.youtube.loading
             ),
-            SettingsAccountCardUiState(platform = SettingsAccountPlatform.QqMusic)
+            SettingsAccountCardUiState(
+                platform = SettingsAccountPlatform.QqMusic,
+                hasSavedAuthorization = qqMusicLoggedIn,
+                authorizationComplete = qqMusicLoggedIn
+            ),
+            SettingsAccountCardUiState(
+                platform = SettingsAccountPlatform.Kugou,
+                hasSavedAuthorization = kugouLoggedIn,
+                authorizationComplete = kugouLoggedIn
+            )
         ),
         inlineMessage = inlineMessage,
         onInlineMessageChange = onInlineMessageChange,

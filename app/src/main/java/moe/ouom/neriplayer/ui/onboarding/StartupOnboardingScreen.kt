@@ -1,5 +1,7 @@
 package moe.ouom.neriplayer.ui.onboarding
 
+import moe.ouom.neriplayer.ui.screen.tab.KugouQrLoginSheet
+import moe.ouom.neriplayer.ui.screen.tab.QQMusicQrLoginSheet
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -191,10 +193,14 @@ internal fun shouldShowStartupNotificationPermissionWarning(
 internal fun shouldWarnStartupNoPlatformConnected(
     biliState: SavedCookieAuthState,
     neteaseState: SavedCookieAuthState,
-    youTubeState: YouTubeAuthState
+    youTubeState: YouTubeAuthState,
+    kugouLoggedIn: Boolean,
+    qqMusicLoggedIn: Boolean
 ): Boolean = biliState == SavedCookieAuthState.Missing &&
     neteaseState == SavedCookieAuthState.Missing &&
-    youTubeState == YouTubeAuthState.Missing
+    youTubeState == YouTubeAuthState.Missing &&
+    !kugouLoggedIn &&
+    !qqMusicLoggedIn
 
 internal fun hasFinishedStartupNotificationPermissionWarning(
     attempts: Int
@@ -378,6 +384,12 @@ fun StartupOnboardingScreen(
     var biliSheetTab by rememberSaveable { mutableIntStateOf(0) }
 
     var showYouTubeSheet by remember { mutableStateOf(false) }
+    var showKugouSheet by remember { mutableStateOf(false) }
+    var showQqMusicSheet by remember { mutableStateOf(false) }
+    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow
+        .collectAsStateWithLifecycle(initialValue = false)
+    val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow
+        .collectAsStateWithLifecycle(initialValue = false)
     var showYouTubeSavedCookieDialog by remember { mutableStateOf(false) }
     var youTubeSheetTab by rememberSaveable { mutableIntStateOf(0) }
     var showGitHubConfigDialog by remember { mutableStateOf(false) }
@@ -653,7 +665,9 @@ fun StartupOnboardingScreen(
             shouldWarnStartupNoPlatformConnected(
                 biliState = biliState.health.state,
                 neteaseState = neteaseState.health.state,
-                youTubeState = youTubeState.health.state
+                youTubeState = youTubeState.health.state,
+                kugouLoggedIn = kugouLoggedIn,
+                qqMusicLoggedIn = qqMusicLoggedIn
             )
         ) {
             noPlatformWarningVisible = true
@@ -806,7 +820,14 @@ fun StartupOnboardingScreen(
                                 youTubeSheetTab = 0
                                 showYouTubeSheet = true
                             }
-                            SettingsAccountPlatform.QqMusic -> Unit
+                            SettingsAccountPlatform.QqMusic -> {
+                                inlineMessage = null
+                                showQqMusicSheet = true
+                            }
+                            SettingsAccountPlatform.Kugou -> {
+                                inlineMessage = null
+                                showKugouSheet = true
+                            }
                         }
                     },
                     onManageSaved = { platform ->
@@ -816,6 +837,7 @@ fun StartupOnboardingScreen(
                             SettingsAccountPlatform.Netease -> showNeteaseSavedCookieDialog = true
                             SettingsAccountPlatform.YouTube -> showYouTubeSavedCookieDialog = true
                             SettingsAccountPlatform.QqMusic -> Unit
+                            SettingsAccountPlatform.Kugou -> Unit
                         }
                     }
                 )
@@ -1203,6 +1225,26 @@ fun StartupOnboardingScreen(
                     youTubeVm.clearAuth()
                 }
             )
+            val kugouSuccessLabel = stringResource(CoreCommonR.string.settings_kugou_login_success)
+            val qqMusicSuccessLabel = stringResource(CoreCommonR.string.settings_qqmusic_login_success)
+            if (showKugouSheet) {
+                KugouQrLoginSheet(
+                    onDismiss = { showKugouSheet = false },
+                    onLoggedIn = {
+                        showKugouSheet = false
+                        inlineMessage = kugouSuccessLabel
+                    }
+                )
+            }
+            if (showQqMusicSheet) {
+                QQMusicQrLoginSheet(
+                    onDismiss = { showQqMusicSheet = false },
+                    onLoggedIn = {
+                        showQqMusicSheet = false
+                        inlineMessage = qqMusicSuccessLabel
+                    }
+                )
+            }
             if (syncUpgradeState.startupRegistrationComplete) {
                 SettingsGitHubDialogs(
                     showGitHubConfigDialog = showGitHubConfigDialog,

@@ -19,7 +19,7 @@
 | `ExploreViewModel.patch` | 大部分 hunk 已合入；余下待修 |
 | `NeriApp.patch` | 部分 hunk 已合入 |
 | `NowPlayingViewModel.patch` | 已手工移植 |
-| `SettingsScreen.patch` | **整体回退到上游**，待按上游新的分页结构重贴 |
+| `SettingsScreen.patch` | **部分完成**：账号卡片与登录/登出已接进上游的 `SettingsAccountPlatform` + `SettingsAccountAuthController`；`SettingsScreen` 本体其余分页集成待重贴 |
 | `LibraryScreen.patch` | **整体回退到上游**，待重贴（含 `LibraryTab.KUGOU` 枚举项） |
 | `LibraryHostScreen.patch` | **整体回退到上游**，待重贴 |
 | `SettingsHostScreen.patch` | **整体回退到上游**，待重贴 |

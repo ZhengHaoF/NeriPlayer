@@ -99,6 +99,9 @@ internal fun SettingsLoginExpandedContent(
         isActive = isActive && youtubeEnabled
     ) { loadYouTubeAccountProfile(youtubeAuthorization) }
 
+    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsStateWithLifecycle(initialValue = false)
+    val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow.collectAsStateWithLifecycle(initialValue = false)
+
     LaunchedEffect(biliVm, youtubeVm, neteaseVm) {
         biliVm.refreshAuthHealth()
         neteaseVm.refreshAuthHealth()
@@ -131,7 +134,16 @@ internal fun SettingsLoginExpandedContent(
                 profile = youtubeProfile.profile,
                 profileLoading = youtubeProfile.loading
             ),
-            SettingsAccountCardUiState(platform = SettingsAccountPlatform.QqMusic)
+            SettingsAccountCardUiState(
+                platform = SettingsAccountPlatform.QqMusic,
+                hasSavedAuthorization = qqMusicLoggedIn,
+                authorizationComplete = qqMusicLoggedIn
+            ),
+            SettingsAccountCardUiState(
+                platform = SettingsAccountPlatform.Kugou,
+                hasSavedAuthorization = kugouLoggedIn,
+                authorizationComplete = kugouLoggedIn
+            )
         ),
         onLogin = controller.actions::openPlatformLogin,
         onManageSaved = controller.actions::openPlatformSavedAuthorization,
