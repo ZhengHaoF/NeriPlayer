@@ -9,10 +9,10 @@ import moe.ouom.neriplayer.data.model.playback.PlaybackAudioInfo
 import moe.ouom.neriplayer.data.model.playback.PlaybackAudioSource
 import moe.ouom.neriplayer.data.model.playback.SongUrlResult
 import moe.ouom.neriplayer.data.model.playback.deriveCodecLabel
-import moe.ouom.neriplayer.core.player.url.buildKugouQualityCandidates
-import moe.ouom.neriplayer.core.player.url.buildKugouQualityOptions
-import moe.ouom.neriplayer.core.player.url.qualityLabelForKugou
-import moe.ouom.neriplayer.core.player.url.resolveKugouPlaybackQualityKey
+import moe.ouom.neriplayer.data.model.playback.buildKugouQualityCandidates
+import moe.ouom.neriplayer.platform.quality.buildKugouQualityOptions
+import moe.ouom.neriplayer.platform.quality.qualityLabelForKugou
+import moe.ouom.neriplayer.data.model.playback.resolveKugouPlaybackQualityKey
 import moe.ouom.neriplayer.data.model.SongItem
 
 /**

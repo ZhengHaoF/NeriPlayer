@@ -8,9 +8,9 @@ import moe.ouom.neriplayer.data.model.playback.PlaybackAudioInfo
 import moe.ouom.neriplayer.data.model.playback.PlaybackAudioSource
 import moe.ouom.neriplayer.data.model.playback.SongUrlResult
 import moe.ouom.neriplayer.data.model.playback.deriveCodecLabel
-import moe.ouom.neriplayer.core.player.url.buildQQMusicQualityCandidates
-import moe.ouom.neriplayer.core.player.url.buildQQMusicQualityOptions
-import moe.ouom.neriplayer.core.player.url.qqMusicQualityLabel
+import moe.ouom.neriplayer.data.model.playback.buildQQMusicQualityCandidates
+import moe.ouom.neriplayer.platform.quality.buildQQMusicQualityOptions
+import moe.ouom.neriplayer.platform.quality.qqMusicQualityLabel
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.network.http.awaitResponse
 import okhttp3.HttpUrl.Companion.toHttpUrl

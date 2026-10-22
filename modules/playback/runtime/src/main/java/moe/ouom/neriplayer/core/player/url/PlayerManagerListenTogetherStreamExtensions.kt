@@ -1,5 +1,7 @@
 package moe.ouom.neriplayer.core.player.url
 
+import moe.ouom.neriplayer.platform.quality.buildKugouQualityOptions
+import moe.ouom.neriplayer.platform.quality.qualityLabelForKugou
 import moe.ouom.neriplayer.data.identity.stableKey
 import moe.ouom.neriplayer.data.sync.mapping.toSongItem
 import moe.ouom.neriplayer.data.ltw.validation.format
