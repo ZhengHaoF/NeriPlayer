@@ -6,7 +6,7 @@ expressing the fork's change against upstream's restructured code needs a delibe
 edit rather than a textual merge. The fork-side code is reproduced here verbatim so
 nothing is lost. Base commit for the fork diff: `a6b30c58`.
 
-Sites pending re-port: 25
+Sites pending re-port: 17（媒体库 4 处与启动引导 4 处已完成）
 
 ## `app/src/main/java/moe/ouom/neriplayer/ui/NeriApp.kt`
 ### NeriApp.kt conflict 1
@@ -7372,7 +7372,7 @@ private fun SettingsLoginExpandedContent(
 因此整体回退为上游版本，避免留下半接线的代码。必须作为一整个单元重贴：
 
 ### 媒体库酷狗标签（LibraryTab.KUGOU）
-`docs/upstream-sync-2026-10/fork-integration-patches/LibraryScreen.patch` 与
+已完成（`a91dd166a`）。`docs/upstream-sync-2026-10/fork-integration-patches/LibraryScreen.patch` 与
 `LibraryHostScreen.patch` 属于同一单元，缺一不可：
 
 - `LibraryTab.KUGOU(CoreCommonR.string.library_tab_kugou)` 枚举项
@@ -7388,19 +7388,27 @@ private fun SettingsLoginExpandedContent(
 `TabOrderSettingsScreen.kt` 里的 `LibraryTab.KUGOU` 分支也一并撤掉了；
 单元完成后需要一起加回。
 
+与设计文档的两点偏离：
+
+- `LibrarySelectedItem` 的 KuGou / QQ 子类型改用上游的 `saveState()` 覆写 +
+  `librarySelectedItemRestorers` 注册表；fork 原来把 save/restore 写成一个集中式
+  `when`，上游已经把它拆成多态，照搬会留下第二套并存机制。
+- 上游的 QQ 媒体库只是 `QqMusicPlaylistList` 占位（"敬请期待"），不属于"上游已有
+  同样功能"，因此按规则换成 fork 的 `QQMusicLibraryContent`，并删除该占位。
+
 ### 探索页酷狗 / QQ 标签
 已完成：`SearchSource.KUGOU` / `QQ_MUSIC` 枚举项、`ExploreUiState` 的三个字段
 （`kugouContent` / `kugouChannelLoading` / `kugouChannelError`，QQ 同理）、
 `loadKugouChannel()` / `loadQQMusicChannel()`，以及 `ExploreScreen` 分页里的
 `KugouExploreContent` / `QQMusicExploreContent` 分支。
 
-### 设置页与启动引导（待重贴）
-`SettingsScreen.patch`（22 个 hunk，含酷狗 / QQ 账号卡片与音质设置）、
-`SettingsHostScreen.patch`、`StartupOnboardingScreen.patch`（QQ / 酷狗扫码登录步骤）
-均整体回退到上游，原因相同。
+### 设置页与启动引导（部分完成）
+`StartupOnboardingScreen.patch` 已重贴（`0d486b6ff`：QQ / 酷狗扫码登录步骤与未登录告警）。
+`SettingsScreen.patch`（22 个 hunk）只剩账号卡片以外的分页集成；`SettingsHostScreen.patch`
+仍整体回退到上游。回退原因相同：补丁引用了上游重构中已不存在的结构。
 
 ### 仍存在的编译错误全部来自缺失的酷狗 SDK 构件
 `docs/歌词源体系接入KuGou与QQMusic设计.md` §10 未决问题 2 之外，还有一项前置：
 `top.ghhccghk.multiplatform.kugouapi:kugouapi-kmp:1.0.5` 在本机只能解析到
 KMP 元数据 jar（无 `.class`），导致 `core/api/kugou/**`、`core/api/qqmusic/**`
-共 121 个编译错误。恢复 Maven Central 访问或放置该 AAR 后即可一并解决。
+共 105 个编译错误。恢复 Maven Central 访问或放置该 AAR 后即可一并解决。
