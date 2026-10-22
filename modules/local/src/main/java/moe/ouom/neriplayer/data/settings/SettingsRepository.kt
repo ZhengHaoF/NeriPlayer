@@ -91,6 +91,10 @@ import kotlinx.coroutines.flow.map
 import moe.ouom.neriplayer.common.storage.directory.ManagedDownloadDirectoryIdentity
 import moe.ouom.neriplayer.core.download.policy.settings.normalizeDownloadFileNameTemplate
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_PITCH
+import moe.ouom.neriplayer.data.model.playback.KUGOU_DEFAULT_PREFERRED_QUALITY
+import moe.ouom.neriplayer.data.model.playback.QQ_MUSIC_DEFAULT_PREFERRED_QUALITY
+import moe.ouom.neriplayer.data.model.playback.normalizeKugouQualityKey
+import moe.ouom.neriplayer.data.model.playback.normalizeQQMusicQualityKey
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_LOUDNESS_GAIN_MB
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_SPEED
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_VOLUME_BALANCE
@@ -223,6 +227,27 @@ class SettingsRepository(private val context: Context) {
 
     val biliAudioQualityFlow: Flow<String> =
         dataStoreSettingFlow { it[SettingsKeys.BILI_AUDIO_QUALITY] ?: "high" }
+
+    val kugouAudioQualityFlow: Flow<String> =
+        dataStoreSettingFlow {
+            normalizeKugouQualityKey(it[SettingsKeys.KUGOU_AUDIO_QUALITY])
+                ?: KUGOU_DEFAULT_PREFERRED_QUALITY
+        }
+
+    val qqMusicAudioQualityFlow: Flow<String> =
+        dataStoreSettingFlow {
+            normalizeQQMusicQualityKey(it[SettingsKeys.QQMUSIC_AUDIO_QUALITY])
+                ?: QQ_MUSIC_DEFAULT_PREFERRED_QUALITY
+        }
+
+    val homeContentSourceOrderFlow: Flow<String> =
+        autoSettingsRepository.homeContentSourceOrderFlow
+
+    val exploreTabOrderFlow: Flow<String> =
+        autoSettingsRepository.exploreTabOrderFlow
+
+    val libraryTabOrderFlow: Flow<String> =
+        autoSettingsRepository.libraryTabOrderFlow
 
     val mobileDataFollowDefaultAudioQualityFlow: Flow<Boolean> =
         dataStoreSettingFlow { prefs ->
@@ -803,6 +828,30 @@ class SettingsRepository(private val context: Context) {
     suspend fun setBiliAudioQuality(value: String) {
         context.dataStore.edit { it[SettingsKeys.BILI_AUDIO_QUALITY] = value }
         updatePlaybackPreferenceSnapshot(context) { it.copy(biliAudioQuality = value) }
+    }
+
+    suspend fun setKugouAudioQuality(value: String) {
+        val normalized = normalizeKugouQualityKey(value) ?: KUGOU_DEFAULT_PREFERRED_QUALITY
+        context.dataStore.edit { it[SettingsKeys.KUGOU_AUDIO_QUALITY] = normalized }
+        updatePlaybackPreferenceSnapshot(context) { it.copy(kugouAudioQuality = normalized) }
+    }
+
+    suspend fun setQqMusicAudioQuality(value: String) {
+        val normalized = normalizeQQMusicQualityKey(value) ?: QQ_MUSIC_DEFAULT_PREFERRED_QUALITY
+        context.dataStore.edit { it[SettingsKeys.QQMUSIC_AUDIO_QUALITY] = normalized }
+        updatePlaybackPreferenceSnapshot(context) { it.copy(qqMusicAudioQuality = normalized) }
+    }
+
+    suspend fun setHomeContentSourceOrder(order: String) {
+        autoSettingsRepository.setHomeContentSourceOrder(order)
+    }
+
+    suspend fun setExploreTabOrder(order: String) {
+        autoSettingsRepository.setExploreTabOrder(order)
+    }
+
+    suspend fun setLibraryTabOrder(order: String) {
+        autoSettingsRepository.setLibraryTabOrder(order)
     }
 
     suspend fun setMobileDataFollowDefaultAudioQuality(enabled: Boolean) {

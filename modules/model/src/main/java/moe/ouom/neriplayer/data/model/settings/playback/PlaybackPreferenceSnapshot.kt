@@ -1,6 +1,8 @@
 package moe.ouom.neriplayer.data.model.settings.playback
 
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_LOUDNESS_GAIN_MB
+import moe.ouom.neriplayer.data.model.playback.KUGOU_DEFAULT_PREFERRED_QUALITY
+import moe.ouom.neriplayer.data.model.playback.QQ_MUSIC_DEFAULT_PREFERRED_QUALITY
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_PITCH
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_SPEED
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_VOLUME_BALANCE
@@ -28,6 +30,8 @@ data class PlaybackPreferenceSnapshot(
     val audioQuality: String = "exhigh",
     val youtubeAudioQuality: String = "high",
     val biliAudioQuality: String = "high",
+    val kugouAudioQuality: String = KUGOU_DEFAULT_PREFERRED_QUALITY,
+    val qqMusicAudioQuality: String = QQ_MUSIC_DEFAULT_PREFERRED_QUALITY,
     val mobileDataFollowDefaultAudioQuality: Boolean = true,
     val mobileDataNeteaseAudioQuality: String = DEFAULT_MOBILE_DATA_NETEASE_AUDIO_QUALITY,
     val mobileDataYouTubeAudioQuality: String = DEFAULT_MOBILE_DATA_YOUTUBE_AUDIO_QUALITY,

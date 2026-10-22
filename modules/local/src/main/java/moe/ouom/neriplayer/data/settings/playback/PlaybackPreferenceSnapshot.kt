@@ -70,6 +70,10 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_LOUDNESS_GAIN_MB
+import moe.ouom.neriplayer.data.model.playback.KUGOU_DEFAULT_PREFERRED_QUALITY
+import moe.ouom.neriplayer.data.model.playback.QQ_MUSIC_DEFAULT_PREFERRED_QUALITY
+import moe.ouom.neriplayer.data.model.playback.normalizeKugouQualityKey
+import moe.ouom.neriplayer.data.model.playback.normalizeQQMusicQualityKey
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_PITCH
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_SPEED
 import moe.ouom.neriplayer.data.model.playback.DEFAULT_PLAYBACK_VOLUME_BALANCE
@@ -92,6 +96,8 @@ private const val PLAYBACK_SNAPSHOT_READY_KEY = "ready"
 private const val PLAYBACK_AUDIO_QUALITY_KEY = "audio_quality"
 private const val PLAYBACK_YOUTUBE_AUDIO_QUALITY_KEY = "youtube_audio_quality"
 private const val PLAYBACK_BILI_AUDIO_QUALITY_KEY = "bili_audio_quality"
+private const val PLAYBACK_KUGOU_AUDIO_QUALITY_KEY = "kugou_audio_quality"
+private const val PLAYBACK_QQ_MUSIC_AUDIO_QUALITY_KEY = "qqmusic_audio_quality"
 private const val PLAYBACK_MOBILE_DATA_DOWNGRADE_QUALITY_KEY = "mobile_data_downgrade_quality"
 private const val PLAYBACK_MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY_KEY =
     "mobile_data_follow_default_audio_quality"
@@ -220,6 +226,8 @@ fun persistPlaybackPreferenceSnapshot(
                     normalizedSnapshot.youtubeAudioQuality
                 )
                 .putString(PLAYBACK_BILI_AUDIO_QUALITY_KEY, normalizedSnapshot.biliAudioQuality)
+                .putString(PLAYBACK_KUGOU_AUDIO_QUALITY_KEY, normalizedSnapshot.kugouAudioQuality)
+                .putString(PLAYBACK_QQ_MUSIC_AUDIO_QUALITY_KEY, normalizedSnapshot.qqMusicAudioQuality)
                 .putBoolean(
                     PLAYBACK_MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY_KEY,
                     normalizedSnapshot.mobileDataFollowDefaultAudioQuality
@@ -359,6 +367,8 @@ fun Preferences.toPlaybackPreferenceSnapshot(): PlaybackPreferenceSnapshot {
         audioQuality = valueOr(SettingsKeys.AUDIO_QUALITY, "exhigh"),
         youtubeAudioQuality = valueOr(SettingsKeys.YOUTUBE_AUDIO_QUALITY, "high"),
         biliAudioQuality = valueOr(SettingsKeys.BILI_AUDIO_QUALITY, "high"),
+        kugouAudioQuality = valueOr(SettingsKeys.KUGOU_AUDIO_QUALITY, KUGOU_DEFAULT_PREFERRED_QUALITY),
+        qqMusicAudioQuality = valueOr(SettingsKeys.QQMUSIC_AUDIO_QUALITY, QQ_MUSIC_DEFAULT_PREFERRED_QUALITY),
         mobileDataFollowDefaultAudioQuality = valueOr(
             SettingsKeys.MOBILE_DATA_FOLLOW_DEFAULT_AUDIO_QUALITY,
             legacyMobileDataFollowsDefaultQuality(legacyMobileDataQuality)
@@ -476,6 +486,8 @@ private fun SharedPreferences.toCachedPlaybackPreferenceSnapshot(): PlaybackPref
         audioQuality = prefs.stringOr(PLAYBACK_AUDIO_QUALITY_KEY, "exhigh"),
         youtubeAudioQuality = prefs.stringOr(PLAYBACK_YOUTUBE_AUDIO_QUALITY_KEY, "high"),
         biliAudioQuality = prefs.stringOr(PLAYBACK_BILI_AUDIO_QUALITY_KEY, "high"),
+        kugouAudioQuality = prefs.stringOr(PLAYBACK_KUGOU_AUDIO_QUALITY_KEY, KUGOU_DEFAULT_PREFERRED_QUALITY),
+        qqMusicAudioQuality = prefs.stringOr(PLAYBACK_QQ_MUSIC_AUDIO_QUALITY_KEY, QQ_MUSIC_DEFAULT_PREFERRED_QUALITY),
         mobileDataFollowDefaultAudioQuality = prefs.cachedMobileDataFollowsDefaultQuality(legacyMobileDataQuality),
         mobileDataNeteaseAudioQuality = normalizeMobileDataNeteaseAudioQuality(
             prefs.storedStringOr(
@@ -625,6 +637,8 @@ fun PlaybackPreferenceSnapshot.sanitized(): PlaybackPreferenceSnapshot {
         audioQuality = audioQuality.trim().ifBlank { "exhigh" },
         youtubeAudioQuality = youtubeAudioQuality.trim().ifBlank { "high" },
         biliAudioQuality = biliAudioQuality.trim().ifBlank { "high" },
+        kugouAudioQuality = normalizeKugouQualityKey(kugouAudioQuality) ?: KUGOU_DEFAULT_PREFERRED_QUALITY,
+        qqMusicAudioQuality = normalizeQQMusicQualityKey(qqMusicAudioQuality) ?: QQ_MUSIC_DEFAULT_PREFERRED_QUALITY,
         mobileDataNeteaseAudioQuality =
             normalizeMobileDataNeteaseAudioQuality(mobileDataNeteaseAudioQuality),
         mobileDataYouTubeAudioQuality =
