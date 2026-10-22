@@ -3185,6 +3185,7 @@
       "moe.ouom.neriplayer.lyrics.parser.LyricWordTimingKt",
       "moe.ouom.neriplayer.lyrics.parser.PlainLyricsKt",
       "moe.ouom.neriplayer.data.model.SongItem",
+      "moe.ouom.neriplayer.data.model.SongSourceTags",
       "moe.ouom.neriplayer.data.model.lyrics.LyricEntry",
       "moe.ouom.neriplayer.data.model.lyrics.amll.AmllResolvedLyrics",
       "moe.ouom.neriplayer.data.model.lyrics.amll.AmllTtmlLyrics",

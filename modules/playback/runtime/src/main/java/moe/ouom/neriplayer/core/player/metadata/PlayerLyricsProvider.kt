@@ -45,6 +45,7 @@ import moe.ouom.neriplayer.platform.lyrics.repository.LrcLibLyricsRepository
 import moe.ouom.neriplayer.data.model.lyrics.matching.RankedEditableLyricMatch
 import moe.ouom.neriplayer.platform.lyrics.matching.editableLyricMatchSourcePriority
 import moe.ouom.neriplayer.platform.lyrics.matching.extractPlainLyricsFromCollapsedTimedLyrics
+import moe.ouom.neriplayer.platform.lyrics.matching.lyricIdentityOf
 import moe.ouom.neriplayer.lyrics.parser.hasEditableLyricWordTiming
 import moe.ouom.neriplayer.platform.lyrics.matching.hasLrcTimestamp
 import moe.ouom.neriplayer.platform.lyrics.matching.isExternalLyricDurationCompatible
@@ -1307,7 +1308,8 @@ object PlayerLyricsProvider {
             albumName = song.album,
             durationMs = song.durationMs,
             preferWordTimed = preferWordTimed,
-            sources = setOf(matchSource)
+            sources = setOf(matchSource),
+            identity = lyricIdentityOf(song)
         )
         val matches = try {
             editableLyricsMatcher.matchHighConfidenceLyricsForSource(request, matchSource)

@@ -292,6 +292,35 @@ PR-1 和 PR-2 合完就可以先跑一次 CI，确认门禁全绿再动 PR-3—�
 
 ---
 
+## 11. 实现时的三处偏差（已按实况修正，实现优先于此文）
+
+实现 PR-1/PR-2/PR-3 时发现本文有三处比实际情况保守，已按更简单的做法落地：
+
+**1. 不需要给 `KugouLyricsRepository` 加 `getPayloadByHash`（§4.3、§6 门禁项）。**
+它现有的 `getBestLyricPayload(song: KugouSongSearchResult)` 本来就吃 hash，直接构造
+`KugouSongSearchResult` 即可。因此那个在 CRAP scope 内的文件一行没动，§6 关于
+"repository 保持单行委托"的约束自动满足。QQ 侧同理，上游已有的
+`NativeLyricSearchApi.getNativeSongInfo(id)` 就是直取入口。**本次零新增平台 API。**
+
+**2. 不需要 `sourceRankWithHint`（§4.4）。**
+`editableLyricMatchResultComparator` 的排序键是
+`wordTiming → confidence → score → durationDelta → sourceRank`。身份候选拿到的是
+`Confidence.HIGH` + 固定 `1000` 分，在 confidence 与 score 两级上已经压过关键词候选，
+`sourceRank` 根本轮不到参与竞争。再引入 hint 函数去改两个调用点的 `sourceRank`
+参数是多余的间接层，还会动到被 `EditableLyricMatchScoringTest` 断言相对顺序的
+`editableLyricMatchSourcePriority`。§8 里"hint 只改顺序不改相对优先级"这条测试
+因此作废。
+
+**3. 不需要解析 `album` 里打包的身份（§4.6）。**
+取词只需要 `SongItem.audioId`：酷狗条目所有构造路径（频道 / 歌单 / Personal FM / 云盘）
+都写入 `audioId = hash`，且 `parseKugouAudioEntry` 在拿不到 hash 时直接 `return null`，
+条目根本不入库；QQ 写 `audioId = songmid`。`album` 里那份 `Kugou|<hash>|<id>` 是
+播放分支标记，对歌词链路是冗余信息。§4.6 提的"读旧写新"迁移因而不涉及取词正确性，
+仍然值得单独做（它污染 `tokenOverlapRatio` 的专辑比对，且会显示在 UI），但不属于本设计范围。
+
+相应地 §7 的 PR 拆分变成：PR-1 与 PR-2 合为一次 `:model` + `:platform` 改动，
+PR-3 只剩派生函数与接线，PR-4 不变。
+
 ## 10. 未决问题
 
 1. **上游 `QQMusicSearchApi` 用的是匿名接口还是带凭据？** fork 侧有 `QQMusicVkeyRateLimiter`、`QQMusicCredentialRefresh`、QIMEI 设备号。若上游 API 无鉴权，直取 `getNativeLyrics` 可能对 VIP 歌曲拿空结果，则 PR-4 要把 fork 的带凭据客户端接进 `NativeLyricSearchApi`，而不是复用上游的。
