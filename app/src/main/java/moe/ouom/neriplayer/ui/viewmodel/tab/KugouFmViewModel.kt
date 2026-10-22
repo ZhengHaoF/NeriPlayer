@@ -31,7 +31,7 @@ import moe.ouom.neriplayer.core.api.kugou.KugouFmParams
 import moe.ouom.neriplayer.core.api.kugou.KugouFmSongPool
 import moe.ouom.neriplayer.core.api.kugou.fetchKugouPersonalFm
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.data.model.stableKey

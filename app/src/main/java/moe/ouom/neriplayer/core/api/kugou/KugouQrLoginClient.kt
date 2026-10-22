@@ -4,7 +4,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 
 /** 酷狗概念版 QR 登录会话（二维码 key + 二维码图片 base64）。 */
 data class KugouQrLoginSession(

@@ -7,6 +7,8 @@ import moe.ouom.neriplayer.data.settings.appearance.EnhancedAdvancedBlurPreferen
 import moe.ouom.neriplayer.data.settings.appearance.ThemeDefaults
 import moe.ouom.neriplayer.data.settings.appearance.UiDensityScalePreference
 import moe.ouom.neriplayer.data.model.settings.appearance.UiStyle
+import moe.ouom.neriplayer.data.model.playback.KUGOU_DEFAULT_PREFERRED_QUALITY
+import moe.ouom.neriplayer.data.model.playback.QQ_MUSIC_DEFAULT_PREFERRED_QUALITY
 import moe.ouom.neriplayer.data.settings.download.DEFAULT_DOWNLOAD_BILI_AUDIO_QUALITY
 import moe.ouom.neriplayer.data.settings.download.DEFAULT_DOWNLOAD_NETEASE_AUDIO_QUALITY
 import moe.ouom.neriplayer.data.settings.download.DEFAULT_DOWNLOAD_YOUTUBE_AUDIO_QUALITY
@@ -378,27 +380,27 @@ object AutoSettingsSchema {
         @AutoSetting(
             key = "kugou_audio_quality",
             type = SettingValueType.String,
-            defaultString = DEFAULT_KUGOU_AUDIO_QUALITY,
+            defaultString = KUGOU_DEFAULT_PREFERRED_QUALITY,
             order = 35,
             ui = SettingUiType.Custom,
             access = SettingAccessMode.KeyOnly
         )
         val kugouAudioQuality = autoSetting(
-            titleRes = R.string.quality_kugou_default,
-            iconRes = R.drawable.ic_kugou
+            titleRes = CoreCommonR.string.quality_kugou_default,
+            iconRes = CoreCommonR.drawable.ic_kugou
         )
 
         @AutoSetting(
             key = "qqmusic_audio_quality",
             type = SettingValueType.String,
-            defaultString = DEFAULT_QQMUSIC_AUDIO_QUALITY,
+            defaultString = QQ_MUSIC_DEFAULT_PREFERRED_QUALITY,
             order = 36,
             ui = SettingUiType.Custom,
             access = SettingAccessMode.KeyOnly
         )
         val qqMusicAudioQuality = autoSetting(
-            titleRes = R.string.quality_qqmusic_default,
-            iconRes = R.drawable.ic_qq_music
+            titleRes = CoreCommonR.string.quality_qqmusic_default,
+            iconRes = CoreCommonR.drawable.ic_qq_music
         )
 
         @AutoSetting(
@@ -576,8 +578,8 @@ object AutoSettingsSchema {
         val homeContentSourceOrder = autoStringSetting(
             key = "home_content_source_order",
             defaultValue = "netease,kugou",
-            titleRes = R.string.settings_home_content_source_order,
-            descriptionRes = R.string.settings_home_content_source_order_desc,
+            titleRes = CoreCommonR.string.settings_home_content_source_order,
+            descriptionRes = CoreCommonR.string.settings_home_content_source_order_desc,
             icon = AutoSettingIcon.Home
         )
 
@@ -591,8 +593,8 @@ object AutoSettingsSchema {
         val exploreTabOrder = autoStringSetting(
             key = "explore_tab_order",
             defaultValue = "",
-            titleRes = R.string.settings_tab_order,
-            descriptionRes = R.string.settings_tab_order_desc,
+            titleRes = CoreCommonR.string.settings_tab_order,
+            descriptionRes = CoreCommonR.string.settings_tab_order_desc,
             icon = AutoSettingIcon.Tab
         )
 
@@ -606,8 +608,8 @@ object AutoSettingsSchema {
         val libraryTabOrder = autoStringSetting(
             key = "library_tab_order",
             defaultValue = "",
-            titleRes = R.string.settings_tab_order,
-            descriptionRes = R.string.settings_tab_order_desc,
+            titleRes = CoreCommonR.string.settings_tab_order,
+            descriptionRes = CoreCommonR.string.settings_tab_order_desc,
             icon = AutoSettingIcon.LibraryMusic
         )
     }

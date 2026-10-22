@@ -10,6 +10,7 @@ import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.data.model.playback.PlaybackAudioInfo
 import moe.ouom.neriplayer.data.model.playback.PlaybackAudioSource
 import moe.ouom.neriplayer.data.model.playback.PlaybackQualityOption
+import moe.ouom.neriplayer.data.model.playback.normalizeKugouQualityKey
 import moe.ouom.neriplayer.data.model.playback.PlaybackUrlCandidate
 import moe.ouom.neriplayer.core.player.quality.effectiveBiliQuality
 import moe.ouom.neriplayer.core.player.quality.effectiveNeteaseQuality

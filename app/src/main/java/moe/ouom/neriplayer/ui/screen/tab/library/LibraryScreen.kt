@@ -105,7 +105,8 @@ enum class LibraryTab(val labelResId: Int) {
     NETEASE(CoreCommonR.string.library_tab_netease),
     NETEASEALBUM(CoreCommonR.string.library_tab_netease_album),
     BILI(CoreCommonR.string.library_tab_bilibili),
-    QQMUSIC(CoreCommonR.string.library_tab_qqmusic)
+    QQMUSIC(CoreCommonR.string.library_tab_qqmusic),
+    KUGOU(CoreCommonR.string.library_tab_kugou)
 }
 
 internal const val NETEASE_CATEGORY_PLAYLIST = 0

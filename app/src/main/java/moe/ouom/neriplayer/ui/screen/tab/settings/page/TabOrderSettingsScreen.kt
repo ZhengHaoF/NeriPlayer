@@ -44,7 +44,7 @@ import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
 import moe.ouom.neriplayer.data.settings.SettingsRepository
-import moe.ouom.neriplayer.ui.screen.tab.LibraryTab
+import moe.ouom.neriplayer.ui.screen.tab.library.LibraryTab
 import moe.ouom.neriplayer.ui.screen.tab.exploreSearchSourceDisplayOrder
 import moe.ouom.neriplayer.ui.screen.tab.formatExploreTabOrder
 import moe.ouom.neriplayer.ui.screen.tab.formatLibraryTabOrder

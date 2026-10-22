@@ -4,9 +4,9 @@ import java.io.IOException
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.data.auth.qqmusic.QQMusicCredential
-import moe.ouom.neriplayer.util.network.awaitResponse
+import moe.ouom.neriplayer.network.http.awaitResponse
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl

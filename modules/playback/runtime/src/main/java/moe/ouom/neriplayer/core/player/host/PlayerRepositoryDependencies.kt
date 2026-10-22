@@ -3,6 +3,7 @@ package moe.ouom.neriplayer.core.player.host
 import moe.ouom.neriplayer.platform.bilibili.api.client.BiliClient
 import moe.ouom.neriplayer.platform.netease.api.client.NeteaseClient
 import moe.ouom.neriplayer.platform.search.api.client.CloudMusicSearchApi
+import moe.ouom.neriplayer.platform.search.api.SearchApi
 import moe.ouom.neriplayer.platform.youtube.api.client.YouTubeMusicClient
 import moe.ouom.neriplayer.platform.bilibili.auth.BiliCookieRepository
 import moe.ouom.neriplayer.platform.netease.auth.NeteaseCookieRepository
@@ -37,6 +38,7 @@ interface PlayerRepositoryDependencies {
     val biliVideoSkipRepository: BiliVideoSkipRepository
     val cloudMusicSearchApi: CloudMusicSearchApi
     val qqMusicSearchApi: QQMusicLyricsRepository
+    val kugouSearchApi: SearchApi
     val lrcLibClient: LrcLibLyricsRepository
     val amllTtmlClient: AmllLyricsRepository
     val editableLyricsMatcher: EditableLyricsMatcher

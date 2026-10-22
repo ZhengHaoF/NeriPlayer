@@ -98,12 +98,17 @@ fun estimateBitrateKbps(
         .takeIf { it > 0 }
 }
 
+// Preference keys, not API parameters: the platform clients keep their own tier
+// tables, and these are what the settings store persists for each source.
+const val KUGOU_DEFAULT_PREFERRED_QUALITY = "320"
+const val QQ_MUSIC_DEFAULT_PREFERRED_QUALITY = "M500"
+
 data class PreferredQualityKeys(
     val netease: String = "exhigh",
     val youtube: String = "high",
     val bili: String = "high",
-    val kugou: String = moe.ouom.neriplayer.core.api.kugou.KUGOU_VIP_QUALITY,
-    val qqMusic: String = moe.ouom.neriplayer.core.api.qqmusic.QQ_MUSIC_FREE_QUALITY
+    val kugou: String = KUGOU_DEFAULT_PREFERRED_QUALITY,
+    val qqMusic: String = QQ_MUSIC_DEFAULT_PREFERRED_QUALITY
 )
 
 fun PreferredQualityKeys.forSource(source: PlaybackAudioSource): String? {

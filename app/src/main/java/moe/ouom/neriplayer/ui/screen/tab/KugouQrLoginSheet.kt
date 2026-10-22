@@ -36,7 +36,7 @@ import moe.ouom.neriplayer.core.api.kugou.KugouQrLoginClient
 import moe.ouom.neriplayer.core.api.kugou.KugouQrLoginSession
 import moe.ouom.neriplayer.core.api.kugou.KugouQrLoginStatus
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 
 private const val QR_POLL_INTERVAL_MS = 2_000L
 

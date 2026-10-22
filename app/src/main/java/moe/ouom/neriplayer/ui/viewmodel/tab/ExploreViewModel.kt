@@ -103,6 +103,8 @@ enum class SearchSource {
     YOUTUBE_MUSIC,
     NETEASE,
     BILIBILI,
+    KUGOU,
+    QQ_MUSIC,
     LINK_RECOGNITION
 }
 

@@ -35,6 +35,7 @@ private object AppPlayerRepositories : PlayerRepositoryDependencies {
     override val biliVideoSkipRepository get() = AppContainer.biliVideoSkipRepository
     override val cloudMusicSearchApi get() = AppContainer.cloudMusicSearchApi
     override val qqMusicSearchApi get() = AppContainer.qqMusicSearchApi
+    override val kugouSearchApi get() = AppContainer.kugouSearchApi
     override val lrcLibClient get() = AppContainer.lrcLibClient
     override val amllTtmlClient get() = AppContainer.amllTtmlClient
     override val editableLyricsMatcher get() = AppContainer.editableLyricsMatcher

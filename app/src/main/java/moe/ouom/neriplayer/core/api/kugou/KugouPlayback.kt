@@ -4,11 +4,11 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import moe.ouom.neriplayer.core.logging.NPLogger
-import moe.ouom.neriplayer.core.player.model.PlaybackAudioInfo
-import moe.ouom.neriplayer.core.player.model.PlaybackAudioSource
-import moe.ouom.neriplayer.core.player.model.SongUrlResult
-import moe.ouom.neriplayer.core.player.model.deriveCodecLabel
+import moe.ouom.neriplayer.common.logging.NPLogger
+import moe.ouom.neriplayer.data.model.playback.PlaybackAudioInfo
+import moe.ouom.neriplayer.data.model.playback.PlaybackAudioSource
+import moe.ouom.neriplayer.data.model.playback.SongUrlResult
+import moe.ouom.neriplayer.data.model.playback.deriveCodecLabel
 import moe.ouom.neriplayer.core.player.url.buildKugouQualityCandidates
 import moe.ouom.neriplayer.core.player.url.buildKugouQualityOptions
 import moe.ouom.neriplayer.core.player.url.qualityLabelForKugou

@@ -17,7 +17,7 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.data.model.SongItem
 import top.ghhccghk.multiplatform.kugouapi.model.FmAction
 import top.ghhccghk.multiplatform.kugouapi.model.FmMode

@@ -39,6 +39,9 @@ class PlaybackQualityOwner(
             PlaybackAudioSource.NETEASE -> current.copy(netease = key)
             PlaybackAudioSource.YOUTUBE_MUSIC -> current.copy(youtube = key)
             PlaybackAudioSource.BILIBILI -> current.copy(bili = key)
+            PlaybackAudioSource.KUGOU -> current.copy(kugou = key)
+            // QQ 音乐匿名态只有免费档可切，音质偏好持久化随登录能力一并开放
+            PlaybackAudioSource.QQ_MUSIC -> current
             PlaybackAudioSource.LOCAL -> current
         }
     }

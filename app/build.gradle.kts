@@ -469,7 +469,10 @@ dependencies {
     implementation(libs.zxing.core)
 
     // 酷狗概念版 API（KMP 库，含加密签名/播放 URL/登录等能力）
-    implementation(libs.kugouapi.kmp)
+    // darwin 只有 native 变体，Kotlin 2.4 的属性匹配会因此拒绝整条 androidJvm 解析
+    implementation(libs.kugouapi.kmp) {
+        exclude(group = "io.ktor", module = "ktor-client-darwin")
+    }
 
     implementation(project(":accompanist-lyrics-core"))
     implementation(project(":accompanist-lyrics-ui"))

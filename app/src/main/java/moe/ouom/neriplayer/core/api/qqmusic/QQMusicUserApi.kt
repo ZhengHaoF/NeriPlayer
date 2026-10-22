@@ -3,8 +3,8 @@ package moe.ouom.neriplayer.core.api.qqmusic
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import moe.ouom.neriplayer.core.logging.NPLogger
-import moe.ouom.neriplayer.util.network.awaitResponse
+import moe.ouom.neriplayer.common.logging.NPLogger
+import moe.ouom.neriplayer.network.http.awaitResponse
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody

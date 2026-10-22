@@ -22,6 +22,7 @@ package moe.ouom.neriplayer.ui.screen.tab
  * File: moe.ouom.neriplayer.ui.screen.tab/TabOrdering
  */
 
+import moe.ouom.neriplayer.ui.screen.tab.library.LibraryTab
 import moe.ouom.neriplayer.ui.viewmodel.tab.SearchSource
 
 /*

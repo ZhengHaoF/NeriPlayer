@@ -7,7 +7,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonPrimitive
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.data.auth.kugou.KugouCookieStore
 import top.ghhccghk.multiplatform.kugouapi.KuGouClient
 

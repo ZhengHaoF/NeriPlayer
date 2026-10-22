@@ -50,7 +50,7 @@ import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicUserPlaylistMeta
 import moe.ouom.neriplayer.core.api.qqmusic.fetchQQMusicUserPlaylists
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.ui.screen.playlist.QQMusicPlaylistSelection
 import moe.ouom.neriplayer.util.format.formatPlayCount

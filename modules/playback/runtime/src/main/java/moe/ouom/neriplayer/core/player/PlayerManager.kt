@@ -737,6 +737,7 @@ object PlayerManager {
 
     val cloudMusicSearchApi by lazy { PlayerDependencies.repositories.cloudMusicSearchApi }
     val qqMusicSearchApi by lazy { PlayerDependencies.repositories.qqMusicSearchApi }
+    val kugouSearchApi by lazy { PlayerDependencies.repositories.kugouSearchApi }
     val lrcLibClient by lazy { PlayerDependencies.repositories.lrcLibClient }
     val amllTtmlClient by lazy { PlayerDependencies.repositories.amllTtmlClient }
 

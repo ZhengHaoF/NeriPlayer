@@ -6,11 +6,11 @@ import kotlinx.serialization.json.int
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import moe.ouom.neriplayer.core.api.search.MusicPlatform
-import moe.ouom.neriplayer.core.api.search.SearchApi
-import moe.ouom.neriplayer.core.api.search.SongDetails
-import moe.ouom.neriplayer.core.api.search.SongSearchInfo
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.data.model.music.MusicPlatform
+import moe.ouom.neriplayer.platform.search.api.SearchApi
+import moe.ouom.neriplayer.data.model.music.SongDetails
+import moe.ouom.neriplayer.data.model.music.SongSearchInfo
+import moe.ouom.neriplayer.common.logging.NPLogger
 
 /**
  * 酷狗概念版搜索器：通过 [KugouSession] 走 SDK 的 complexsearch（免登录）。

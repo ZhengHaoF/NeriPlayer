@@ -53,7 +53,7 @@ import kotlinx.parcelize.Parcelize
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.api.qqmusic.fetchQQMusicPlaylistSongs
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.ui.haptic.HapticIconButton

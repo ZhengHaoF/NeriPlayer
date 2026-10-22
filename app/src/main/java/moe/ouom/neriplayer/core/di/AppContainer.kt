@@ -53,6 +53,10 @@ import moe.ouom.neriplayer.BuildConfig
 import moe.ouom.neriplayer.platform.search.api.client.CloudMusicSearchApi
 import moe.ouom.neriplayer.data.model.music.MusicPlatform
 import moe.ouom.neriplayer.platform.search.api.client.QQMusicSearchApi
+import moe.ouom.neriplayer.core.api.kugou.KugouSearchApi
+import moe.ouom.neriplayer.core.api.kugou.KugouSession
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicSession
+import moe.ouom.neriplayer.data.auth.kugou.KugouCookieStore
 import moe.ouom.neriplayer.platform.lyrics.search.SearchManager
 import moe.ouom.neriplayer.platform.youtube.api.client.YouTubeMusicClient
 import moe.ouom.neriplayer.platform.youtube.api.client.YouTubeAccountProfileClient
@@ -451,6 +455,14 @@ object AppContainer {
     val youtubeMusicDownloadPlaybackRepository: YouTubeMusicPlaybackRepository
         get() = youtubeMusicDownloadPlaybackRepositoryDelegate.value
 
+    // 网络客户端
+    val kugouCookieStore by lazy { KugouCookieStore(application) }
+    val kugouSession by lazy { KugouSession(kugouCookieStore) }
+    val kugouSearchApi by lazy { KugouSearchApi(kugouSession) }
+
+    /** QQ音乐会话（guid 持久化；匿名走 web 协议；登录态经 QQMusicCookieStore 持久化）。 */
+    val qqMusicSession by lazy { QQMusicSession(application) }
+
     val cloudMusicSearchApi by lazy {
         CloudMusicSearchApi(neteaseClient, sharedOkHttpClient, debugLogging = BuildConfig.DEBUG)
     }
@@ -466,6 +478,7 @@ object AppContainer {
             when (platform) {
                 MusicPlatform.CLOUD_MUSIC -> cloudMusicSearchApi
                 MusicPlatform.QQ_MUSIC -> qqMusicSearchApi
+                MusicPlatform.KUGOU -> kugouSearchApi
             }
         }
     }

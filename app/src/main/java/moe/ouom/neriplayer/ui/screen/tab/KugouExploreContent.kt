@@ -51,7 +51,7 @@ import moe.ouom.neriplayer.core.api.kugou.KugouRankMeta
 import moe.ouom.neriplayer.core.api.kugou.fetchKugouPlaylistSongs
 import moe.ouom.neriplayer.core.api.kugou.fetchKugouRankSongs
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.ui.LocalMiniPlayerHeight
 import moe.ouom.neriplayer.util.format.formatPlayCount

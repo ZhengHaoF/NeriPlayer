@@ -36,7 +36,7 @@ import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrLoginClient
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrLoginStatus
 import moe.ouom.neriplayer.core.api.qqmusic.QQMusicQrTicket
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 
 private const val QR_POLL_INTERVAL_MS = 2_000L
 
