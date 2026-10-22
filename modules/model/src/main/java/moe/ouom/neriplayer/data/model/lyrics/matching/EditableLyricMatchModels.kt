@@ -29,7 +29,8 @@ data class EditableLyricMatchRequest(
     val albumName: String? = null,
     val durationMs: Long = 0L,
     val preferWordTimed: Boolean = true,
-    val sources: Set<EditableLyricMatchSource> = DEFAULT_EDITABLE_LYRIC_MATCH_SOURCES.toSet()
+    val sources: Set<EditableLyricMatchSource> = DEFAULT_EDITABLE_LYRIC_MATCH_SOURCES.toSet(),
+    val identity: EditableLyricIdentity? = null
 )
 
 data class EditableLyricMatchCandidate(
@@ -44,7 +45,9 @@ data class EditableLyricMatchCandidate(
     val format: EditableLyricFormat = EditableLyricFormat.LRC,
     val sourceScore: Int = 0,
     /** 同一曲目在来源平台上的封面，用于让批量补全的封面与歌词来自同一身份 */
-    val coverUrl: String? = null
+    val coverUrl: String? = null,
+    /** 由平台原生 ID 直取而非关键词匹配得到；打分时跳过相似度，但仍需通过内容校验 */
+    val exactIdentity: Boolean = false
 )
 
 data class RankedEditableLyricMatch(
