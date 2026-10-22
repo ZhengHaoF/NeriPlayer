@@ -321,7 +321,20 @@ PR-1 和 PR-2 合完就可以先跑一次 CI，确认门禁全绿再动 PR-3—�
 相应地 §7 的 PR 拆分变成：PR-1 与 PR-2 合为一次 `:model` + `:platform` 改动，
 PR-3 只剩派生函数与接线，PR-4 不变。
 
-**4. §8 的"用户手工编辑的歌词不被覆盖"这条测试不用新写。**
+**4. §5 决策表第 3 行（Automatic + 有身份）本次不实现，因为上游没有这条链路。**
+`matchLyrics()`（多源扇出）的运行时调用方只有两个：歌词编辑器
+（`NowPlayingLyricsEditor.kt:324`）和本地歌曲批量补全
+（`AppLocalCurationPorts.kt:73` / `LocalCurationCoordinator.kt:319`）。
+播放时的 Automatic 路径根本不走 matcher 扇出，而是走各自的网易云 / YouTube 专用分支。
+所以"Automatic 下身份候选置顶"不是一个能接的线，要实现它等于**新增一条
+Automatic 匹配链路**——那是行为变更，超出本文"上游当前行为不变"的范围，
+需要单独立项评审。
+
+实际接到的只有 §5 的第 1、2 行：用户显式把歌词源设为酷狗概念版 / QQ 音乐时，
+按原生 ID 直取。这一条已经接进 `loadPreferredLyricSourceResult`，
+并受上游 `shouldTryPreferredLyricSource` 的 `lyricSyncEdited` 保护约束。
+
+**5. §8 的"用户手工编辑的歌词不被覆盖"这条测试不用新写。**
 上游 `PlayerLyricsProviderTest` 已经断言了 `shouldTryPreferredLyricSource` 在
 `lyricSyncEdited` 为 true / false 两侧的期望，而且用的正是 `LyricSourcePreference.Kugou`。
 fork 之所以会丢这个保护，是因为它在 `PlayerLyricsProvider` 里绕过了该函数；
@@ -329,5 +342,11 @@ fork 之所以会丢这个保护，是因为它在 `PlayerLyricsProvider` 里绕
 
 ## 10. 未决问题
 
-1. **上游 `QQMusicSearchApi` 用的是匿名接口还是带凭据？** fork 侧有 `QQMusicVkeyRateLimiter`、`QQMusicCredentialRefresh`、QIMEI 设备号。若上游 API 无鉴权，直取 `getNativeLyrics` 可能对 VIP 歌曲拿空结果，则 PR-4 要把 fork 的带凭据客户端接进 `NativeLyricSearchApi`，而不是复用上游的。
+1. **（已查清）上游 `QQMusicSearchApi` 是匿名接口，不带凭据。**
+`AppContainer` 里构造为 `QQMusicSearchApi(sharedOkHttpClient, debugLogging = BuildConfig.DEBUG)`，
+没有 cookie、没有 QIMEI、没有 `QQMusicCredentialRefresh` / `QQMusicVkeyRateLimiter`。
+因此 `getNativeSongInfo(songmid)` / `getNativeLyrics(songMid)` 对 VIP 歌曲大概率返回空
+（fork 实测的 `result=104003`）。结论：PR-4 必须把 fork 的带凭据客户端接进
+`NativeLyricSearchApi`，不能复用上游那个匿名实例；在此之前，QQ 身份直取只对免费曲目有效，
+失败会走 §4.3 的回退路径，不会拿不到歌词。
 2. **AMLL / LrcLib 是否也该有身份类型？** `EditableLyricMatchSource` 六个源里还有 3 个没有身份入口。本设计只做 KuGou/QQMusic，但 sealed 结构要预留——若确定不做，就在 `EditableLyricIdentity` 的 KDoc 里写明"仅覆盖已知平台 ID 的三个源"，避免后来者往 sealed 里塞 `Unknown`。
