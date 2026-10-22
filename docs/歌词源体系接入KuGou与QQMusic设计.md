@@ -321,6 +321,12 @@ PR-1 和 PR-2 合完就可以先跑一次 CI，确认门禁全绿再动 PR-3—�
 相应地 §7 的 PR 拆分变成：PR-1 与 PR-2 合为一次 `:model` + `:platform` 改动，
 PR-3 只剩派生函数与接线，PR-4 不变。
 
+**4. §8 的"用户手工编辑的歌词不被覆盖"这条测试不用新写。**
+上游 `PlayerLyricsProviderTest` 已经断言了 `shouldTryPreferredLyricSource` 在
+`lyricSyncEdited` 为 true / false 两侧的期望，而且用的正是 `LyricSourcePreference.Kugou`。
+fork 之所以会丢这个保护，是因为它在 `PlayerLyricsProvider` 里绕过了该函数；
+取上游版本后保护自动回来，重复实现一份测试没有价值。
+
 ## 10. 未决问题
 
 1. **上游 `QQMusicSearchApi` 用的是匿名接口还是带凭据？** fork 侧有 `QQMusicVkeyRateLimiter`、`QQMusicCredentialRefresh`、QIMEI 设备号。若上游 API 无鉴权，直取 `getNativeLyrics` 可能对 VIP 歌曲拿空结果，则 PR-4 要把 fork 的带凭据客户端接进 `NativeLyricSearchApi`，而不是复用上游的。
