@@ -15,6 +15,10 @@ import moe.ouom.neriplayer.data.model.lyrics.matching.DEFAULT_EDITABLE_LYRIC_MAT
 import moe.ouom.neriplayer.common.search.SearchTextMatcher
 
 private const val MIN_EDITABLE_LYRIC_MATCH_SCORE = 35
+
+// 高于任何关键词组合能得到的分数：身份直取的候选本就来自同一首曲目，
+// 不该在排序上输给一个"名字很像"的搜索结果。
+private const val EXACT_IDENTITY_LYRIC_MATCH_SCORE = 1000
 private const val WORD_TIMED_LYRIC_MATCH_BONUS = 36
 private const val MIN_RELIABLE_LYRIC_TITLE_SCORE = 52
 private const val MIN_RELIABLE_LYRIC_ARTIST_SCORE = 24
@@ -81,10 +85,26 @@ fun rankEditableLyricMatches(
                 candidateArtist = candidate.artist,
                 durationCompatible = hasDurationSignal
             ) || (canUseKeywordFallback && (keywordScore > 0 || titleScore >= 20))
+            val supplementalSignals = evaluateLyricMatchSupplementalSignals(request, candidate)
+            if (candidate.exactIdentity) {
+                // 平台原生 ID 直取：不比对标题歌手时长，但塌缩时间轴仍然要降级，
+                // 否则一个过期 hash 会把错歌词钉死在这首歌上。
+                return@mapNotNull RankedEditableLyricMatch(
+                    candidate = candidate,
+                    score = EXACT_IDENTITY_LYRIC_MATCH_SCORE,
+                    durationDeltaMs = durationDeltaMs(request.durationMs, candidate.durationMs),
+                    confidence = if (supplementalSignals.timelineFit == EditableLyricTimelineFit.OVERFLOWS) {
+                        EditableLyricMatchConfidence.LOW
+                    } else {
+                        EditableLyricMatchConfidence.HIGH
+                    },
+                    hasWordTiming = hasWordTiming,
+                    timelineFit = supplementalSignals.timelineFit
+                )
+            }
             if (!hasPlausibleIdentity) {
                 return@mapNotNull null
             }
-            val supplementalSignals = evaluateLyricMatchSupplementalSignals(request, candidate)
             val score = titleScore +
                 artistScore +
                 albumScore +

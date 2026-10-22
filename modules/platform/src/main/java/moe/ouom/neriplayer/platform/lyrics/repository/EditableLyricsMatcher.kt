@@ -35,6 +35,7 @@ import moe.ouom.neriplayer.platform.lyrics.matching.scoreLyricMatchDuration
 import moe.ouom.neriplayer.platform.lyrics.matching.scoreLyricMatchKeyword
 import moe.ouom.neriplayer.platform.lyrics.matching.scoreLyricMatchTitle
 import moe.ouom.neriplayer.data.model.lyrics.matching.EditableLyricFormat
+import moe.ouom.neriplayer.data.model.lyrics.matching.EditableLyricIdentity
 import moe.ouom.neriplayer.data.model.lyrics.matching.EditableLyricMatchCandidate
 import moe.ouom.neriplayer.data.model.lyrics.matching.EditableLyricMatchConfidence
 import moe.ouom.neriplayer.data.model.lyrics.matching.EditableLyricMatchRequest
@@ -70,7 +71,7 @@ class EditableLyricsMatcher(
             trackName = request.trackName.trim(),
             artistName = request.artistName.trim()
         )
-        if (normalizedRequest.keyword.isBlank()) {
+        if (normalizedRequest.keyword.isBlank() && !hasUsableLyricIdentity(normalizedRequest)) {
             return emptyList()
         }
         if (normalizedRequest.sources.isEmpty()) {
@@ -150,7 +151,7 @@ class EditableLyricsMatcher(
             trackName = request.trackName.trim(),
             artistName = request.artistName.trim()
         )
-        if (normalizedRequest.keyword.isBlank()) {
+        if (normalizedRequest.keyword.isBlank() && !hasUsableLyricIdentity(normalizedRequest)) {
             return emptyList()
         }
         if (normalizedRequest.sources.isEmpty()) {
@@ -187,30 +188,81 @@ class EditableLyricsMatcher(
 
     private suspend fun searchKugou(request: EditableLyricMatchRequest): List<EditableLyricMatchCandidate> {
         return runSourceSearch("kugou") {
-            collectLyricSearchResults(
-                label = "kugou",
-                request = request,
-                key = { it.id }
-            ) { query ->
-                kugouLyricsClient.searchSongs(query)
-            }
-                .rankKugouForDetailLookup(request)
-                .mapNotNull { song ->
-                    val lyricPayload = kugouLyricsClient.getBestLyricPayload(song) ?: return@mapNotNull null
-                    EditableLyricMatchCandidate(
-                        id = song.id,
-                        source = EditableLyricMatchSource.KUGOU,
-                        title = song.title,
-                        artist = song.artist,
-                        album = song.album,
-                        durationMs = song.durationMs,
-                        lyrics = lyricPayload.lyrics,
-                        translatedLyrics = lyricPayload.translatedLyrics,
-                        format = resolveLyricFormat(lyricPayload.lyrics),
-                        sourceScore = 4
-                    )
-                }
+            kugouIdentityCandidate(request) ?: keywordKugouCandidates(request)
         }
+    }
+
+    /**
+     * 已知酷狗 hash 时直接取 KRC，跳过关键词搜索。
+     *
+     * 这里自己吞掉异常：外层 [runSourceSearch] 会把任何异常变成空列表，
+     * 那会让 `?: keywordKugouCandidates(...)` 的回退永远执行不到。
+     */
+    private suspend fun kugouIdentityCandidate(
+        request: EditableLyricMatchRequest
+    ): List<EditableLyricMatchCandidate>? {
+        val identity = request.identity as? EditableLyricIdentity.Kugou ?: return null
+        if (!identity.isUsable) return null
+        val payload = try {
+            kugouLyricsClient.getBestLyricPayload(
+                KugouSongSearchResult(
+                    id = identity.songId.orEmpty(),
+                    hash = identity.audioHash,
+                    title = request.trackName,
+                    artist = request.artistName,
+                    album = request.albumName,
+                    durationMs = request.durationMs
+                )
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            NPLogger.d(TAG, "Kugou identity lyric lookup failed: ${error.message}")
+            return null
+        } ?: return null
+        return listOf(
+            EditableLyricMatchCandidate(
+                id = identity.songId.orEmpty().ifBlank { identity.audioHash },
+                source = EditableLyricMatchSource.KUGOU,
+                title = request.trackName,
+                artist = request.artistName,
+                album = request.albumName,
+                durationMs = request.durationMs,
+                lyrics = payload.lyrics,
+                translatedLyrics = payload.translatedLyrics,
+                format = resolveLyricFormat(payload.lyrics),
+                sourceScore = 4,
+                exactIdentity = true
+            )
+        )
+    }
+
+    private suspend fun keywordKugouCandidates(
+        request: EditableLyricMatchRequest
+    ): List<EditableLyricMatchCandidate> {
+        return collectLyricSearchResults(
+            label = "kugou",
+            request = request,
+            key = { it.id }
+        ) { query ->
+            kugouLyricsClient.searchSongs(query)
+        }
+            .rankKugouForDetailLookup(request)
+            .mapNotNull { song ->
+                val lyricPayload = kugouLyricsClient.getBestLyricPayload(song) ?: return@mapNotNull null
+                EditableLyricMatchCandidate(
+                    id = song.id,
+                    source = EditableLyricMatchSource.KUGOU,
+                    title = song.title,
+                    artist = song.artist,
+                    album = song.album,
+                    durationMs = song.durationMs,
+                    lyrics = lyricPayload.lyrics,
+                    translatedLyrics = lyricPayload.translatedLyrics,
+                    format = resolveLyricFormat(lyricPayload.lyrics),
+                    sourceScore = 4
+                )
+            }
     }
 
     private suspend fun searchCloudMusic(request: EditableLyricMatchRequest): List<EditableLyricMatchCandidate> {
@@ -223,6 +275,7 @@ class EditableLyricsMatcher(
     }
 
     private suspend fun searchQqMusic(request: EditableLyricMatchRequest): List<EditableLyricMatchCandidate> {
+        qqMusicIdentityCandidate(request)?.let { return it }
         return searchSearchApi(
             request = request,
             api = qqMusicSearchApi,
@@ -230,6 +283,42 @@ class EditableLyricsMatcher(
             label = "qq"
         )
     }
+
+    /** 已知 songmid 时走原生详情接口一次取全文 + 翻译，不做关键词搜索。 */
+    private suspend fun qqMusicIdentityCandidate(
+        request: EditableLyricMatchRequest
+    ): List<EditableLyricMatchCandidate>? {
+        val identity = request.identity as? EditableLyricIdentity.QqMusic ?: return null
+        if (!identity.isUsable || qqMusicSearchApi !is NativeLyricSearchApi) return null
+        val details = try {
+            qqMusicSearchApi.getNativeSongInfo(identity.songMid)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            NPLogger.d(TAG, "QQ Music identity lyric lookup failed: ${error.message}")
+            return null
+        }
+        val lyric = details.lyric?.takeIf { it.isNotBlank() } ?: return null
+        return listOf(
+            EditableLyricMatchCandidate(
+                id = details.id.ifBlank { identity.songMid },
+                source = EditableLyricMatchSource.QQ_MUSIC,
+                title = details.songName,
+                artist = details.singer,
+                album = details.album,
+                durationMs = request.durationMs,
+                lyrics = lyric,
+                translatedLyrics = details.translatedLyric,
+                format = resolveLyricFormat(lyric),
+                sourceScore = 3,
+                coverUrl = details.coverUrl?.takeIf { it.isNotBlank() },
+                exactIdentity = true
+            )
+        )
+    }
+
+    private fun hasUsableLyricIdentity(request: EditableLyricMatchRequest): Boolean =
+        request.identity?.let { it.source in request.sources && it.isUsable } == true
 
     private suspend fun searchSearchApi(
         request: EditableLyricMatchRequest,
