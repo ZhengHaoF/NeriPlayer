@@ -34,7 +34,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import moe.ouom.neriplayer.common.R as CoreCommonR
+import moe.ouom.neriplayer.core.api.kugou.loadKugouChannelContent
+import moe.ouom.neriplayer.core.api.kugou.parseKugouSearchItem
+import moe.ouom.neriplayer.core.api.kugou.toSongItem
+import moe.ouom.neriplayer.core.api.qqmusic.QQMusicChannelContent
+import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicSongItem
+import moe.ouom.neriplayer.core.api.qqmusic.loadQQMusicChannelContent
 import moe.ouom.neriplayer.data.model.bilibili.collection.FavFolder
 import moe.ouom.neriplayer.data.model.bilibili.search.SearchVideoItem
 import moe.ouom.neriplayer.data.model.bilibili.video.VideoBasicInfo
@@ -49,7 +57,9 @@ import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
+import moe.ouom.neriplayer.core.player.PlayerManager.qqMusicSearchApi
 import moe.ouom.neriplayer.data.model.auth.SavedCookieAuthState
+import moe.ouom.neriplayer.data.model.music.SongSearchInfo
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
 import moe.ouom.neriplayer.platform.netease.mapping.parseNeteaseSongDetail
@@ -193,7 +203,13 @@ data class ExploreUiState(
     val isNeteaseLoggedIn: Boolean = false,
     val ytMusicPlaylists: List<YouTubeMusicPlaylist> = emptyList(),
     val ytMusicPlaylistsLoading: Boolean = false,
-    val ytMusicPlaylistsError: String? = null
+    val ytMusicPlaylistsError: String? = null,
+    val kugouContent: moe.ouom.neriplayer.core.api.kugou.KugouChannelContent? = null,
+    val kugouChannelLoading: Boolean = false,
+    val kugouChannelError: String? = null,
+    val qqMusicContent: moe.ouom.neriplayer.core.api.qqmusic.QQMusicChannelContent? = null,
+    val qqMusicChannelLoading: Boolean = false,
+    val qqMusicChannelError: String? = null
 )
 
 internal fun isNeteaseExploreSearchAvailable(authState: SavedCookieAuthState): Boolean {
@@ -337,6 +353,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private var highQualityLoadJob: Job? = null
     private var searchJob: Job? = null
     private var searchMoreJob: Job? = null
+    private var kugouChannelJob: Job? = null
+    private var qqMusicChannelJob: Job? = null
     private var ytMusicPlaylistsJob: Job? = null
     private var ytMusicPlaylistsPending = false
     private var searchRequestVersion = 0L
@@ -397,6 +415,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             searchDisplayQuery = "",
             searchError = null
         )
+        if (source == SearchSource.KUGOU) {
+            loadKugouChannel()
+        }
+        if (source == SearchSource.QQ_MUSIC) {
+            loadQQMusicChannel()
+        }
     }
 
     fun setNeteaseSearchType(type: NeteaseExploreSearchType) {
@@ -477,6 +501,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.NETEASE -> searchNetease(apiKeyword, matchQuery, requestVersion)
             SearchSource.BILIBILI -> searchBilibili(apiKeyword, matchQuery, requestVersion)
             SearchSource.YOUTUBE_MUSIC -> searchYouTubeMusic(apiKeyword, matchQuery, requestVersion)
+            SearchSource.KUGOU -> searchKugou(apiKeyword, matchQuery, requestVersion)
+            SearchSource.QQ_MUSIC -> searchQQMusic(apiKeyword, matchQuery, requestVersion)
             SearchSource.LINK_RECOGNITION -> searchRecognizedLink(apiKeyword, requestVersion)
         }
     }
@@ -522,6 +548,16 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         type = neteaseType
                     )
                     SearchSource.BILIBILI -> fetchBilibiliSearchPage(
+                        keyword = keyword,
+                        matchQuery = matchQuery,
+                        page = nextPage
+                    )
+                    SearchSource.KUGOU -> fetchKugouSearchPage(
+                        keyword = keyword,
+                        matchQuery = matchQuery,
+                        page = nextPage
+                    )
+                    SearchSource.QQ_MUSIC -> fetchQQMusicSearchPage(
                         keyword = keyword,
                         matchQuery = matchQuery,
                         page = nextPage
@@ -629,6 +665,232 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             page = searchPage.page,
             hasMore = searchPage.page < searchPage.numPages && searchPage.items.isNotEmpty()
         )
+    }
+
+    /** 搜索酷狗概念版（免登录） */
+    private fun searchKugou(keyword: String, matchQuery: String, requestVersion: Long) {
+        searchJob = viewModelScope.launch {
+            try {
+                val result = fetchKugouSearchPage(keyword, matchQuery, page = 1)
+                NPLogger.d(
+                    TAG,
+                    "search Kugou success: request=$requestVersion, keyword=$keyword, count=${result.items.size}, page=${result.page}, hasMore=${result.hasMore}"
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.KUGOU) {
+                    it.copy(
+                        searching = false,
+                        searchError = null,
+                        searchLoadMoreError = null,
+                        searchResults = result.songs,
+                        searchItems = result.items,
+                        searchPage = result.page,
+                        searchHasMore = result.hasMore
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(
+                    TAG,
+                    "search Kugou failed: request=$requestVersion, keyword=$keyword",
+                    e
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.KUGOU) {
+                    it.copy(
+                        searching = false,
+                        searchError = app.getString(
+                            CoreCommonR.string.error_kugou_search,
+                            e.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
+                        ),
+                        searchResults = emptyList(),
+                        searchItems = emptyList(),
+                        searchHasMore = false,
+                        searchLoadingMore = false,
+                        searchLoadMoreError = null,
+                        searchPage = 0
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchKugouSearchPage(
+        keyword: String,
+        matchQuery: String,
+        page: Int
+    ): ExploreSearchFetchResult {
+        val searchPage = withContext(Dispatchers.IO) {
+            AppContainer.kugouSession.ensureDeviceRegistered()
+            val response = AppContainer.kugouSession.client.search.search(
+                keywords = keyword,
+                page = page,
+                pageSize = 30
+            )
+            response.body["data"]?.jsonObject?.get("lists")?.jsonArray.orEmpty()
+        }
+        val songs = searchPage.mapNotNull { item ->
+            parseKugouSearchItem(item.jsonObject)?.toSongItem()
+        }
+        val ranked = rankExploreSongSearchResults(query = matchQuery, songs = songs)
+        return ExploreSearchFetchResult(
+            items = ranked.map { ExploreSearchResult.Song(it) },
+            page = page,
+            hasMore = searchPage.isNotEmpty()
+        )
+    }
+
+    /** 搜索 QQ音乐（匿名，免费曲目可直接入队播放）。 */
+    private fun searchQQMusic(keyword: String, matchQuery: String, requestVersion: Long) {
+        searchJob = viewModelScope.launch {
+            try {
+                val result = fetchQQMusicSearchPage(keyword, matchQuery, page = 1)
+                NPLogger.d(
+                    TAG,
+                    "search QQ Music success: request=$requestVersion, keyword=$keyword, " +
+                        "count=${result.items.size}, page=${result.page}, hasMore=${result.hasMore}"
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.QQ_MUSIC) {
+                    it.copy(
+                        searching = false,
+                        searchError = null,
+                        searchLoadMoreError = null,
+                        searchResults = result.songs,
+                        searchItems = result.items,
+                        searchPage = result.page,
+                        searchHasMore = result.hasMore
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(
+                    TAG,
+                    "search QQ Music failed: request=$requestVersion, keyword=$keyword",
+                    e
+                )
+                updateSearchStateIfCurrent(requestVersion, SearchSource.QQ_MUSIC) {
+                    it.copy(
+                        searching = false,
+                        searchError = searchErrorMessage(SearchSource.QQ_MUSIC, e),
+                        searchResults = emptyList(),
+                        searchItems = emptyList(),
+                        searchHasMore = false,
+                        searchLoadingMore = false,
+                        searchLoadMoreError = null,
+                        searchPage = 0
+                    )
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchQQMusicSearchPage(
+        keyword: String,
+        matchQuery: String,
+        page: Int
+    ): ExploreSearchFetchResult {
+        val songs = withContext(Dispatchers.IO) {
+            qqMusicSearchApi.search(keyword = keyword, page = page).map { it.toQQMusicSongItem() }
+        }
+        val ranked = rankExploreSongSearchResults(query = matchQuery, songs = songs)
+        return ExploreSearchFetchResult(
+            items = ranked.map { ExploreSearchResult.Song(it) },
+            page = page,
+            hasMore = songs.isNotEmpty()
+        )
+    }
+
+    /** QQ音乐搜索条目转可播放 [SongItem]（duration 为 "m:ss" 文本）。 */
+    private fun SongSearchInfo.toQQMusicSongItem(): SongItem {
+        val durationParts = duration.split(":")
+        val durationMs = if (durationParts.size == 2) {
+            (durationParts[0].toLongOrNull() ?: 0L) * 60_000L +
+                (durationParts[1].toLongOrNull() ?: 0L) * 1_000L
+        } else {
+            0L
+        }
+        return buildQQMusicSongItem(
+            songMid = id,
+            songName = songName,
+            singer = singer,
+            albumName = albumName,
+            durationMs = durationMs,
+            coverUrl = coverUrl
+        )
+    }
+
+    /** 加载酷狗概念版 tab 默认内容（榜单 + 热门歌单 + 每日推荐）。 */
+    internal fun loadKugouChannel() {
+        if (_uiState.value.kugouContent != null || _uiState.value.kugouChannelLoading) return
+        _uiState.value = _uiState.value.copy(
+            kugouChannelLoading = true,
+            kugouChannelError = null
+        )
+        kugouChannelJob?.cancel()
+        kugouChannelJob = viewModelScope.launch {
+            try {
+                val content = withContext(Dispatchers.IO) {
+                    AppContainer.kugouSession.loadKugouChannelContent()
+                }
+                NPLogger.d(
+                    TAG,
+                    "kugou channel loaded: ranks=${content.ranks.size}, playlists=${content.playlists.size}, daily=${content.dailyRecommend.size}"
+                )
+                _uiState.value = _uiState.value.copy(
+                    kugouContent = content,
+                    kugouChannelLoading = false,
+                    kugouChannelError = null
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(TAG, "kugou channel load failed", e)
+                _uiState.value = _uiState.value.copy(
+                    kugouChannelLoading = false,
+                    kugouChannelError = app.getString(
+                        CoreCommonR.string.error_kugou_search,
+                        e.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
+                    )
+                )
+            }
+        }
+    }
+
+    /** 加载 QQ音乐 tab 默认内容（排行榜 + 热门歌单）。 */
+    internal fun loadQQMusicChannel() {
+        if (_uiState.value.qqMusicContent != null || _uiState.value.qqMusicChannelLoading) return
+        _uiState.value = _uiState.value.copy(
+            qqMusicChannelLoading = true,
+            qqMusicChannelError = null
+        )
+        qqMusicChannelJob?.cancel()
+        qqMusicChannelJob = viewModelScope.launch {
+            try {
+                val content = withContext(Dispatchers.IO) {
+                    AppContainer.qqMusicSession.loadQQMusicChannelContent()
+                }
+                NPLogger.d(
+                    TAG,
+                    "qq music channel loaded: ranks=${content.ranks.size}, playlists=${content.playlists.size}"
+                )
+                _uiState.value = _uiState.value.copy(
+                    qqMusicContent = content,
+                    qqMusicChannelLoading = false,
+                    qqMusicChannelError = null
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                NPLogger.e(TAG, "qq music channel load failed", e)
+                _uiState.value = _uiState.value.copy(
+                    qqMusicChannelLoading = false,
+                    qqMusicChannelError = app.getString(
+                        CoreCommonR.string.error_qqmusic_search,
+                        e.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
+                    )
+                )
+            }
+        }
     }
 
     private fun beginSearchRequest(keyword: String, displayQuery: String): Long {
@@ -1372,6 +1634,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.NETEASE -> app.getString(CoreCommonR.string.error_netease_search, fallback)
             SearchSource.BILIBILI -> app.getString(CoreCommonR.string.error_bilibili_search, fallback)
             SearchSource.YOUTUBE_MUSIC -> app.getString(CoreCommonR.string.error_youtube_search, fallback)
+            SearchSource.KUGOU -> app.getString(CoreCommonR.string.error_kugou_search, fallback)
+            SearchSource.QQ_MUSIC -> app.getString(CoreCommonR.string.error_qqmusic_search, fallback)
             SearchSource.LINK_RECOGNITION -> app.getString(CoreCommonR.string.error_link_recognition, fallback)
         }
     }

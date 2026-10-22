@@ -43,13 +43,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.R
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
+import moe.ouom.neriplayer.platform.youtube.config.YouTubeFeatureGate
 import moe.ouom.neriplayer.data.settings.SettingsRepository
+import moe.ouom.neriplayer.ui.screen.tab.explore.exploreSearchSourceDisplayOrder
 import moe.ouom.neriplayer.ui.screen.tab.library.LibraryTab
-import moe.ouom.neriplayer.ui.screen.tab.exploreSearchSourceDisplayOrder
+import moe.ouom.neriplayer.ui.screen.tab.library.libraryTabDisplayOrder
 import moe.ouom.neriplayer.ui.screen.tab.formatExploreTabOrder
 import moe.ouom.neriplayer.ui.screen.tab.formatLibraryTabOrder
-import moe.ouom.neriplayer.ui.screen.tab.libraryTabDisplayOrder
 import moe.ouom.neriplayer.ui.screen.tab.parseExploreTabOrder
 import moe.ouom.neriplayer.ui.screen.tab.parseLibraryTabOrder
 import moe.ouom.neriplayer.ui.screen.tab.tabId
@@ -245,5 +245,4 @@ private fun libraryTabLabelRes(tab: LibraryTab): Int = when (tab) {
     LibraryTab.NETEASE, LibraryTab.NETEASEALBUM -> CoreCommonR.string.library_tab_netease
     LibraryTab.BILI -> CoreCommonR.string.library_tab_bilibili
     LibraryTab.QQMUSIC -> CoreCommonR.string.library_tab_qqmusic
-    LibraryTab.KUGOU -> CoreCommonR.string.library_tab_kugou
 }

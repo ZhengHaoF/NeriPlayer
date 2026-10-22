@@ -1,0 +1,412 @@
+diff --git a/app/src/main/java/moe/ouom/neriplayer/ui/screen/tab/SettingsScreen.kt b/app/src/main/java/moe/ouom/neriplayer/ui/screen/tab/SettingsScreen.kt
+index 72df7bbcc..62ea17aa9 100644
+--- a/app/src/main/java/moe/ouom/neriplayer/ui/screen/tab/SettingsScreen.kt
++++ b/app/src/main/java/moe/ouom/neriplayer/ui/screen/tab/SettingsScreen.kt
+@@ -1,4 +1,4 @@
+-﻿package moe.ouom.neriplayer.ui.screen.tab
++package moe.ouom.neriplayer.ui.screen.tab
+ 
+ /*
+  * NeriPlayer - A unified Android player for streaming music and videos from multiple online platforms.
+@@ -53,6 +53,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.foundation.text.BasicTextField
+ import androidx.compose.material.icons.Icons
+ import androidx.compose.material.icons.automirrored.outlined.AltRoute
++import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+ import androidx.compose.material.icons.outlined.AspectRatio
+ import androidx.compose.material.icons.outlined.Bolt
+ import androidx.compose.material.icons.outlined.BrightnessAuto
+@@ -70,6 +71,7 @@ import androidx.compose.material.icons.outlined.Radar
+ import androidx.compose.material.icons.outlined.RestartAlt
+ import androidx.compose.material.icons.outlined.Search
+ import androidx.compose.material.icons.outlined.Star
++import androidx.compose.material.icons.outlined.Tab
+ import androidx.compose.material.icons.outlined.TextFields
+ import androidx.compose.material.icons.outlined.Wallpaper
+ import androidx.compose.material.icons.outlined.ZoomInMap
+@@ -149,6 +151,7 @@ import moe.ouom.neriplayer.data.settings.generated.AutoSettingsMetadata
+ import moe.ouom.neriplayer.data.settings.generated.AutoSettingsRepository
+ import moe.ouom.neriplayer.data.settings.generated.AutoSettingsScopes
+ import moe.ouom.neriplayer.data.settings.generated.AutoSettingsSwitchItems
++import moe.ouom.neriplayer.core.player.url.qqMusicQualityLabel as resolveQQMusicQualityLabel
+ import moe.ouom.neriplayer.data.settings.normalizeMobileDataBiliAudioQuality
+ import moe.ouom.neriplayer.data.settings.normalizeMobileDataNeteaseAudioQuality
+ import moe.ouom.neriplayer.data.settings.normalizeMobileDataYouTubeAudioQuality
+@@ -334,6 +337,17 @@ private fun Context.biliQualityLabel(value: String): String {
+     }
+ }
+ 
++private fun Context.kugouQualityLabel(value: String): String {
++    return when (value) {
++        "128" -> getString(R.string.quality_standard)
++        "320" -> getString(R.string.settings_audio_quality_high)
++        "flac" -> getString(R.string.quality_lossless)
++        "high" -> getString(R.string.quality_hires)
++        "viper_tape" -> getString(R.string.quality_viper_tape)
++        else -> value
++    }
++}
++
+ @Composable
+ private fun SettingsSearchField(
+     query: String,
+@@ -465,6 +479,10 @@ fun SettingsScreen(
+     onYouTubeQualityChange: (String) -> Unit,
+     biliPreferredQuality: String,
+     onBiliQualityChange: (String) -> Unit,
++    kugouPreferredQuality: String,
++    onKugouQualityChange: (String) -> Unit,
++    qqMusicPreferredQuality: String,
++    onQqMusicQualityChange: (String) -> Unit,
+     mobileDataFollowDefaultAudioQuality: Boolean,
+     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
+     mobileDataNeteaseAudioQuality: String,
+@@ -580,6 +598,8 @@ fun SettingsScreen(
+     preemptAudioFocus: Boolean,
+     onPreemptAudioFocusChange: (Boolean) -> Unit,
+     onNavigateToDownloadManager: () -> Unit = {},
++    onNavigateToHomeSettings: () -> Unit = {},
++    onNavigateToTabOrderSettings: () -> Unit = {},
+     maxCacheSizeBytes: Long,
+     onMaxCacheSizeBytesChange: (Long) -> Unit,
+     onClearCacheClick: (StorageCacheClearOptions) -> Unit,
+@@ -661,6 +681,7 @@ fun SettingsScreen(
+     var showNeteaseSheet by remember { mutableStateOf(false) }
+     var showYouTubeQualityDialog by remember { mutableStateOf(false) }
+     var showBiliQualityDialog by remember { mutableStateOf(false) }
++    var showKugouQualityDialog by remember { mutableStateOf(false) }
+     var showMobileDataNeteaseQualityDialog by remember { mutableStateOf(false) }
+     var showMobileDataYouTubeQualityDialog by remember { mutableStateOf(false) }
+     var showMobileDataBiliQualityDialog by remember { mutableStateOf(false) }
+@@ -671,6 +692,11 @@ fun SettingsScreen(
+     var showBiliSavedCookieDialog by remember { mutableStateOf(false) }
+     var showYouTubeSheet by remember { mutableStateOf(false) }
+     var showYouTubeSavedCookieDialog by remember { mutableStateOf(false) }
++    var showKugouSheet by remember { mutableStateOf(false) }
++    var showKugouLogoutDialog by remember { mutableStateOf(false) }
++    var showQqMusicQualityDialog by remember { mutableStateOf(false) }
++    var showQqMusicSheet by remember { mutableStateOf(false) }
++    var showQqMusicLogoutDialog by remember { mutableStateOf(false) }
+ 
+     var showColorPickerDialog by remember { mutableStateOf(false) }
+     var showDpiDialog by remember { mutableStateOf(false) }
+@@ -1001,6 +1027,14 @@ fun SettingsScreen(
+         context.biliQualityLabel(biliPreferredQuality)
+     }
+ 
++    val kugouQualityLabel = remember(kugouPreferredQuality) {
++        context.kugouQualityLabel(kugouPreferredQuality)
++    }
++
++    val qqMusicQualityLabel = remember(qqMusicPreferredQuality) {
++        resolveQQMusicQualityLabel(qqMusicPreferredQuality) { context.getString(it) }
++    }
++
+     val youtubeQualityLabel = remember(youtubePreferredQuality) {
+         context.youtubeQualityLabel(youtubePreferredQuality)
+     }
+@@ -1537,6 +1571,22 @@ fun SettingsScreen(
+                                 inlineMsg = null
+                                 neteaseSheetInitialTab = 0
+                                 showNeteaseSheet = true
++                            },
++                            onOpenKugouSheet = {
++                                inlineMsg = null
++                                showKugouSheet = true
++                            },
++                            onKugouLogout = {
++                                inlineMsg = null
++                                showKugouLogoutDialog = true
++                            },
++                            onOpenQqMusicSheet = {
++                                inlineMsg = null
++                                showQqMusicSheet = true
++                            },
++                            onQqMusicLogout = {
++                                inlineMsg = null
++                                showQqMusicLogoutDialog = true
+                             }
+                         )
+                     }
+@@ -1566,6 +1616,8 @@ fun SettingsScreen(
+                                 onShowHomeRadarCardChange = onShowHomeRadarCardChange,
+                                 showHomeRecommendedCard = showHomeRecommendedCard,
+                                 onShowHomeRecommendedCardChange = onShowHomeRecommendedCardChange,
++                                onNavigateToHomeSettings = onNavigateToHomeSettings,
++                                onNavigateToTabOrderSettings = onNavigateToTabOrderSettings,
+                                 backgroundImageUri = backgroundImageUri,
+                                 onPickBackgroundImage = {
+                                     photoPickerLauncher.launch(
+@@ -1921,6 +1973,8 @@ fun SettingsScreen(
+ 
+                 SettingsPage.AudioQuality -> {
+                     miuixSettingsSectionCardItem("${selectedPage.name}:content") {
++                        val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow
++                            .collectAsState()
+                         SettingsAudioQualitySection(
+                             expanded = true,
+                             arrowRotation = 0f,
+@@ -1935,6 +1989,13 @@ fun SettingsScreen(
+                             biliQualityLabel = biliQualityLabel,
+                             biliPreferredQuality = biliPreferredQuality,
+                             onBiliQualityChange = onBiliQualityChange,
++                            kugouQualityLabel = kugouQualityLabel,
++                            kugouPreferredQuality = kugouPreferredQuality,
++                            onKugouQualityChange = onKugouQualityChange,
++                            qqMusicQualityLabel = qqMusicQualityLabel,
++                            qqMusicPreferredQuality = qqMusicPreferredQuality,
++                            onQqMusicQualityChange = onQqMusicQualityChange,
++                            qqMusicLoggedIn = qqMusicLoggedIn,
+                             mobileDataFollowDefaultAudioQuality = mobileDataFollowDefaultAudioQuality,
+                             onMobileDataFollowDefaultAudioQualityChange =
+                                 onMobileDataFollowDefaultAudioQualityChange,
+@@ -1955,6 +2016,12 @@ fun SettingsScreen(
+                             onShowYouTubeQualityDialogChange = { showYouTubeQualityDialog = it },
+                             showBiliQualityDialog = showBiliQualityDialog,
+                             onShowBiliQualityDialogChange = { showBiliQualityDialog = it },
++                            showKugouQualityDialog = showKugouQualityDialog,
++                            onShowKugouQualityDialogChange = { showKugouQualityDialog = it },
++                            showQqMusicQualityDialog = showQqMusicQualityDialog,
++                            onShowQqMusicQualityDialogChange = {
++                                showQqMusicQualityDialog = it
++                            },
+                             showMobileDataNeteaseQualityDialog = showMobileDataNeteaseQualityDialog,
+                             onShowMobileDataNeteaseQualityDialogChange = {
+                                 showMobileDataNeteaseQualityDialog = it
+@@ -2303,6 +2370,77 @@ fun SettingsScreen(
+             youtubeVm.clearAuth()
+         }
+     )
++
++    if (showKugouSheet) {
++        KugouQrLoginSheet(
++            onDismiss = { showKugouSheet = false },
++            onLoggedIn = {
++                showKugouSheet = false
++                loginSuccessTitle = composeResources.getString(
++                    R.string.settings_kugou_login_success
++                )
++            }
++        )
++    }
++
++    if (showQqMusicSheet) {
++        QQMusicQrLoginSheet(
++            onDismiss = { showQqMusicSheet = false },
++            onLoggedIn = {
++                showQqMusicSheet = false
++                loginSuccessTitle = composeResources.getString(
++                    R.string.settings_qqmusic_login_success
++                )
++            }
++        )
++    }
++
++    if (showQqMusicLogoutDialog) {
++        MiuixSettingsDialog(
++            onDismissRequest = { showQqMusicLogoutDialog = false },
++            title = { Text(stringResource(R.string.settings_qq_music)) },
++            text = { Text(stringResource(R.string.settings_qqmusic_logout_confirm)) },
++            confirmButton = {
++                MiuixSettingsTextButton(
++                    onClick = {
++                        showQqMusicLogoutDialog = false
++                        AppContainer.qqMusicSession.logout()
++                    }
++                ) {
++                    Text(stringResource(R.string.settings_saved_cookie_logout))
++                }
++            },
++            dismissButton = {
++                MiuixSettingsTextButton(onClick = { showQqMusicLogoutDialog = false }) {
++                    Text(stringResource(R.string.action_cancel))
++                }
++            }
++        )
++    }
++
++    if (showKugouLogoutDialog) {
++        MiuixSettingsDialog(
++            onDismissRequest = { showKugouLogoutDialog = false },
++            title = { Text(stringResource(R.string.platform_kugou)) },
++            text = { Text(stringResource(R.string.settings_kugou_logout_confirm)) },
++            confirmButton = {
++                MiuixSettingsTextButton(
++                    onClick = {
++                        showKugouLogoutDialog = false
++                        AppContainer.kugouSession.logout()
++                    }
++                ) {
++                    Text(stringResource(R.string.settings_saved_cookie_logout))
++                }
++            },
++            dismissButton = {
++                MiuixSettingsTextButton(onClick = { showKugouLogoutDialog = false }) {
++                    Text(stringResource(R.string.action_cancel))
++                }
++            }
++        )
++    }
++
+     loginSuccessTitle?.let { title ->
+         LoginSuccessDialog(
+             title = title,
+@@ -3186,6 +3324,8 @@ private fun SettingsPersonalizationPageContent(
+     onShowHomeRadarCardChange: (Boolean) -> Unit,
+     showHomeRecommendedCard: Boolean,
+     onShowHomeRecommendedCardChange: (Boolean) -> Unit,
++    onNavigateToHomeSettings: () -> Unit = {},
++    onNavigateToTabOrderSettings: () -> Unit = {},
+     backgroundImageUri: String?,
+     onPickBackgroundImage: () -> Unit,
+     onClearBackgroundImage: () -> Unit,
+@@ -3327,6 +3467,64 @@ private fun SettingsPersonalizationPageContent(
+                 onHighlightFinished = onHighlightFinished
+             )
+ 
++            ListItem(
++                modifier = Modifier.settingsItemClickable(onClick = onNavigateToHomeSettings),
++                leadingContent = {
++                    Icon(
++                        imageVector = Icons.Outlined.Home,
++                        contentDescription = null,
++                        modifier = Modifier.size(24.dp),
++                        tint = MaterialTheme.colorScheme.onSurface
++                    )
++                },
++                headlineContent = {
++                    Text(stringResource(R.string.settings_home_content_source_order))
++                },
++                supportingContent = {
++                    Text(
++                        text = stringResource(R.string.settings_home_content_source_order_desc),
++                        color = MaterialTheme.colorScheme.onSurfaceVariant
++                    )
++                },
++                trailingContent = {
++                    Icon(
++                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
++                        contentDescription = null,
++                        tint = MaterialTheme.colorScheme.onSurfaceVariant
++                    )
++                },
++                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
++            )
++
++            ListItem(
++                modifier = Modifier.settingsItemClickable(onClick = onNavigateToTabOrderSettings),
++                leadingContent = {
++                    Icon(
++                        imageVector = Icons.Outlined.Tab,
++                        contentDescription = null,
++                        modifier = Modifier.size(24.dp),
++                        tint = MaterialTheme.colorScheme.onSurface
++                    )
++                },
++                headlineContent = {
++                    Text(stringResource(R.string.settings_tab_order))
++                },
++                supportingContent = {
++                    Text(
++                        text = stringResource(R.string.settings_tab_order_desc),
++                        color = MaterialTheme.colorScheme.onSurfaceVariant
++                    )
++                },
++                trailingContent = {
++                    Icon(
++                        imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
++                        contentDescription = null,
++                        tint = MaterialTheme.colorScheme.onSurfaceVariant
++                    )
++                },
++                colors = ListItemDefaults.colors(containerColor = Color.Transparent)
++            )
++
+             LazyAnimatedVisibility(visible = !homeStartAvailable) {
+                 Text(
+                     text = stringResource(R.string.settings_home_hidden_notice),
+@@ -4159,11 +4357,18 @@ private fun SettingsLoginExpandedContent(
+     onOpenNeteaseSavedCookieDialog: () -> Unit,
+     onOpenYouTubeSheet: () -> Unit,
+     onOpenNeteaseSheet: () -> Unit,
++    onOpenKugouSheet: () -> Unit = {},
++    onKugouLogout: () -> Unit = {},
++    onOpenQqMusicSheet: () -> Unit = {},
++    onQqMusicLogout: () -> Unit = {},
+ ) {
+     val biliAuthUiState by biliVm.uiState.collectAsStateWithLifecycleCompat()
+     val youtubeAuthUiState by youtubeVm.uiState.collectAsStateWithLifecycleCompat()
+     val neteaseAuthUiState by neteaseVm.uiState.collectAsStateWithLifecycleCompat()
+ 
++    val kugouLoggedIn by AppContainer.kugouSession.loggedInFlow.collectAsState()
++    val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow.collectAsState()
++
+     LaunchedEffect(biliVm, youtubeVm, neteaseVm) {
+         biliVm.refreshAuthHealth()
+         neteaseVm.refreshAuthHealth()
+@@ -4232,6 +4437,16 @@ private fun SettingsLoginExpandedContent(
+             }
+         }
+     }
++    val kugouStatusText = if (kugouLoggedIn) {
++        stringResource(R.string.settings_kugou_status_valid)
++    } else {
++        stringResource(R.string.settings_kugou_status_missing)
++    }
++    val qqMusicStatusText = if (qqMusicLoggedIn) {
++        stringResource(R.string.settings_qqmusic_status_valid)
++    } else {
++        stringResource(R.string.settings_qqmusic_status_missing)
++    }
+ 
+     Column(
+         modifier = Modifier
+@@ -4308,6 +4523,29 @@ private fun SettingsLoginExpandedContent(
+             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+         )
+ 
++        ListItem(
++            leadingContent = {
++                Icon(
++                    painter = painterResource(id = R.drawable.ic_kugou),
++                    contentDescription = stringResource(R.string.platform_kugou),
++                    modifier = Modifier.size(24.dp),
++                    tint = MaterialTheme.colorScheme.onSurface
++                )
++            },
++            headlineContent = { Text(stringResource(R.string.platform_kugou)) },
++            supportingContent = { Text(kugouStatusText) },
++            modifier = Modifier.settingsItemClickable(
++                onClick = {
++                    if (kugouLoggedIn) {
++                        onKugouLogout()
++                    } else {
++                        onOpenKugouSheet()
++                    }
++                }
++            ),
++            colors = ListItemDefaults.colors(containerColor = Color.Transparent)
++        )
++
+         ListItem(
+             leadingContent = {
+                 Icon(
+@@ -4318,8 +4556,16 @@ private fun SettingsLoginExpandedContent(
+                 )
+             },
+             headlineContent = { Text(stringResource(R.string.settings_qq_music)) },
+-            supportingContent = { Text(stringResource(R.string.common_coming_soon)) },
+-            modifier = Modifier.settingsItemClickable { },
++            supportingContent = { Text(qqMusicStatusText) },
++            modifier = Modifier.settingsItemClickable(
++                onClick = {
++                    if (qqMusicLoggedIn) {
++                        onQqMusicLogout()
++                    } else {
++                        onOpenQqMusicSheet()
++                    }
++                }
++            ),
+             colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+         )
+     }

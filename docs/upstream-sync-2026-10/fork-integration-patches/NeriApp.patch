@@ -1,0 +1,30 @@
+diff --git a/app/src/main/java/moe/ouom/neriplayer/ui/NeriApp.kt b/app/src/main/java/moe/ouom/neriplayer/ui/NeriApp.kt
+index bf38dce20..69b4313ec 100644
+--- a/app/src/main/java/moe/ouom/neriplayer/ui/NeriApp.kt
++++ b/app/src/main/java/moe/ouom/neriplayer/ui/NeriApp.kt
+@@ -1938,6 +1938,12 @@ private fun NeriAppContent(
+     val preferredQuality by repo.audioQualityFlow.collectAsStateWithLifecycle(initialValue = "exhigh")
+     val youtubePreferredQuality by repo.youtubeAudioQualityFlow.collectAsStateWithLifecycle(initialValue = "high")
+     val biliPreferredQuality by repo.biliAudioQualityFlow.collectAsStateWithLifecycle(initialValue = "high")
++    val kugouPreferredQuality by repo.kugouAudioQualityFlow.collectAsStateWithLifecycle(
++        initialValue = startupPlaybackPreferences.kugouAudioQuality
++    )
++    val qqMusicPreferredQuality by repo.qqMusicAudioQualityFlow.collectAsStateWithLifecycle(
++        initialValue = startupPlaybackPreferences.qqMusicAudioQuality
++    )
+     val mobileDataFollowDefaultAudioQuality by repo.mobileDataFollowDefaultAudioQualityFlow.collectAsStateWithLifecycle(
+         initialValue = startupPlaybackPreferences.mobileDataFollowDefaultAudioQuality
+     )
+@@ -2857,6 +2863,12 @@ private fun NeriAppContent(
+                         },
+                         biliPreferredQuality = biliPreferredQuality,
+                         onBiliQualityChange = { scope.launch { repo.setBiliAudioQuality(it) } },
++                        kugouPreferredQuality = kugouPreferredQuality,
++                        onKugouQualityChange = { scope.launch { repo.setKugouAudioQuality(it) } },
++                        qqMusicPreferredQuality = qqMusicPreferredQuality,
++                        onQqMusicQualityChange = {
++                            scope.launch { repo.setQqMusicAudioQuality(it) }
++                        },
+                         mobileDataFollowDefaultAudioQuality =
+                             mobileDataFollowDefaultAudioQuality,
+                         onMobileDataFollowDefaultAudioQualityChange = { enabled ->

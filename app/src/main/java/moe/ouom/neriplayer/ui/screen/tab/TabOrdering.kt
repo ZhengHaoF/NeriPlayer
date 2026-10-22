@@ -22,6 +22,8 @@ package moe.ouom.neriplayer.ui.screen.tab
  * File: moe.ouom.neriplayer.ui.screen.tab/TabOrdering
  */
 
+import moe.ouom.neriplayer.ui.screen.tab.explore.exploreSearchSourceDisplayOrder
+import moe.ouom.neriplayer.ui.screen.tab.library.libraryTabDisplayOrder
 import moe.ouom.neriplayer.ui.screen.tab.library.LibraryTab
 import moe.ouom.neriplayer.ui.viewmodel.tab.SearchSource
 
@@ -54,7 +56,6 @@ internal val LibraryTab.tabId: String
         LibraryTab.NETEASEALBUM -> "netease_album"
         LibraryTab.BILI -> "bilibili"
         LibraryTab.QQMUSIC -> "qq_music"
-        LibraryTab.KUGOU -> "kugou"
     }
 
 /** 解析设置存储的探索页标签顺序字符串；未知 id 丢弃并去重。 */

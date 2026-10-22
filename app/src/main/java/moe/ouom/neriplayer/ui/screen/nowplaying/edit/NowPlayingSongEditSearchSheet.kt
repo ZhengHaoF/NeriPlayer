@@ -152,6 +152,7 @@ private fun EditSongSearchAvailabilityMessage(searchEnabled: Boolean) {
 internal fun musicPlatformLabelResource(platform: MusicPlatform): Int = when (platform) {
     MusicPlatform.CLOUD_MUSIC -> CoreCommonR.string.platform_netease_short
     MusicPlatform.QQ_MUSIC -> CoreCommonR.string.settings_qq_music
+    MusicPlatform.KUGOU -> CoreCommonR.string.platform_kugou_short
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,0 +1,14 @@
+diff --git a/app/src/main/java/moe/ouom/neriplayer/ui/viewmodel/NowPlayingViewModel.kt b/app/src/main/java/moe/ouom/neriplayer/ui/viewmodel/NowPlayingViewModel.kt
+index 546cb1a5d..f44c71b55 100644
+--- a/app/src/main/java/moe/ouom/neriplayer/ui/viewmodel/NowPlayingViewModel.kt
++++ b/app/src/main/java/moe/ouom/neriplayer/ui/viewmodel/NowPlayingViewModel.kt
+@@ -459,6 +459,9 @@ class NowPlayingViewModel : ViewModel() {
+                         moe.ouom.neriplayer.core.api.search.CloudMusicSearchApi(client)
+                     }
+                     MusicPlatform.QQ_MUSIC -> moe.ouom.neriplayer.core.api.search.QQMusicSearchApi()
++                    MusicPlatform.KUGOU -> moe.ouom.neriplayer.core.api.kugou.KugouSearchApi(
++                        AppContainer.kugouSession
++                    )
+                 }
+ 
+                 val songDetails = api.getSongInfo(selectedSong.id)

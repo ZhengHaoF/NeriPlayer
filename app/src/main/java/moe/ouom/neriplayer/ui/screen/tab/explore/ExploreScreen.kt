@@ -23,6 +23,8 @@ package moe.ouom.neriplayer.ui.screen.tab.explore
  * Created: 2025/8/8
  */
 
+import moe.ouom.neriplayer.ui.screen.tab.KugouExploreContent
+import moe.ouom.neriplayer.ui.screen.tab.QQMusicExploreContent
 import moe.ouom.neriplayer.ui.component.common.NeriSearchFieldGlass
 import androidx.compose.foundation.clickable
 import androidx.compose.ui.semantics.semantics
@@ -321,6 +323,8 @@ private fun searchSourceLabel(source: SearchSource): String {
         SearchSource.YOUTUBE_MUSIC -> stringResource(CoreCommonR.string.explore_tab_youtube)
         SearchSource.NETEASE -> stringResource(CoreCommonR.string.platform_netease_short)
         SearchSource.BILIBILI -> stringResource(CoreCommonR.string.platform_bilibili)
+        SearchSource.KUGOU -> stringResource(CoreCommonR.string.explore_tab_kugou)
+        SearchSource.QQ_MUSIC -> stringResource(CoreCommonR.string.explore_tab_qqmusic)
         SearchSource.LINK_RECOGNITION -> stringResource(CoreCommonR.string.explore_tab_links)
     }
 }
@@ -1164,6 +1168,24 @@ fun ExploreScreen(
                                 offlineMode = offlineMode,
                                 isTabletLayout = isTabletLayout,
                                 gridState = youtubeGridState
+                            )
+                        }
+                        SearchSource.KUGOU -> {
+                            KugouExploreContent(
+                                content = ui.kugouContent,
+                                loading = ui.kugouChannelLoading,
+                                error = ui.kugouChannelError,
+                                onRetry = vm::loadKugouChannel,
+                                onSongClick = { songs, index -> onSongClick(songs, index) }
+                            )
+                        }
+                        SearchSource.QQ_MUSIC -> {
+                            QQMusicExploreContent(
+                                content = ui.qqMusicContent,
+                                loading = ui.qqMusicChannelLoading,
+                                error = ui.qqMusicChannelError,
+                                onRetry = vm::loadQQMusicChannel,
+                                onSongClick = { songs, index -> onSongClick(songs, index) }
                             )
                         }
                         SearchSource.LINK_RECOGNITION -> {

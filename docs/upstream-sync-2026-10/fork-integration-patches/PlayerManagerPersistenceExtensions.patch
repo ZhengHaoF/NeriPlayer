@@ -1,0 +1,12 @@
+diff --git a/app/src/main/java/moe/ouom/neriplayer/core/player/persistence/PlayerManagerPersistenceExtensions.kt b/app/src/main/java/moe/ouom/neriplayer/core/player/persistence/PlayerManagerPersistenceExtensions.kt
+index 09b058cc2..c7fd9b314 100644
+--- a/app/src/main/java/moe/ouom/neriplayer/core/player/persistence/PlayerManagerPersistenceExtensions.kt
++++ b/app/src/main/java/moe/ouom/neriplayer/core/player/persistence/PlayerManagerPersistenceExtensions.kt
+@@ -1581,6 +1581,7 @@ internal fun PlayerManager.replaceMetadataFromSearchImpl(
+             val api = when (platform) {
+                 MusicPlatform.CLOUD_MUSIC -> cloudMusicSearchApi
+                 MusicPlatform.QQ_MUSIC -> qqMusicSearchApi
++                MusicPlatform.KUGOU -> kugouSearchApi
+             }
+ 
+             val (newDetails, usedSearchSummaryFallback) = try {

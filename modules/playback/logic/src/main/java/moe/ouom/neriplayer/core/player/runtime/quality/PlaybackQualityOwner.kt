@@ -26,6 +26,8 @@ class PlaybackQualityOwner(
     val neteasePreferredQuality: String get() = mutablePreferredKeys.value.netease
     val youtubePreferredQuality: String get() = mutablePreferredKeys.value.youtube
     val biliPreferredQuality: String get() = mutablePreferredKeys.value.bili
+    val kugouPreferredQuality: String get() = mutablePreferredKeys.value.kugou
+    val qqMusicPreferredQuality: String get() = mutablePreferredKeys.value.qqMusic
 
     fun rebindScope(scope: CoroutineScope) {
         refreshJobs.values.forEach { it.cancel() }
@@ -40,8 +42,7 @@ class PlaybackQualityOwner(
             PlaybackAudioSource.YOUTUBE_MUSIC -> current.copy(youtube = key)
             PlaybackAudioSource.BILIBILI -> current.copy(bili = key)
             PlaybackAudioSource.KUGOU -> current.copy(kugou = key)
-            // QQ 音乐匿名态只有免费档可切，音质偏好持久化随登录能力一并开放
-            PlaybackAudioSource.QQ_MUSIC -> current
+            PlaybackAudioSource.QQ_MUSIC -> current.copy(qqMusic = key)
             PlaybackAudioSource.LOCAL -> current
         }
     }

@@ -276,6 +276,8 @@ internal fun localPlaylistIdForSong(source: LocalPlaylistPlaybackSource?, song: 
 object PlayerManager {
     const val BILI_SOURCE_TAG = PlaybackMediaItemFactory.BILI_SOURCE_TAG
     const val NETEASE_SOURCE_TAG = moe.ouom.neriplayer.data.model.SongSourceTags.NETEASE
+    const val KUGOU_SOURCE_TAG = moe.ouom.neriplayer.data.model.SongSourceTags.KUGOU
+    const val QQMUSIC_SOURCE_TAG = moe.ouom.neriplayer.data.model.SongSourceTags.QQ_MUSIC
 
     @Volatile
     internal var initialized = false
@@ -410,6 +412,12 @@ object PlayerManager {
     internal var biliPreferredQuality: String
         get() = playbackQualityOwner.biliPreferredQuality
         set(value) = playbackQualityOwner.setPreferredQuality(PlaybackAudioSource.BILIBILI, value)
+    internal var kugouPreferredQuality: String
+        get() = playbackQualityOwner.kugouPreferredQuality
+        set(value) = playbackQualityOwner.setPreferredQuality(PlaybackAudioSource.KUGOU, value)
+    internal var qqMusicPreferredQuality: String
+        get() = playbackQualityOwner.qqMusicPreferredQuality
+        set(value) = playbackQualityOwner.setPreferredQuality(PlaybackAudioSource.QQ_MUSIC, value)
 
     /**
      * 各平台的音质偏好, 供切换弹窗回显

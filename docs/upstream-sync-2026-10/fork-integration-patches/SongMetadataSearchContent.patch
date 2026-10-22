@@ -1,0 +1,11 @@
+diff --git a/app/src/main/java/moe/ouom/neriplayer/ui/component/playback/SongMetadataSearchContent.kt b/app/src/main/java/moe/ouom/neriplayer/ui/component/playback/SongMetadataSearchContent.kt
+index d429b6873..6e7d6309e 100644
+--- a/app/src/main/java/moe/ouom/neriplayer/ui/component/playback/SongMetadataSearchContent.kt
++++ b/app/src/main/java/moe/ouom/neriplayer/ui/component/playback/SongMetadataSearchContent.kt
+@@ -365,5 +365,6 @@ private fun musicPlatformLabel(platform: MusicPlatform): String {
+     return when (platform) {
+         MusicPlatform.CLOUD_MUSIC -> stringResource(R.string.platform_netease_short)
+         MusicPlatform.QQ_MUSIC -> stringResource(R.string.settings_qq_music)
++        MusicPlatform.KUGOU -> stringResource(R.string.explore_tab_kugou)
+     }
+ }
