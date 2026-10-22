@@ -39,6 +39,18 @@ class SettingsHostScreenStateTest {
     }
 
     @Test
+    fun nextTowards_settingsToTabOrderSettings_jumpsDirectly() {
+        assertEquals(
+            SettingsScreenState.TabOrderSettings,
+            SettingsScreenState.Settings.nextTowards(SettingsScreenState.TabOrderSettings)
+        )
+        assertEquals(
+            SettingsScreenState.Settings,
+            SettingsScreenState.TabOrderSettings.nextTowards(SettingsScreenState.Settings)
+        )
+    }
+
+    @Test
     fun nextTowards_sameState_stays() {
         assertEquals(
             SettingsScreenState.Settings,

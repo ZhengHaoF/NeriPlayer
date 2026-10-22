@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Explore
 import androidx.compose.material.icons.outlined.History
@@ -16,6 +17,7 @@ import androidx.compose.material.icons.outlined.LiveTv
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Radar
 import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.Tab
 import androidx.compose.material.icons.outlined.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ListItem
@@ -137,6 +139,8 @@ internal fun SettingsPersonalizationHomeCard(
     onShowHomeRadarCardChange: (Boolean) -> Unit,
     showHomeRecommendedCard: Boolean,
     onShowHomeRecommendedCardChange: (Boolean) -> Unit,
+    onNavigateToHomeSettings: () -> Unit,
+    onNavigateToTabOrderSettings: () -> Unit,
     showHomeBilibiliCard: Boolean,
     onShowHomeBilibiliCardChange: (Boolean) -> Unit,
     highlightTargetId: String?,
@@ -213,6 +217,20 @@ internal fun SettingsPersonalizationHomeCard(
             onHighlightFinished = onHighlightFinished
         )
 
+        PersonalizationNavItem(
+            icon = Icons.Outlined.Home,
+            titleRes = CoreCommonR.string.settings_home_content_source_order,
+            descriptionRes = CoreCommonR.string.settings_home_content_source_order_desc,
+            onClick = onNavigateToHomeSettings
+        )
+
+        PersonalizationNavItem(
+            icon = Icons.Outlined.Tab,
+            titleRes = CoreCommonR.string.settings_tab_order,
+            descriptionRes = CoreCommonR.string.settings_tab_order_desc,
+            onClick = onNavigateToTabOrderSettings
+        )
+
         LazyAnimatedVisibility(visible = !homeStartAvailable) {
             Text(
                 text = stringResource(CoreCommonR.string.settings_home_hidden_notice),
@@ -226,6 +244,41 @@ internal fun SettingsPersonalizationHomeCard(
 
 @Composable
 private fun optionalStringResource(resId: Int?): String? = resId?.let { stringResource(it) }
+
+@Composable
+private fun PersonalizationNavItem(
+    icon: ImageVector,
+    titleRes: Int,
+    descriptionRes: Int,
+    onClick: () -> Unit
+) {
+    ListItem(
+        modifier = Modifier.settingsItemClickable(onClick = onClick),
+        leadingContent = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = MaterialTheme.colorScheme.onSurface
+            )
+        },
+        headlineContent = { Text(stringResource(titleRes)) },
+        supportingContent = {
+            Text(
+                text = stringResource(descriptionRes),
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent)
+    )
+}
 
 private fun homeRadarIcon(internationalEnabled: Boolean): ImageVector =
     if (internationalEnabled) Icons.Outlined.Explore else Icons.Outlined.Radar

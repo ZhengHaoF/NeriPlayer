@@ -92,7 +92,9 @@ internal data class AppDefaultAudioQualitySettingsState(
     val preferredQuality: String,
     val youtubePreferredQuality: String,
     val biliPreferredQuality: String,
-    val mobileDataFollowDefaultAudioQuality: Boolean
+    val mobileDataFollowDefaultAudioQuality: Boolean,
+    val kugouPreferredQuality: String,
+    val qqMusicPreferredQuality: String
 )
 
 internal data class AppMobileAudioQualitySettingsState(
@@ -270,9 +272,20 @@ private fun defaultAudioQualitySettingsFlow(repo: SettingsRepository): Flow<AppD
         repo.audioQualityFlow,
         repo.youtubeAudioQualityFlow,
         repo.biliAudioQualityFlow,
-        repo.mobileDataFollowDefaultAudioQualityFlow
-    ) { v0, v1, v2, v3 ->
-        AppDefaultAudioQualitySettingsState(v0, v1, v2, v3)
+        repo.mobileDataFollowDefaultAudioQualityFlow,
+        // combine 只有到五路的类型化重载，酷狗 / QQ 这两个同源档位先并成一对。
+        combine(repo.kugouAudioQualityFlow, repo.qqMusicAudioQualityFlow) { kugou, qqMusic ->
+            kugou to qqMusic
+        }
+    ) { v0, v1, v2, v3, platformQualities ->
+        AppDefaultAudioQualitySettingsState(
+            preferredQuality = v0,
+            youtubePreferredQuality = v1,
+            biliPreferredQuality = v2,
+            mobileDataFollowDefaultAudioQuality = v3,
+            kugouPreferredQuality = platformQualities.first,
+            qqMusicPreferredQuality = platformQualities.second
+        )
     }
 
 private fun mobileAudioQualitySettingsFlow(repo: SettingsRepository): Flow<AppMobileAudioQualitySettingsState> =
@@ -418,7 +431,9 @@ internal fun initialAppSettingsRouteState(
             preferredQuality = "exhigh",
             youtubePreferredQuality = "high",
             biliPreferredQuality = "high",
-            mobileDataFollowDefaultAudioQuality = startupPlaybackPreferences.mobileDataFollowDefaultAudioQuality
+            mobileDataFollowDefaultAudioQuality = startupPlaybackPreferences.mobileDataFollowDefaultAudioQuality,
+            kugouPreferredQuality = startupPlaybackPreferences.kugouAudioQuality,
+            qqMusicPreferredQuality = startupPlaybackPreferences.qqMusicAudioQuality
         ),
         mobileAudioQuality = AppMobileAudioQualitySettingsState(
             mobileDataNeteaseAudioQuality = startupPlaybackPreferences.mobileDataNeteaseAudioQuality,

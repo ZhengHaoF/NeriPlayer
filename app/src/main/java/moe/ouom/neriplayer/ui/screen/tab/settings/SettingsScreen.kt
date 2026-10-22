@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import moe.ouom.neriplayer.common.R as CoreCommonR
+import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.data.settings.background.BackgroundImageStorage
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingsKeys
 import moe.ouom.neriplayer.ui.settings.AutoSettingsListItem
@@ -158,7 +159,9 @@ internal fun SettingsScreen(
     listState: LazyListState,
     bindings: AppSettingsHostBindings,
     isActive: Boolean,
-    onNavigateToDownloadManager: () -> Unit
+    onNavigateToDownloadManager: () -> Unit,
+    onNavigateToHomeSettings: () -> Unit,
+    onNavigateToTabOrderSettings: () -> Unit
 ) {
     val appearanceState = bindings.state.appearance
     val configuration = LocalConfiguration.current
@@ -211,6 +214,8 @@ internal fun SettingsScreen(
     var showQualityDialog by remember { mutableStateOf(false) }
     var showYouTubeQualityDialog by remember { mutableStateOf(false) }
     var showBiliQualityDialog by remember { mutableStateOf(false) }
+    var showKugouQualityDialog by remember { mutableStateOf(false) }
+    var showQqMusicQualityDialog by remember { mutableStateOf(false) }
     var showMobileDataNeteaseQualityDialog by remember { mutableStateOf(false) }
     var showMobileDataYouTubeQualityDialog by remember { mutableStateOf(false) }
     var showMobileDataBiliQualityDialog by remember { mutableStateOf(false) }
@@ -253,10 +258,14 @@ internal fun SettingsScreen(
         neteaseValue = playbackState.defaultAudioQuality.preferredQuality,
         youtubeValue = playbackState.defaultAudioQuality.youtubePreferredQuality,
         biliValue = playbackState.defaultAudioQuality.biliPreferredQuality,
+        kugouValue = playbackState.defaultAudioQuality.kugouPreferredQuality,
+        qqMusicValue = playbackState.defaultAudioQuality.qqMusicPreferredQuality,
         mobileNeteaseValue = playbackState.mobileAudioQuality.mobileDataNeteaseAudioQuality,
         mobileYouTubeValue = playbackState.mobileAudioQuality.mobileDataYouTubeAudioQuality,
         mobileBiliValue = playbackState.mobileAudioQuality.mobileDataBiliAudioQuality
     )
+    val qqMusicLoggedIn by AppContainer.qqMusicSession.loggedInFlow
+        .collectAsStateWithLifecycle(initialValue = false)
 
     val homeStartPresentation = rememberSettingsHomeStartPresentation(
         resources = composeResources,
@@ -581,6 +590,8 @@ internal fun SettingsScreen(
                                     onShowHomeRadarCardChange = homeActions.onShowHomeRadarCardChange,
                                     showHomeRecommendedCard = otherState.homeCards.showHomeRecommendedCard,
                                     onShowHomeRecommendedCardChange = homeActions.onShowHomeRecommendedCardChange,
+                                    onNavigateToHomeSettings = onNavigateToHomeSettings,
+                                    onNavigateToTabOrderSettings = onNavigateToTabOrderSettings,
                                     showHomeBilibiliCard = otherState.homeCards.showHomeBilibiliCard,
                                     onShowHomeBilibiliCardChange = homeActions.onShowHomeBilibiliCardChange,
                                     highlightTargetId = settingsHighlightTargetId,
@@ -1007,6 +1018,13 @@ internal fun SettingsScreen(
                                     biliQualityLabel = qualityPresentation.biliLabel,
                                     biliPreferredQuality = playbackState.defaultAudioQuality.biliPreferredQuality,
                                     onBiliQualityChange = qualityActions.onBiliQualityChange,
+                                    kugouQualityLabel = qualityPresentation.kugouLabel,
+                                    kugouPreferredQuality = playbackState.defaultAudioQuality.kugouPreferredQuality,
+                                    onKugouQualityChange = qualityActions.onKugouQualityChange,
+                                    qqMusicQualityLabel = qualityPresentation.qqMusicLabel,
+                                    qqMusicPreferredQuality = playbackState.defaultAudioQuality.qqMusicPreferredQuality,
+                                    onQqMusicQualityChange = qualityActions.onQqMusicQualityChange,
+                                    qqMusicLoggedIn = qqMusicLoggedIn,
                                     mobileDataFollowDefaultAudioQuality = playbackState.defaultAudioQuality.mobileDataFollowDefaultAudioQuality,
                                     onMobileDataFollowDefaultAudioQualityChange =
                                         qualityActions.onMobileDataFollowDefaultAudioQualityChange,
@@ -1029,6 +1047,10 @@ internal fun SettingsScreen(
                                     },
                                     showBiliQualityDialog = showBiliQualityDialog,
                                     onShowBiliQualityDialogChange = { showBiliQualityDialog = it },
+                                    showKugouQualityDialog = showKugouQualityDialog,
+                                    onShowKugouQualityDialogChange = { showKugouQualityDialog = it },
+                                    showQqMusicQualityDialog = showQqMusicQualityDialog,
+                                    onShowQqMusicQualityDialogChange = { showQqMusicQualityDialog = it },
                                     showMobileDataNeteaseQualityDialog = showMobileDataNeteaseQualityDialog,
                                     onShowMobileDataNeteaseQualityDialogChange = {
                                         showMobileDataNeteaseQualityDialog = it

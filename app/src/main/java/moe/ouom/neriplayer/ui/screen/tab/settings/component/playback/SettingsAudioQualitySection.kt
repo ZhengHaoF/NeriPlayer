@@ -47,12 +47,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import moe.ouom.neriplayer.common.R as CoreCommonR
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingInfo
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingsKeys
+import moe.ouom.neriplayer.data.model.playback.KUGOU_HI_RES_QUALITY
+import moe.ouom.neriplayer.data.model.playback.KUGOU_LOSSLESS_QUALITY
+import moe.ouom.neriplayer.data.model.playback.KUGOU_VIPER_TAPE_QUALITY
+import moe.ouom.neriplayer.data.model.playback.QQ_MUSIC_ANONYMOUS_FALLBACK_QUALITY
+import moe.ouom.neriplayer.data.model.playback.QQ_MUSIC_FREE_QUALITY
+import moe.ouom.neriplayer.data.model.playback.QQMUSIC_QUALITY_FALLBACK_ORDER
+import moe.ouom.neriplayer.platform.quality.buildKugouQualityOptions
+import moe.ouom.neriplayer.platform.quality.buildQQMusicQualityOptions
 import moe.ouom.neriplayer.ui.settings.AutoSettingsListItem
 import moe.ouom.neriplayer.data.settings.generated.AutoSettingsMetadata
 import moe.ouom.neriplayer.ui.screen.tab.settings.miuix.MiuixSettingsChoiceRow
@@ -75,9 +84,20 @@ private val NETEASE_MEMBER_QUALITIES = setOf(
     NETEASE_MASTER_QUALITY
 )
 
+private val KUGOU_MEMBER_QUALITIES = setOf(
+    KUGOU_LOSSLESS_QUALITY,
+    KUGOU_HI_RES_QUALITY,
+    KUGOU_VIPER_TAPE_QUALITY
+)
+
+private val QQMUSIC_MEMBER_QUALITIES =
+    (QQMUSIC_QUALITY_FALLBACK_ORDER - QQ_MUSIC_FREE_QUALITY - QQ_MUSIC_ANONYMOUS_FALLBACK_QUALITY).toSet()
+
 private enum class AudioQualityNotice {
     NeteaseMemberQuality,
-    BiliDolby
+    BiliDolby,
+    KugouMemberQuality,
+    QqMusicMemberQuality
 }
 
 @Composable
@@ -95,6 +115,13 @@ internal fun SettingsAudioQualitySection(
     biliQualityLabel: String,
     biliPreferredQuality: String,
     onBiliQualityChange: (String) -> Unit,
+    kugouQualityLabel: String,
+    kugouPreferredQuality: String,
+    onKugouQualityChange: (String) -> Unit,
+    qqMusicQualityLabel: String,
+    qqMusicPreferredQuality: String,
+    onQqMusicQualityChange: (String) -> Unit,
+    qqMusicLoggedIn: Boolean,
     mobileDataFollowDefaultAudioQuality: Boolean,
     onMobileDataFollowDefaultAudioQualityChange: (Boolean) -> Unit,
     mobileDataNeteaseQualityLabel: String,
@@ -112,6 +139,10 @@ internal fun SettingsAudioQualitySection(
     onShowYouTubeQualityDialogChange: (Boolean) -> Unit,
     showBiliQualityDialog: Boolean,
     onShowBiliQualityDialogChange: (Boolean) -> Unit,
+    showKugouQualityDialog: Boolean,
+    onShowKugouQualityDialogChange: (Boolean) -> Unit,
+    showQqMusicQualityDialog: Boolean,
+    onShowQqMusicQualityDialogChange: (Boolean) -> Unit,
     showMobileDataNeteaseQualityDialog: Boolean,
     onShowMobileDataNeteaseQualityDialogChange: (Boolean) -> Unit,
     showMobileDataYouTubeQualityDialog: Boolean,
@@ -123,6 +154,13 @@ internal fun SettingsAudioQualitySection(
     onHighlightFinished: (() -> Unit)? = null
 ) {
     var audioQualityNotice by remember { mutableStateOf<AudioQualityNotice?>(null) }
+    val context = LocalContext.current
+    val kugouQualityOptions = remember(context) {
+        buildKugouQualityOptions(context::getString).map { it.key to it.label }
+    }
+    val qqMusicQualityOptions = remember(context) {
+        buildQQMusicQualityOptions(context::getString).map { it.key to it.label }
+    }
 
     if (showHeader) {
         ExpandableHeader(
@@ -179,6 +217,28 @@ internal fun SettingsAudioQualitySection(
                 preferredQuality = biliPreferredQuality,
                 iconRes = CoreCommonR.drawable.ic_bilibili,
                 onClick = { onShowBiliQualityDialogChange(true) },
+                highlightTargetId = highlightTargetId,
+                highlightPulse = highlightPulse,
+                onHighlightFinished = onHighlightFinished
+            )
+
+            AudioQualityListItem(
+                setting = AutoSettingsMetadata.requireSetting(AutoSettingsKeys.KUGOU_AUDIO_QUALITY),
+                valueLabel = kugouQualityLabel,
+                preferredQuality = kugouPreferredQuality,
+                iconRes = CoreCommonR.drawable.ic_kugou,
+                onClick = { onShowKugouQualityDialogChange(true) },
+                highlightTargetId = highlightTargetId,
+                highlightPulse = highlightPulse,
+                onHighlightFinished = onHighlightFinished
+            )
+
+            AudioQualityListItem(
+                setting = AutoSettingsMetadata.requireSetting(AutoSettingsKeys.QQMUSIC_AUDIO_QUALITY),
+                valueLabel = qqMusicQualityLabel,
+                preferredQuality = qqMusicPreferredQuality,
+                iconRes = CoreCommonR.drawable.ic_qq_music,
+                onClick = { onShowQqMusicQualityDialogChange(true) },
                 highlightTargetId = highlightTargetId,
                 highlightPulse = highlightPulse,
                 onHighlightFinished = onHighlightFinished
@@ -325,6 +385,41 @@ internal fun SettingsAudioQualitySection(
                 onShowBiliQualityDialogChange(false)
                 if (level == BILI_DOLBY_QUALITY && biliPreferredQuality != level) {
                     audioQualityNotice = AudioQualityNotice.BiliDolby
+                }
+            }
+        )
+    }
+
+    if (showKugouQualityDialog) {
+        QualityOptionsDialog(
+            title = stringResource(CoreCommonR.string.quality_kugou_default),
+            selectedValue = kugouPreferredQuality,
+            options = kugouQualityOptions,
+            onDismiss = { onShowKugouQualityDialogChange(false) },
+            onSelect = { level ->
+                onKugouQualityChange(level)
+                onShowKugouQualityDialogChange(false)
+                if (level in KUGOU_MEMBER_QUALITIES && kugouPreferredQuality != level) {
+                    audioQualityNotice = AudioQualityNotice.KugouMemberQuality
+                }
+            }
+        )
+    }
+
+    if (showQqMusicQualityDialog) {
+        QualityOptionsDialog(
+            title = stringResource(CoreCommonR.string.quality_qqmusic_default),
+            selectedValue = qqMusicPreferredQuality,
+            options = qqMusicQualityOptions,
+            onDismiss = { onShowQqMusicQualityDialogChange(false) },
+            onSelect = { level ->
+                onQqMusicQualityChange(level)
+                onShowQqMusicQualityDialogChange(false)
+                if (!qqMusicLoggedIn &&
+                    level in QQMUSIC_MEMBER_QUALITIES &&
+                    qqMusicPreferredQuality != level
+                ) {
+                    audioQualityNotice = AudioQualityNotice.QqMusicMemberQuality
                 }
             }
         )
@@ -481,6 +576,10 @@ private fun AudioQualityNoticeDialog(
                             CoreCommonR.string.settings_audio_quality_netease_member_quality_notice
                         AudioQualityNotice.BiliDolby ->
                             CoreCommonR.string.settings_audio_quality_bili_dolby_notice
+                        AudioQualityNotice.KugouMemberQuality ->
+                            CoreCommonR.string.settings_audio_quality_kugou_member_quality_notice
+                        AudioQualityNotice.QqMusicMemberQuality ->
+                            CoreCommonR.string.settings_audio_quality_qqmusic_member_quality_notice
                     }
                 )
             )

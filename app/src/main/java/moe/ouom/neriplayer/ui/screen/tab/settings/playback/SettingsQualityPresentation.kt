@@ -6,6 +6,8 @@ import moe.ouom.neriplayer.common.R as CoreCommonR
 import moe.ouom.neriplayer.data.settings.playback.normalizeMobileDataBiliAudioQuality
 import moe.ouom.neriplayer.data.settings.playback.normalizeMobileDataNeteaseAudioQuality
 import moe.ouom.neriplayer.data.settings.playback.normalizeMobileDataYouTubeAudioQuality
+import moe.ouom.neriplayer.platform.quality.qualityLabelForKugou
+import moe.ouom.neriplayer.platform.quality.qqMusicQualityLabel
 
 internal fun neteaseQualityLabelRes(value: String): Int? = when (value) {
     "standard" -> CoreCommonR.string.settings_audio_quality_standard
@@ -51,6 +53,8 @@ internal data class SettingsQualityPresentation(
     val neteaseLabel: String,
     val youtubeLabel: String,
     val biliLabel: String,
+    val kugouLabel: String,
+    val qqMusicLabel: String,
     val mobileNeteaseValue: String,
     val mobileYouTubeValue: String,
     val mobileBiliValue: String,
@@ -65,6 +69,8 @@ internal fun rememberSettingsQualityPresentation(
     neteaseValue: String,
     youtubeValue: String,
     biliValue: String,
+    kugouValue: String,
+    qqMusicValue: String,
     mobileNeteaseValue: String,
     mobileYouTubeValue: String,
     mobileBiliValue: String
@@ -76,6 +82,8 @@ internal fun rememberSettingsQualityPresentation(
         neteaseLabel = context.qualityLabel(neteaseValue, neteaseQualityLabelRes(neteaseValue)),
         youtubeLabel = context.qualityLabel(youtubeValue, youtubeQualityLabelRes(youtubeValue)),
         biliLabel = context.qualityLabel(biliValue, biliQualityLabelRes(biliValue)),
+        kugouLabel = qualityLabelForKugou(kugouValue, context::getString),
+        qqMusicLabel = qqMusicQualityLabel(qqMusicValue, context::getString),
         mobileNeteaseValue = normalizedNetease,
         mobileYouTubeValue = normalizedYouTube,
         mobileBiliValue = normalizedBili,

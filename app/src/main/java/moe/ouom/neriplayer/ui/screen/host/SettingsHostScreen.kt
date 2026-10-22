@@ -46,22 +46,30 @@ import moe.ouom.neriplayer.ui.effect.glass.animateAdvancedGlassSceneMotion
 import moe.ouom.neriplayer.ui.screen.download.DownloadManagerScreen
 import moe.ouom.neriplayer.ui.screen.download.DownloadProgressScreen
 import moe.ouom.neriplayer.ui.screen.tab.settings.SettingsScreen
+import moe.ouom.neriplayer.ui.screen.tab.settings.page.HomeSettingsScreen
+import moe.ouom.neriplayer.ui.screen.tab.settings.page.TabOrderSettingsScreen
 
 internal enum class SettingsScreenState {
     Settings,
     DownloadManager,
-    DownloadProgress
+    DownloadProgress,
+    HomeSettings,
+    TabOrderSettings
 }
 
 internal fun <T> selectSettingsHostPage(
     state: SettingsScreenState,
     settings: T,
     downloadManager: T,
-    downloadProgress: T
+    downloadProgress: T,
+    homeSettings: T,
+    tabOrderSettings: T
 ): T = when (state) {
     SettingsScreenState.Settings -> settings
     SettingsScreenState.DownloadManager -> downloadManager
     SettingsScreenState.DownloadProgress -> downloadProgress
+    SettingsScreenState.HomeSettings -> homeSettings
+    SettingsScreenState.TabOrderSettings -> tabOrderSettings
 }
 
 private fun SettingsScreenState.saveableKey(): String = "settings_host:${name}"
@@ -71,20 +79,32 @@ private val SettingsScreenState.navigationDepth: Int
         SettingsScreenState.Settings -> 0
         SettingsScreenState.DownloadManager -> 1
         SettingsScreenState.DownloadProgress -> 2
+        SettingsScreenState.HomeSettings -> 1
+        SettingsScreenState.TabOrderSettings -> 1
     }
 
 internal fun SettingsScreenState.nextTowards(
     requestedState: SettingsScreenState
 ): SettingsScreenState = when {
-    navigationDepth < requestedState.navigationDepth -> when (this) {
-        SettingsScreenState.Settings -> SettingsScreenState.DownloadManager
-        SettingsScreenState.DownloadManager -> SettingsScreenState.DownloadProgress
-        SettingsScreenState.DownloadProgress -> SettingsScreenState.DownloadProgress
+    // 下载链是逐级深入的，但首页排序 / 标签排序都是设置的同级页，
+    // 按逐级推进的话会从 DownloadManager 绕过去，所以前进时要看请求目标是谁。
+    navigationDepth < requestedState.navigationDepth -> when (requestedState) {
+        SettingsScreenState.HomeSettings -> SettingsScreenState.HomeSettings
+        SettingsScreenState.TabOrderSettings -> SettingsScreenState.TabOrderSettings
+        else -> when (this) {
+            SettingsScreenState.Settings -> SettingsScreenState.DownloadManager
+            SettingsScreenState.DownloadManager -> SettingsScreenState.DownloadProgress
+            SettingsScreenState.DownloadProgress -> SettingsScreenState.DownloadProgress
+            SettingsScreenState.HomeSettings -> SettingsScreenState.HomeSettings
+            SettingsScreenState.TabOrderSettings -> SettingsScreenState.TabOrderSettings
+        }
     }
     navigationDepth > requestedState.navigationDepth -> when (this) {
         SettingsScreenState.Settings -> SettingsScreenState.Settings
         SettingsScreenState.DownloadManager -> SettingsScreenState.Settings
         SettingsScreenState.DownloadProgress -> SettingsScreenState.DownloadManager
+        SettingsScreenState.HomeSettings -> SettingsScreenState.Settings
+        SettingsScreenState.TabOrderSettings -> SettingsScreenState.Settings
     }
     else -> this
 }
@@ -247,6 +267,12 @@ internal fun SettingsHostScreen(
                                 isActive = requestedScreenState == SettingsScreenState.Settings,
                                 onNavigateToDownloadManager = {
                                     requestScreen(SettingsScreenState.DownloadManager)
+                                },
+                                onNavigateToHomeSettings = {
+                                    requestScreen(SettingsScreenState.HomeSettings)
+                                },
+                                onNavigateToTabOrderSettings = {
+                                    requestScreen(SettingsScreenState.TabOrderSettings)
                                 }
                             )
                         }
@@ -265,8 +291,23 @@ internal fun SettingsHostScreen(
                                 listState = downloadProgressListState
                             )
                         }
+                        val homeSettingsPage: @Composable () -> Unit = {
+                            HomeSettingsScreen(
+                                onBack = { requestScreen(SettingsScreenState.Settings) }
+                            )
+                        }
+                        val tabOrderSettingsPage: @Composable () -> Unit = {
+                            TabOrderSettingsScreen(
+                                onBack = { requestScreen(SettingsScreenState.Settings) }
+                            )
+                        }
                         selectSettingsHostPage(
-                            state, settingsPage, downloadManagerPage, downloadProgressPage
+                            state,
+                            settingsPage,
+                            downloadManagerPage,
+                            downloadProgressPage,
+                            homeSettingsPage,
+                            tabOrderSettingsPage
                         ).invoke()
                     }
             }
