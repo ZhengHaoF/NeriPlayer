@@ -268,14 +268,14 @@ class KugouFmViewModel(application: Application) : AndroidViewModel(application)
     /** 播放/暂停切换。 */
     fun togglePlayPause() {
         val state = _uiState.value
-        if (state.currentTrack == null) {
+        val currentTrack = state.currentTrack
+        if (currentTrack == null) {
             startPlayback()
             return
         }
         // 当前播放的不属于 FM 队列时先切回 FM，避免误暂停其他平台的播放
         if (!state.isFmQueueSong(PlayerManager.currentSongFlow.value)) {
-            val resume = state.currentTrack ?: return
-            playTrack(resume, state.buffer)
+            playTrack(currentTrack, state.buffer)
             return
         }
         // isPlaying 由 isPlayingFlow 驱动，无需手动翻转
