@@ -23,6 +23,7 @@ package moe.ouom.neriplayer.ui.viewmodel.tab
  * Created: 2025/8/11
  */
 
+import moe.ouom.neriplayer.core.player.persistence.toSongItem
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -33,38 +34,30 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import moe.ouom.neriplayer.R
-import moe.ouom.neriplayer.core.api.bili.BiliClient
-import moe.ouom.neriplayer.core.api.bili.buildBiliPartSong
-import moe.ouom.neriplayer.core.api.bili.buildBiliSongAlbum
-import moe.ouom.neriplayer.core.api.kugou.loadKugouChannelContent
-import moe.ouom.neriplayer.core.api.kugou.parseKugouSearchItem
-import moe.ouom.neriplayer.core.api.kugou.toSongItem
-import moe.ouom.neriplayer.core.api.qqmusic.QQMusicChannelContent
-import moe.ouom.neriplayer.core.api.qqmusic.buildQQMusicSongItem
-import moe.ouom.neriplayer.core.api.qqmusic.loadQQMusicChannelContent
-import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicCreatorSummary
-import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchFilter
-import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchResult
-import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicSearchResultType
+import moe.ouom.neriplayer.common.R as CoreCommonR
+import moe.ouom.neriplayer.data.model.bilibili.collection.FavFolder
+import moe.ouom.neriplayer.data.model.bilibili.search.SearchVideoItem
+import moe.ouom.neriplayer.data.model.bilibili.video.VideoBasicInfo
+import moe.ouom.neriplayer.data.model.bilibili.video.VideoPage
+import moe.ouom.neriplayer.platform.bilibili.playback.resolver.buildBiliPartSong
+import moe.ouom.neriplayer.platform.bilibili.playback.resolver.buildBiliSongAlbum
+import moe.ouom.neriplayer.data.model.youtube.music.YouTubeMusicCreatorSummary
+import moe.ouom.neriplayer.data.model.youtube.music.YouTubeMusicSearchFilter
+import moe.ouom.neriplayer.data.model.youtube.music.YouTubeMusicSearchResult
+import moe.ouom.neriplayer.data.model.youtube.music.YouTubeMusicSearchResultType
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.core.player.PlayerManager.biliClient
-import moe.ouom.neriplayer.core.player.PlayerManager.kugouSession
 import moe.ouom.neriplayer.core.player.PlayerManager.neteaseClient
-import moe.ouom.neriplayer.core.player.PlayerManager.qqMusicSearchApi
-import moe.ouom.neriplayer.core.player.PlayerManager.qqMusicSession
-import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
-import moe.ouom.neriplayer.core.api.search.SongSearchInfo
+import moe.ouom.neriplayer.data.model.auth.SavedCookieAuthState
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
 import moe.ouom.neriplayer.data.model.SongItem
-import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
-import moe.ouom.neriplayer.data.platform.youtube.buildYouTubeMusicMediaUri
-import moe.ouom.neriplayer.data.platform.youtube.stableYouTubeMusicId
-import moe.ouom.neriplayer.data.platform.youtube.youtubeMusicThumbnailUrl
-import moe.ouom.neriplayer.util.search.SearchTextMatcher
+import moe.ouom.neriplayer.platform.netease.mapping.parseNeteaseSongDetail
+import moe.ouom.neriplayer.platform.youtube.config.YouTubeFeatureGate
+import moe.ouom.neriplayer.platform.youtube.api.transport.buildYouTubeMusicMediaUri
+import moe.ouom.neriplayer.platform.youtube.api.transport.stableYouTubeMusicId
+import moe.ouom.neriplayer.platform.youtube.api.transport.youtubeMusicThumbnailUrl
+import moe.ouom.neriplayer.common.search.SearchTextMatcher
 import moe.ouom.neriplayer.util.search.searchValues
 import org.json.JSONObject
 
@@ -110,8 +103,6 @@ enum class SearchSource {
     YOUTUBE_MUSIC,
     NETEASE,
     BILIBILI,
-    KUGOU,
-    QQ_MUSIC,
     LINK_RECOGNITION
 }
 
@@ -200,13 +191,7 @@ data class ExploreUiState(
     val isNeteaseLoggedIn: Boolean = false,
     val ytMusicPlaylists: List<YouTubeMusicPlaylist> = emptyList(),
     val ytMusicPlaylistsLoading: Boolean = false,
-    val ytMusicPlaylistsError: String? = null,
-    val kugouContent: moe.ouom.neriplayer.core.api.kugou.KugouChannelContent? = null,
-    val kugouChannelLoading: Boolean = false,
-    val kugouChannelError: String? = null,
-    val qqMusicContent: moe.ouom.neriplayer.core.api.qqmusic.QQMusicChannelContent? = null,
-    val qqMusicChannelLoading: Boolean = false,
-    val qqMusicChannelError: String? = null
+    val ytMusicPlaylistsError: String? = null
 )
 
 internal fun isNeteaseExploreSearchAvailable(authState: SavedCookieAuthState): Boolean {
@@ -225,19 +210,24 @@ internal fun ExploreUiState.withNeteaseAuthRequired(error: String): ExploreUiSta
 )
 
 internal fun ExploreUiState.withYouTubeDisabled(): ExploreUiState {
-    val youtubeWasSelected = selectedSearchSource == SearchSource.YOUTUBE_MUSIC
-    return copy(
-        selectedSearchSource = if (youtubeWasSelected) SearchSource.NETEASE else selectedSearchSource,
-        searching = if (youtubeWasSelected) false else searching,
-        searchResults = if (youtubeWasSelected) emptyList() else searchResults,
-        searchItems = if (youtubeWasSelected) emptyList() else searchItems,
-        searchHasMore = if (youtubeWasSelected) false else searchHasMore,
-        searchLoadingMore = if (youtubeWasSelected) false else searchLoadingMore,
-        searchLoadMoreError = if (youtubeWasSelected) null else searchLoadMoreError,
-        searchPage = if (youtubeWasSelected) 0 else searchPage,
-        searchKeyword = if (youtubeWasSelected) "" else searchKeyword,
-        searchDisplayQuery = if (youtubeWasSelected) "" else searchDisplayQuery,
-        searchError = if (youtubeWasSelected) null else searchError,
+    val searchState = if (selectedSearchSource == SearchSource.YOUTUBE_MUSIC) {
+        copy(
+            selectedSearchSource = SearchSource.NETEASE,
+            searching = false,
+            searchResults = emptyList(),
+            searchItems = emptyList(),
+            searchHasMore = false,
+            searchLoadingMore = false,
+            searchLoadMoreError = null,
+            searchPage = 0,
+            searchKeyword = "",
+            searchDisplayQuery = "",
+            searchError = null
+        )
+    } else {
+        this
+    }
+    return searchState.copy(
         ytMusicPlaylists = emptyList(),
         ytMusicPlaylistsLoading = false,
         ytMusicPlaylistsError = null
@@ -345,8 +335,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private var highQualityLoadJob: Job? = null
     private var searchJob: Job? = null
     private var searchMoreJob: Job? = null
-    private var kugouChannelJob: Job? = null
-    private var qqMusicChannelJob: Job? = null
     private var ytMusicPlaylistsJob: Job? = null
     private var ytMusicPlaylistsPending = false
     private var searchRequestVersion = 0L
@@ -407,12 +395,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             searchDisplayQuery = "",
             searchError = null
         )
-        if (source == SearchSource.KUGOU) {
-            loadKugouChannel()
-        }
-        if (source == SearchSource.QQ_MUSIC) {
-            loadQQMusicChannel()
-        }
     }
 
     fun setNeteaseSearchType(type: NeteaseExploreSearchType) {
@@ -493,8 +475,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             SearchSource.NETEASE -> searchNetease(apiKeyword, matchQuery, requestVersion)
             SearchSource.BILIBILI -> searchBilibili(apiKeyword, matchQuery, requestVersion)
             SearchSource.YOUTUBE_MUSIC -> searchYouTubeMusic(apiKeyword, matchQuery, requestVersion)
-            SearchSource.KUGOU -> searchKugou(apiKeyword, matchQuery, requestVersion)
-            SearchSource.QQ_MUSIC -> searchQQMusic(apiKeyword, matchQuery, requestVersion)
             SearchSource.LINK_RECOGNITION -> searchRecognizedLink(apiKeyword, requestVersion)
         }
     }
@@ -540,16 +520,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         type = neteaseType
                     )
                     SearchSource.BILIBILI -> fetchBilibiliSearchPage(
-                        keyword = keyword,
-                        matchQuery = matchQuery,
-                        page = nextPage
-                    )
-                    SearchSource.KUGOU -> fetchKugouSearchPage(
-                        keyword = keyword,
-                        matchQuery = matchQuery,
-                        page = nextPage
-                    )
-                    SearchSource.QQ_MUSIC -> fetchQQMusicSearchPage(
                         keyword = keyword,
                         matchQuery = matchQuery,
                         page = nextPage
@@ -625,8 +595,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     it.copy(
                         searching = false,
                         searchError = app.getString(
-                            R.string.error_bilibili_search,
-                            e.message ?: app.getString(R.string.github_sync_failed_message)
+                            CoreCommonR.string.error_bilibili_search,
+                            e.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
                         ),
                         searchResults = emptyList(),
                         searchItems = emptyList(),
@@ -657,232 +627,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             page = searchPage.page,
             hasMore = searchPage.page < searchPage.numPages && searchPage.items.isNotEmpty()
         )
-    }
-
-    /** 搜索酷狗概念版（免登录） */
-    private fun searchKugou(keyword: String, matchQuery: String, requestVersion: Long) {
-        searchJob = viewModelScope.launch {
-            try {
-                val result = fetchKugouSearchPage(keyword, matchQuery, page = 1)
-                NPLogger.d(
-                    TAG,
-                    "search Kugou success: request=$requestVersion, keyword=$keyword, count=${result.items.size}, page=${result.page}, hasMore=${result.hasMore}"
-                )
-                updateSearchStateIfCurrent(requestVersion, SearchSource.KUGOU) {
-                    it.copy(
-                        searching = false,
-                        searchError = null,
-                        searchLoadMoreError = null,
-                        searchResults = result.songs,
-                        searchItems = result.items,
-                        searchPage = result.page,
-                        searchHasMore = result.hasMore
-                    )
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                NPLogger.e(
-                    TAG,
-                    "search Kugou failed: request=$requestVersion, keyword=$keyword",
-                    e
-                )
-                updateSearchStateIfCurrent(requestVersion, SearchSource.KUGOU) {
-                    it.copy(
-                        searching = false,
-                        searchError = app.getString(
-                            R.string.error_kugou_search,
-                            e.message ?: app.getString(R.string.github_sync_failed_message)
-                        ),
-                        searchResults = emptyList(),
-                        searchItems = emptyList(),
-                        searchHasMore = false,
-                        searchLoadingMore = false,
-                        searchLoadMoreError = null,
-                        searchPage = 0
-                    )
-                }
-            }
-        }
-    }
-
-    private suspend fun fetchKugouSearchPage(
-        keyword: String,
-        matchQuery: String,
-        page: Int
-    ): ExploreSearchFetchResult {
-        val searchPage = withContext(Dispatchers.IO) {
-            kugouSession.ensureDeviceRegistered()
-            val response = kugouSession.client.search.search(
-                keywords = keyword,
-                page = page,
-                pageSize = 30
-            )
-            response.body["data"]?.jsonObject?.get("lists")?.jsonArray.orEmpty()
-        }
-        val songs = searchPage.mapNotNull { item ->
-            parseKugouSearchItem(item.jsonObject)?.toSongItem()
-        }
-        val ranked = rankExploreSongSearchResults(query = matchQuery, songs = songs)
-        return ExploreSearchFetchResult(
-            items = ranked.map { ExploreSearchResult.Song(it) },
-            page = page,
-            hasMore = searchPage.isNotEmpty()
-        )
-    }
-
-    /** 搜索 QQ音乐（匿名，免费曲目可直接入队播放）。 */
-    private fun searchQQMusic(keyword: String, matchQuery: String, requestVersion: Long) {
-        searchJob = viewModelScope.launch {
-            try {
-                val result = fetchQQMusicSearchPage(keyword, matchQuery, page = 1)
-                NPLogger.d(
-                    TAG,
-                    "search QQ Music success: request=$requestVersion, keyword=$keyword, " +
-                        "count=${result.items.size}, page=${result.page}, hasMore=${result.hasMore}"
-                )
-                updateSearchStateIfCurrent(requestVersion, SearchSource.QQ_MUSIC) {
-                    it.copy(
-                        searching = false,
-                        searchError = null,
-                        searchLoadMoreError = null,
-                        searchResults = result.songs,
-                        searchItems = result.items,
-                        searchPage = result.page,
-                        searchHasMore = result.hasMore
-                    )
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                NPLogger.e(
-                    TAG,
-                    "search QQ Music failed: request=$requestVersion, keyword=$keyword",
-                    e
-                )
-                updateSearchStateIfCurrent(requestVersion, SearchSource.QQ_MUSIC) {
-                    it.copy(
-                        searching = false,
-                        searchError = searchErrorMessage(SearchSource.QQ_MUSIC, e),
-                        searchResults = emptyList(),
-                        searchItems = emptyList(),
-                        searchHasMore = false,
-                        searchLoadingMore = false,
-                        searchLoadMoreError = null,
-                        searchPage = 0
-                    )
-                }
-            }
-        }
-    }
-
-    private suspend fun fetchQQMusicSearchPage(
-        keyword: String,
-        matchQuery: String,
-        page: Int
-    ): ExploreSearchFetchResult {
-        val songs = withContext(Dispatchers.IO) {
-            qqMusicSearchApi.search(keyword = keyword, page = page).map { it.toQQMusicSongItem() }
-        }
-        val ranked = rankExploreSongSearchResults(query = matchQuery, songs = songs)
-        return ExploreSearchFetchResult(
-            items = ranked.map { ExploreSearchResult.Song(it) },
-            page = page,
-            hasMore = songs.isNotEmpty()
-        )
-    }
-
-    /** QQ音乐搜索条目转可播放 [SongItem]（duration 为 "m:ss" 文本）。 */
-    private fun SongSearchInfo.toQQMusicSongItem(): SongItem {
-        val durationParts = duration.split(":")
-        val durationMs = if (durationParts.size == 2) {
-            (durationParts[0].toLongOrNull() ?: 0L) * 60_000L +
-                (durationParts[1].toLongOrNull() ?: 0L) * 1_000L
-        } else {
-            0L
-        }
-        return buildQQMusicSongItem(
-            songMid = id,
-            songName = songName,
-            singer = singer,
-            albumName = albumName,
-            durationMs = durationMs,
-            coverUrl = coverUrl
-        )
-    }
-
-    /** 加载酷狗概念版 tab 默认内容（榜单 + 热门歌单 + 每日推荐）。 */
-    internal fun loadKugouChannel() {
-        if (_uiState.value.kugouContent != null || _uiState.value.kugouChannelLoading) return
-        _uiState.value = _uiState.value.copy(
-            kugouChannelLoading = true,
-            kugouChannelError = null
-        )
-        kugouChannelJob?.cancel()
-        kugouChannelJob = viewModelScope.launch {
-            try {
-                val content = withContext(Dispatchers.IO) {
-                    kugouSession.loadKugouChannelContent()
-                }
-                NPLogger.d(
-                    TAG,
-                    "kugou channel loaded: ranks=${content.ranks.size}, playlists=${content.playlists.size}, daily=${content.dailyRecommend.size}"
-                )
-                _uiState.value = _uiState.value.copy(
-                    kugouContent = content,
-                    kugouChannelLoading = false,
-                    kugouChannelError = null
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                NPLogger.e(TAG, "kugou channel load failed", e)
-                _uiState.value = _uiState.value.copy(
-                    kugouChannelLoading = false,
-                    kugouChannelError = app.getString(
-                        R.string.error_kugou_search,
-                        e.message ?: app.getString(R.string.github_sync_failed_message)
-                    )
-                )
-            }
-        }
-    }
-
-    /** 加载 QQ音乐 tab 默认内容（排行榜 + 热门歌单）。 */
-    internal fun loadQQMusicChannel() {
-        if (_uiState.value.qqMusicContent != null || _uiState.value.qqMusicChannelLoading) return
-        _uiState.value = _uiState.value.copy(
-            qqMusicChannelLoading = true,
-            qqMusicChannelError = null
-        )
-        qqMusicChannelJob?.cancel()
-        qqMusicChannelJob = viewModelScope.launch {
-            try {
-                val content = withContext(Dispatchers.IO) {
-                    qqMusicSession.loadQQMusicChannelContent()
-                }
-                NPLogger.d(
-                    TAG,
-                    "qq music channel loaded: ranks=${content.ranks.size}, playlists=${content.playlists.size}"
-                )
-                _uiState.value = _uiState.value.copy(
-                    qqMusicContent = content,
-                    qqMusicChannelLoading = false,
-                    qqMusicChannelError = null
-                )
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                NPLogger.e(TAG, "qq music channel load failed", e)
-                _uiState.value = _uiState.value.copy(
-                    qqMusicChannelLoading = false,
-                    qqMusicChannelError = app.getString(
-                        R.string.error_qqmusic_search,
-                        e.message ?: app.getString(R.string.github_sync_failed_message)
-                    )
-                )
-            }
-        }
     }
 
     private fun beginSearchRequest(keyword: String, displayQuery: String): Long {
@@ -953,7 +697,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 val raw = withContext(Dispatchers.IO) {
                     neteaseClient.getHighQualityPlaylists(apiCategory, 50, 0L)
                 }
-                val mapped = parsePlaylists(raw)
+                val mapped = parseExploreHighQualityPlaylists(raw)
                 NPLogger.d(TAG, "loadHighQuality success: tag=$realCat, count=${mapped.size}")
 
                 _uiState.value = _uiState.value.copy(
@@ -974,36 +718,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 _uiState.value = _uiState.value.copy(
                     loading = false,
                     error = app.getString(
-                        R.string.error_load_playlist,
-                        e.message ?: app.getString(R.string.github_sync_failed_message)
+                        CoreCommonR.string.error_load_playlist,
+                        e.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
                     ),
                     playlists = if (shouldRestorePreviousContent) previousPlaylists else emptyList(),
                     selectedTag = if (shouldRestorePreviousContent) previousTag else realCat
                 )
             }
         }
-    }
-
-    private fun parsePlaylists(raw: String): List<PlaylistSummary> {
-        val result = mutableListOf<PlaylistSummary>()
-        val root = JSONObject(raw)
-        val code = root.optInt("code", -1)
-        if (code != 200) {
-            NPLogger.w(TAG, "parsePlaylists unexpected code=$code")
-            return emptyList()
-        }
-        val arr = root.optJSONArray("playlists") ?: return emptyList()
-        for (i in 0 until arr.length()) {
-            val obj = arr.optJSONObject(i) ?: continue
-            result.add(PlaylistSummary(
-                id = obj.optLong("id"),
-                name = obj.optString("name"),
-                picUrl = obj.optString("coverImgUrl").replace("http://", "https://"),
-                playCount = obj.optLong("playCount"),
-                trackCount = obj.optInt("trackCount")
-            ))
-        }
-        return result
     }
 
     /** 搜索网易云歌曲 */
@@ -1051,8 +773,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     it.copy(
                         searching = false,
                         searchError = app.getString(
-                            R.string.error_netease_search,
-                            e.message ?: app.getString(R.string.github_sync_failed_message)
+                            CoreCommonR.string.error_netease_search,
+                            e.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
                         ),
                         searchResults = emptyList(),
                         searchItems = emptyList(),
@@ -1075,7 +797,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         searchMoreJob?.cancel()
         invalidateSearchRequest()
         _uiState.value = _uiState.value.withNeteaseAuthRequired(
-            error = app.getString(R.string.netease_login_required_search)
+            error = app.getString(CoreCommonR.string.netease_login_required_search)
         )
     }
 
@@ -1087,7 +809,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     updateSearchStateIfCurrent(requestVersion, SearchSource.LINK_RECOGNITION) {
                         it.copy(
                             searching = false,
-                            searchError = app.getString(R.string.explore_link_invalid),
+                            searchError = app.getString(CoreCommonR.string.explore_link_invalid),
                             searchResults = emptyList(),
                             searchItems = emptyList(),
                             searchHasMore = false,
@@ -1124,8 +846,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     it.copy(
                         searching = false,
                         searchError = app.getString(
-                            R.string.error_link_recognition,
-                            e.message ?: app.getString(R.string.github_sync_failed_message)
+                            CoreCommonR.string.error_link_recognition,
+                            e.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
                         ),
                         searchResults = emptyList(),
                         searchItems = emptyList(),
@@ -1173,9 +895,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 fetchLinkedYouTubePlaylist(target.playlistId)
             )
             is ExploreLinkTarget.Unsupported -> ExploreSearchResult.Notice(
-                title = app.getString(R.string.explore_link_unsupported_title),
+                title = app.getString(CoreCommonR.string.explore_link_unsupported_title),
                 message = app.getString(
-                    R.string.explore_link_unsupported_message,
+                    CoreCommonR.string.explore_link_unsupported_message,
                     target.platform,
                     target.type
                 )
@@ -1187,21 +909,21 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val finalUrl = expandExploreRedirectUrl(url, AppContainer.sharedOkHttpClient)
         return recognizeExploreLink(finalUrl)
             ?.takeIf { it !is ExploreLinkTarget.BiliShortLink }
-            ?: error(app.getString(R.string.explore_link_invalid))
+            ?: error(app.getString(CoreCommonR.string.explore_link_invalid))
     }
 
     private suspend fun resolveNeteaseShortLink(url: String): ExploreLinkTarget {
         val finalUrl = expandExploreRedirectUrl(url, AppContainer.sharedOkHttpClient)
         return recognizeExploreLink(finalUrl)
             ?.takeIf { it !is ExploreLinkTarget.NeteaseShortLink }
-            ?: error(app.getString(R.string.explore_link_invalid))
+            ?: error(app.getString(CoreCommonR.string.explore_link_invalid))
     }
 
     private fun fetchLinkedNeteaseSong(songId: Long): SongItem {
         val raw = neteaseClient.getSongDetail(listOf(songId))
         return parseNeteaseSongDetail(raw) ?: SongItem(
             id = songId,
-            name = app.getString(R.string.explore_link_netease_song_fallback, songId),
+            name = app.getString(CoreCommonR.string.explore_link_netease_song_fallback, songId),
             artist = "",
             album = "",
             albumId = 0L,
@@ -1222,7 +944,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         }.getOrElse {
             PlaylistSummary(
                 id = playlistId,
-                name = app.getString(R.string.explore_link_netease_playlist_fallback, playlistId),
+                name = app.getString(CoreCommonR.string.explore_link_netease_playlist_fallback, playlistId),
                 picUrl = "",
                 playCount = 0L,
                 trackCount = 0
@@ -1234,13 +956,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         return runCatching {
             parseLinkedNeteaseArtist(
                 raw = neteaseClient.getArtistDetail(artistId),
-                fallbackId = artistId
+                fallbackId = artistId,
+                fallbackName = app.getString(CoreCommonR.string.explore_link_netease_artist_fallback, artistId)
             )
         }.getOrElse {
             NeteaseSearchArtistResult(
                 artist = NeteaseArtistSummary(
                     id = artistId,
-                    name = app.getString(R.string.explore_link_netease_artist_fallback, artistId)
+                    name = app.getString(CoreCommonR.string.explore_link_netease_artist_fallback, artistId)
                 ),
                 picUrl = null,
                 musicSize = 0,
@@ -1256,7 +979,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             ?.let { biliClient.getVideoBasicInfoByBvid(it) }
             ?: target.avid
                 ?.let { biliClient.getVideoBasicInfoByAvid(it) }
-            ?: error(app.getString(R.string.explore_link_invalid))
+            ?: error(app.getString(CoreCommonR.string.explore_link_invalid))
         val collectionTarget = info.toExploreLinkCollectionTarget(target)
         if (collectionTarget != null) {
             return ExploreSearchResult.BilibiliPlaylist(
@@ -1289,11 +1012,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         collected.firstOrNull { it.fid == folderId || it.mediaId == folderId }?.let { folder ->
             return hydrateLinkedBiliFolder(folder, BiliPlaylistKind.COLLECTED_FAVORITE)
         }
-        error(app.getString(R.string.explore_link_invalid))
+        error(app.getString(CoreCommonR.string.explore_link_invalid))
     }
 
     private suspend fun hydrateLinkedBiliFolder(
-        folder: BiliClient.FavFolder,
+        folder: FavFolder,
         fallbackKind: BiliPlaylistKind
     ): BiliPlaylist {
         if (folder.itemType == BILI_RESOURCE_TYPE_COLLECTION) {
@@ -1320,7 +1043,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             fid = 0L,
             mid = meta.mid.takeIf { it > 0L } ?: ownerMid,
             title = meta.title.ifBlank {
-                app.getString(R.string.explore_link_bili_playlist_fallback, seasonId)
+                app.getString(CoreCommonR.string.explore_link_bili_playlist_fallback, seasonId)
             },
             count = meta.total,
             coverUrl = meta.coverUrl,
@@ -1328,7 +1051,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    private fun BiliClient.FavFolder.toExploreBiliPlaylist(
+    private fun FavFolder.toExploreBiliPlaylist(
         fallbackKind: BiliPlaylistKind
     ): BiliPlaylist {
         val resolvedKind = if (itemType == BILI_RESOURCE_TYPE_COLLECTION) {
@@ -1341,7 +1064,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             fid = fid,
             mid = mid,
             title = title.ifBlank {
-                app.getString(R.string.explore_link_bili_playlist_fallback, mediaId)
+                app.getString(CoreCommonR.string.explore_link_bili_playlist_fallback, mediaId)
             },
             count = count,
             coverUrl = coverUrl.replaceFirst("http://", "https://"),
@@ -1372,9 +1095,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val metadata = runCatching {
             AppContainer.youtubeMusicClient.getVideoMetadata(target.videoId)
         }.getOrNull()
-        val displayAlbum = app.getString(R.string.youtube_search_type_video)
+        val displayAlbum = app.getString(CoreCommonR.string.youtube_search_type_video)
         val displayName = metadata?.title.orEmpty().ifBlank {
-            app.getString(R.string.explore_link_youtube_video_fallback, target.videoId)
+            app.getString(CoreCommonR.string.explore_link_youtube_video_fallback, target.videoId)
         }
         val displayArtist = metadata?.authorName.orEmpty().ifBlank { "YouTube" }
         val coverUrl = metadata?.thumbnailUrl.orEmpty().ifBlank {
@@ -1409,7 +1132,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 browseId = detail.browseId.ifBlank { browseId },
                 playlistId = detail.playlistId.ifBlank { playlistId.removePrefix("VL") },
                 title = detail.title.ifBlank {
-                    app.getString(R.string.explore_link_youtube_playlist_fallback, playlistId)
+                    app.getString(CoreCommonR.string.explore_link_youtube_playlist_fallback, playlistId)
                 },
                 subtitle = detail.subtitle,
                 coverUrl = detail.coverUrl,
@@ -1419,7 +1142,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             YouTubeMusicPlaylist(
                 browseId = browseId,
                 playlistId = playlistId.removePrefix("VL"),
-                title = app.getString(R.string.explore_link_youtube_playlist_fallback, playlistId),
+                title = app.getString(CoreCommonR.string.explore_link_youtube_playlist_fallback, playlistId),
                 subtitle = "",
                 coverUrl = "",
                 trackCount = 0
@@ -1435,7 +1158,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val playlist = root.optJSONObject("playlist")
             ?: return PlaylistSummary(
                 id = fallbackId,
-                name = app.getString(R.string.explore_link_netease_playlist_fallback, fallbackId),
+                name = app.getString(CoreCommonR.string.explore_link_netease_playlist_fallback, fallbackId),
                 picUrl = "",
                 playCount = 0L,
                 trackCount = 0
@@ -1444,44 +1167,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             id = playlist.optLong("id", fallbackId),
             name = playlist.optString(
                 "name",
-                app.getString(R.string.explore_link_netease_playlist_fallback, fallbackId)
+                app.getString(CoreCommonR.string.explore_link_netease_playlist_fallback, fallbackId)
             ),
             picUrl = playlist.optString("coverImgUrl", "")
                 .replaceFirst("http://", "https://"),
             playCount = playlist.optLong("playCount", 0L),
             trackCount = playlist.optInt("trackCount", 0)
-        )
-    }
-
-    private fun parseLinkedNeteaseArtist(
-        raw: String,
-        fallbackId: Long
-    ): NeteaseSearchArtistResult {
-        val root = JSONObject(raw)
-        val artist = root.optJSONObject("data")?.optJSONObject("artist")
-            ?: root.optJSONObject("artist")
-        val fallbackName = app.getString(R.string.explore_link_netease_artist_fallback, fallbackId)
-        if (artist == null) {
-            return NeteaseSearchArtistResult(
-                artist = NeteaseArtistSummary(id = fallbackId, name = fallbackName),
-                picUrl = null,
-                musicSize = 0,
-                albumSize = 0
-            )
-        }
-        return NeteaseSearchArtistResult(
-            artist = NeteaseArtistSummary(
-                id = artist.optLong("id", fallbackId),
-                name = artist.optString("name", fallbackName).ifBlank { fallbackName }
-            ),
-            picUrl = artist.optString("cover", "")
-                .ifBlank { artist.optString("picUrl", "") }
-                .ifBlank { artist.optString("avatar", "") }
-                .ifBlank { artist.optString("img1v1Url", "") }
-                .replaceFirst("http://", "https://")
-                .takeIf { it.isNotBlank() },
-            musicSize = artist.optInt("musicSize", 0),
-            albumSize = artist.optInt("albumSize", 0)
         )
     }
 
@@ -1521,7 +1212,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    suspend fun getVideoInfoByAvid(avid: Long): BiliClient.VideoBasicInfo {
+    suspend fun getVideoInfoByAvid(avid: Long): VideoBasicInfo {
         return withContext(Dispatchers.IO) {
             biliClient.getVideoBasicInfoByAvid(avid)
         }
@@ -1534,7 +1225,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
      * @param coverUrl 视频封面
      * @return 转换后的 SongItem
      */
-    fun toSongItem(page: BiliClient.VideoPage, basicInfo: BiliClient.VideoBasicInfo, coverUrl: String): SongItem {
+    fun toSongItem(page: VideoPage, basicInfo: VideoBasicInfo, coverUrl: String): SongItem {
         return buildBiliPartSong(page, basicInfo, coverUrl)
     }
 
@@ -1592,8 +1283,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     it.copy(
                         searching = false,
                         searchError = app.getString(
-                            R.string.error_youtube_search,
-                            e.message ?: app.getString(R.string.github_sync_failed_message)
+                            CoreCommonR.string.error_youtube_search,
+                            e.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
                         ),
                         searchResults = emptyList(),
                         searchItems = emptyList(),
@@ -1674,20 +1365,76 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun searchErrorMessage(source: SearchSource, error: Exception): String {
-        val fallback = error.message ?: app.getString(R.string.github_sync_failed_message)
+        val fallback = error.message ?: app.getString(CoreCommonR.string.github_sync_failed_message)
         return when (source) {
-            SearchSource.NETEASE -> app.getString(R.string.error_netease_search, fallback)
-            SearchSource.BILIBILI -> app.getString(R.string.error_bilibili_search, fallback)
-            SearchSource.YOUTUBE_MUSIC -> app.getString(R.string.error_youtube_search, fallback)
-            SearchSource.KUGOU -> app.getString(R.string.error_kugou_search, fallback)
-            SearchSource.QQ_MUSIC -> app.getString(R.string.error_qqmusic_search, fallback)
-            SearchSource.LINK_RECOGNITION -> app.getString(R.string.error_link_recognition, fallback)
+            SearchSource.NETEASE -> app.getString(CoreCommonR.string.error_netease_search, fallback)
+            SearchSource.BILIBILI -> app.getString(CoreCommonR.string.error_bilibili_search, fallback)
+            SearchSource.YOUTUBE_MUSIC -> app.getString(CoreCommonR.string.error_youtube_search, fallback)
+            SearchSource.LINK_RECOGNITION -> app.getString(CoreCommonR.string.error_link_recognition, fallback)
         }
     }
 }
 
+internal fun parseExploreHighQualityPlaylists(raw: String): List<PlaylistSummary> {
+    val result = mutableListOf<PlaylistSummary>()
+    val root = JSONObject(raw)
+    val code = root.optInt("code", -1)
+    if (code != 200) {
+        NPLogger.w(TAG, "parsePlaylists unexpected code=$code")
+        return emptyList()
+    }
+    val arr = root.optJSONArray("playlists") ?: return emptyList()
+    for (i in 0 until arr.length()) {
+        val obj = arr.optJSONObject(i) ?: continue
+        result.add(PlaylistSummary(
+            id = obj.optLong("id"),
+            name = obj.optString("name"),
+            picUrl = obj.optString("coverImgUrl").replace("http://", "https://"),
+            playCount = obj.optLong("playCount"),
+            trackCount = obj.optInt("trackCount")
+        ))
+    }
+    return result
+}
+
+internal fun parseLinkedNeteaseArtist(
+    raw: String,
+    fallbackId: Long,
+    fallbackName: String
+): NeteaseSearchArtistResult {
+    val root = JSONObject(raw)
+    val artist = root.optJSONObject("data")?.optJSONObject("artist")
+        ?: root.optJSONObject("artist")
+    if (artist == null) {
+        return NeteaseSearchArtistResult(
+            artist = NeteaseArtistSummary(id = fallbackId, name = fallbackName),
+            picUrl = null,
+            musicSize = 0,
+            albumSize = 0
+        )
+    }
+    return NeteaseSearchArtistResult(
+        artist = NeteaseArtistSummary(
+            id = artist.optLong("id", fallbackId),
+            name = artist.optString("name", fallbackName).ifBlank { fallbackName }
+        ),
+        picUrl = artist.linkedNeteaseArtistPicUrl(),
+        musicSize = artist.optInt("musicSize", 0),
+        albumSize = artist.optInt("albumSize", 0)
+    )
+}
+
+private fun JSONObject.linkedNeteaseArtistPicUrl(): String? {
+    return optString("cover", "")
+        .ifBlank { optString("picUrl", "") }
+        .ifBlank { optString("avatar", "") }
+        .ifBlank { optString("img1v1Url", "") }
+        .replaceFirst("http://", "https://")
+        .takeIf { it.isNotBlank() }
+}
+
 /** Bilibili 搜索结果到通用 SongItem 的转换器 */
-private fun BiliClient.SearchVideoItem.toSongItem(): SongItem {
+private fun SearchVideoItem.toSongItem(): SongItem {
     return SongItem(
         id = this.aid, // 使用 avid 作为唯一ID
         name = this.titlePlain,
@@ -1701,7 +1448,7 @@ private fun BiliClient.SearchVideoItem.toSongItem(): SongItem {
     )
 }
 
-private fun BiliClient.VideoBasicInfo.toSongItem(): SongItem {
+private fun VideoBasicInfo.toSongItem(): SongItem {
     return SongItem(
         id = aid,
         name = title,
@@ -1715,7 +1462,7 @@ private fun BiliClient.VideoBasicInfo.toSongItem(): SongItem {
     )
 }
 
-internal fun BiliClient.VideoBasicInfo.toExploreLinkSong(
+internal fun VideoBasicInfo.toExploreLinkSong(
     target: ExploreLinkTarget.BiliVideo
 ): SongItem {
     val selectedPage = target.cid
@@ -1732,27 +1479,33 @@ internal fun BiliClient.VideoBasicInfo.toExploreLinkSong(
     } ?: toSongItem()
 }
 
-internal fun BiliClient.VideoBasicInfo.toExploreLinkCollectionTarget(
+internal fun VideoBasicInfo.toExploreLinkCollectionTarget(
     target: ExploreLinkTarget.BiliVideo
 ): ExploreLinkTarget.BiliCollection? {
     if (!target.isCollectionShare) return null
-    val season = ugcSeason
-    val seasonId = target.seasonId ?: season?.id ?: return null
-    val collectionOwnerMid = season?.mid?.takeIf { it > 0L }
-        ?: ownerMid.takeIf { it > 0L }
-        ?: return null
+    val seasonId = target.seasonId ?: ugcSeason?.id ?: return null
+    val collectionOwnerMid = collectionOwnerMid() ?: return null
     return ExploreLinkTarget.BiliCollection(
         ownerMid = collectionOwnerMid,
         seasonId = seasonId
     )
 }
 
-private fun YouTubeMusicSearchResult.toSongItem(app: Application): SongItem {
+private fun VideoBasicInfo.collectionOwnerMid(): Long? {
+    val seasonMid = ugcSeason?.mid ?: 0L
+    return when {
+        seasonMid > 0L -> seasonMid
+        ownerMid > 0L -> ownerMid
+        else -> null
+    }
+}
+
+internal fun YouTubeMusicSearchResult.toSongItem(app: Application): SongItem {
     val displayArtist = artist.ifBlank { "YouTube" }
     val displayAlbum = album.ifBlank {
         when (type) {
-            YouTubeMusicSearchResultType.Song -> app.getString(R.string.youtube_search_type_song)
-            YouTubeMusicSearchResultType.Video -> app.getString(R.string.youtube_search_type_video)
+            YouTubeMusicSearchResultType.Song -> app.getString(CoreCommonR.string.youtube_search_type_song)
+            YouTubeMusicSearchResultType.Video -> app.getString(CoreCommonR.string.youtube_search_type_video)
         }
     }
     return SongItem(

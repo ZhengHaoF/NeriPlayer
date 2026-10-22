@@ -33,14 +33,15 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthHealth
-import moe.ouom.neriplayer.data.auth.common.SavedCookieAuthState
-import moe.ouom.neriplayer.data.auth.common.parseRawCookieText
+import moe.ouom.neriplayer.data.model.auth.SavedCookieAuthHealth
+import moe.ouom.neriplayer.data.model.auth.SavedCookieAuthState
+import moe.ouom.neriplayer.network.http.parsing.parseRawCookieText
 import moe.ouom.neriplayer.data.auth.web.clearWebViewLoginState
 import moe.ouom.neriplayer.data.auth.web.WebLoginPlatform
 import org.json.JSONObject
+import kotlin.time.Duration.Companion.milliseconds
 
 data class NeteaseAuthUiState(
     val phone: String = "",
@@ -117,12 +118,12 @@ class NeteaseAuthViewModel(app: Application) : AndroidViewModel(app) {
             cookieStore.clear()
             cookieRepo.clear()
             clearWebViewLoginState(
-                context = getApplication<Application>(),
+                context = getApplication(),
                 platform = WebLoginPlatform.NETEASE
             )
             _events.tryEmit(
                 NeteaseAuthEvent.ShowSnack(
-                    getApplication<Application>().getString(R.string.auth_cookie_cleared)
+                    getApplication<Application>().getString(CoreCommonR.string.auth_cookie_cleared)
                 )
             )
         }
@@ -220,7 +221,7 @@ class NeteaseAuthViewModel(app: Application) : AndroidViewModel(app) {
                     }
 
                     if (!cookieRepo.saveCookies(cookieStore)) {
-                        emitSnack(getApplication<Application>().getString(R.string.auth_cookie_invalid))
+                        emitSnack(getApplication<Application>().getString(CoreCommonR.string.auth_cookie_invalid))
                         return@launch
                     }
 
@@ -241,13 +242,13 @@ class NeteaseAuthViewModel(app: Application) : AndroidViewModel(app) {
     fun importCookiesFromMap(map: Map<String, String>) {
         viewModelScope.launch(Dispatchers.IO) {
             if (map.isEmpty()) {
-                emitSnack(getApplication<Application>().getString(R.string.auth_cookie_empty))
+                emitSnack(getApplication<Application>().getString(CoreCommonR.string.auth_cookie_empty))
                 return@launch
             }
 
             val validation = cookieRepo.validateCookies(map)
             if (!validation.isAccepted) {
-                emitSnack(getApplication<Application>().getString(R.string.auth_cookie_invalid))
+                emitSnack(getApplication<Application>().getString(CoreCommonR.string.auth_cookie_invalid))
                 return@launch
             }
 
@@ -255,7 +256,7 @@ class NeteaseAuthViewModel(app: Application) : AndroidViewModel(app) {
             cookieStore.putAll(validation.sanitizedCookies)
 
             if (!cookieRepo.saveCookies(cookieStore)) {
-                emitSnack(getApplication<Application>().getString(R.string.auth_cookie_invalid))
+                emitSnack(getApplication<Application>().getString(CoreCommonR.string.auth_cookie_invalid))
                 return@launch
             }
 
@@ -267,7 +268,7 @@ class NeteaseAuthViewModel(app: Application) : AndroidViewModel(app) {
     fun importCookiesFromRaw(raw: String) {
         val parsed = parseRawCookieText(raw)
         if (parsed.isEmpty()) {
-            emitSnack(getApplication<Application>().getString(R.string.auth_cookie_invalid))
+            emitSnack(getApplication<Application>().getString(CoreCommonR.string.auth_cookie_invalid))
             return
         }
         importCookiesFromMap(parsed)
@@ -278,7 +279,7 @@ class NeteaseAuthViewModel(app: Application) : AndroidViewModel(app) {
             var left = 60
             while (left >= 0) {
                 _uiState.value = _uiState.value.copy(countdownSec = left)
-                delay(1000)
+                delay(1000.milliseconds)
                 left--
             }
         }

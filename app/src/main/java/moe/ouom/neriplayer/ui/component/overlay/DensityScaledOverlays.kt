@@ -20,6 +20,8 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.contentColorFor
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -32,9 +34,11 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.navigationevent.compose.LocalNavigationEventDispatcherOwner
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import moe.ouom.neriplayer.ui.theme.NeriDesign
 
 internal val LocalOverlaySurfaceScale = compositionLocalOf { 1f }
 
@@ -74,14 +78,42 @@ internal fun DensityScaledAlertDialog(
     titleContentColor: Color = AlertDialogDefaults.titleContentColor,
     textContentColor: Color = AlertDialogDefaults.textContentColor,
     tonalElevation: Dp = AlertDialogDefaults.TonalElevation,
-    properties: DialogProperties = DialogProperties()
+    properties: DialogProperties = DialogProperties(),
+    neutralButton: @Composable (() -> Unit)? = null
 ) {
     val surfaceScale = LocalOverlaySurfaceScale.current
+    if (NeriDesign.isClean) {
+        CleanAlertDialog(
+            onDismissRequest = onDismissRequest,
+            confirmButton = {
+                ApplyOverlayWindowNavigationBarPolicy()
+                confirmButton()
+            },
+            modifier = Modifier.scaleOverlaySurfaceWidth(surfaceScale).then(modifier),
+            dismissButton = dismissButton,
+            icon = icon,
+            title = title,
+            text = text,
+            properties = properties,
+            neutralButton = neutralButton
+        )
+        return
+    }
     MaterialAlertDialog(
         onDismissRequest = onDismissRequest,
-        confirmButton = confirmButton,
+        confirmButton = {
+            ApplyOverlayWindowNavigationBarPolicy()
+            confirmButton()
+        },
         modifier = Modifier.scaleOverlaySurfaceWidth(surfaceScale).then(modifier),
-        dismissButton = dismissButton,
+        dismissButton = if (neutralButton != null) {
+            {
+                dismissButton?.invoke()
+                neutralButton()
+            }
+        } else {
+            dismissButton
+        },
         icon = icon,
         title = title,
         text = text,
@@ -103,7 +135,10 @@ internal fun DensityScaledModalBottomSheet(
     sheetState: SheetState = rememberModalBottomSheetState(),
     sheetMaxWidth: Dp = BottomSheetDefaults.SheetMaxWidth,
     sheetGesturesEnabled: Boolean = true,
-    shape: Shape = BottomSheetDefaults.ExpandedShape,
+    // 显式接 tokens.sheetShape，让 sheet 圆角与 NeriDesign 体系同源。material3 的
+    // ExpandedShape 目前派生自 MaterialTheme.shapes.extraLarge（Clean 下同为 30dp
+    // 连续圆角，故两者等价），但不依赖这层内部映射，避免 material3 升级后圆角走样。
+    shape: Shape = if (NeriDesign.isClean) NeriDesign.tokens.sheetShape else BottomSheetDefaults.ExpandedShape,
     containerColor: Color = BottomSheetDefaults.ContainerColor,
     contentColor: Color = contentColorFor(containerColor),
     tonalElevation: Dp = 0.dp,
@@ -118,52 +153,59 @@ internal fun DensityScaledModalBottomSheet(
     val scope = rememberCoroutineScope()
     val dragHandleInteractionSource = remember { MutableInteractionSource() }
 
-    // 保持 Sheet 贴边，密度缩放由 LocalDensity 传递给内部内容
-    ModalBottomSheet(
-        onDismissRequest = onDismissRequest,
-        modifier = modifier,
-        sheetState = sheetState,
-        sheetMaxWidth = sheetMaxWidth,
-        sheetGesturesEnabled = sheetGesturesEnabled,
-        shape = shape,
-        containerColor = containerColor,
-        contentColor = contentColor,
-        tonalElevation = tonalElevation,
-        scrimColor = scrimColor,
-        // 绕过 Material 默认的 TooltipBox，避免按住把手时出现矩形遮罩
-        dragHandle = null,
-        contentWindowInsets = contentWindowInsets,
-        properties = properties,
-        content = {
-            if (dragHandle != null) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = dragHandleInteractionSource,
-                            indication = null
-                        ) {
-                            scope.launch {
-                                when (sheetState.currentValue) {
-                                    SheetValue.Expanded -> {
-                                        sheetState.hide()
-                                        if (!sheetState.isVisible) {
-                                            onDismissRequest()
+    val backBridge = remember { SheetNavigationEventBridge() }
+    DisposableEffect(backBridge) { onDispose(backBridge::dispose) }
+
+    CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides backBridge) {
+        // 保持 Sheet 贴边，密度缩放由 LocalDensity 传递给内部内容
+        ModalBottomSheet(
+            onDismissRequest = onDismissRequest,
+            modifier = modifier,
+            sheetState = sheetState,
+            sheetMaxWidth = sheetMaxWidth,
+            sheetGesturesEnabled = sheetGesturesEnabled,
+            shape = shape,
+            containerColor = containerColor,
+            contentColor = contentColor,
+            tonalElevation = tonalElevation,
+            scrimColor = scrimColor,
+            // 绕过 Material 默认的 TooltipBox，避免按住把手时出现矩形遮罩
+            dragHandle = null,
+            contentWindowInsets = contentWindowInsets,
+            properties = properties,
+            content = {
+                ApplyOverlayWindowNavigationBarPolicy()
+                SheetNavigationEventForwarding(backBridge)
+                if (dragHandle != null) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = dragHandleInteractionSource,
+                                indication = null
+                            ) {
+                                scope.launch {
+                                    when (sheetState.currentValue) {
+                                        SheetValue.Expanded -> {
+                                            sheetState.hide()
+                                            if (!sheetState.isVisible) {
+                                                onDismissRequest()
+                                            }
                                         }
+                                        SheetValue.PartiallyExpanded -> sheetState.expand()
+                                        SheetValue.Hidden -> sheetState.show()
                                     }
-                                    SheetValue.PartiallyExpanded -> sheetState.expand()
-                                    SheetValue.Hidden -> sheetState.show()
                                 }
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    dragHandle()
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        dragHandle()
+                    }
                 }
+                content()
             }
-            content()
-        }
-    )
+        )
+    }
 }
 
 private fun Modifier.scaleOverlaySurfaceWidth(surfaceScale: Float): Modifier {

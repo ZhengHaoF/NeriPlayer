@@ -23,6 +23,10 @@ package moe.ouom.neriplayer.core.di
  * Created: 2025/8/19
  */
 
+import moe.ouom.neriplayer.platform.youtube.api.auth.hasEffectiveAuth
+import moe.ouom.neriplayer.platform.youtube.api.auth.normalized
+import kotlinx.coroutines.flow.first
+import moe.ouom.neriplayer.platform.netease.api.auth.NeteaseYdDeviceTokenProvider
 import android.app.Application
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,66 +36,77 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
-import moe.ouom.neriplayer.core.api.bili.BiliClient
-import moe.ouom.neriplayer.core.api.bili.BiliClientAudioDataSource
-import moe.ouom.neriplayer.core.api.bili.BiliPlaybackRepository
-import moe.ouom.neriplayer.core.api.bili.BiliSponsorBlockRepository
-import moe.ouom.neriplayer.core.api.kugou.KugouSearchApi
-import moe.ouom.neriplayer.core.api.kugou.KugouSession
-import moe.ouom.neriplayer.core.api.qqmusic.QQMusicSession
-import moe.ouom.neriplayer.data.auth.kugou.KugouCookieStore
-import moe.ouom.neriplayer.core.api.lyrics.AmllTtmlClient
-import moe.ouom.neriplayer.core.api.lyrics.EditableLyricsMatcher
-import moe.ouom.neriplayer.core.api.lyrics.KugouLyricsClient
-import moe.ouom.neriplayer.core.api.lyrics.LrcLibClient
-import moe.ouom.neriplayer.core.api.netease.NeteaseClient
-import moe.ouom.neriplayer.core.api.search.CloudMusicSearchApi
-import moe.ouom.neriplayer.core.api.search.QQMusicSearchApi
-import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicClient
-import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicPlaybackRepository
-import moe.ouom.neriplayer.core.api.youtube.YouTubePlaybackBootstrapCoordinator
+import moe.ouom.neriplayer.platform.bilibili.api.client.BiliClient
+import moe.ouom.neriplayer.platform.bilibili.playback.BiliClientAudioDataSource
+import moe.ouom.neriplayer.platform.bilibili.playback.BiliPlaybackRepository
+import moe.ouom.neriplayer.platform.bilibili.skip.sponsorblock.BiliSponsorBlockRepository
+import moe.ouom.neriplayer.platform.lyrics.api.client.AmllTtmlClient
+import moe.ouom.neriplayer.platform.lyrics.repository.EditableLyricsMatcher
+import moe.ouom.neriplayer.platform.lyrics.repository.AmllLyricsRepository
+import moe.ouom.neriplayer.platform.lyrics.repository.KugouLyricsRepository
+import moe.ouom.neriplayer.platform.lyrics.repository.LrcLibLyricsRepository
+import moe.ouom.neriplayer.platform.lyrics.repository.QQMusicLyricsRepository
+import moe.ouom.neriplayer.platform.lyrics.api.client.KugouLyricsClient
+import moe.ouom.neriplayer.platform.lyrics.api.client.LrcLibClient
+import moe.ouom.neriplayer.platform.netease.api.client.NeteaseClient
+import moe.ouom.neriplayer.BuildConfig
+import moe.ouom.neriplayer.platform.search.api.client.CloudMusicSearchApi
+import moe.ouom.neriplayer.data.model.music.MusicPlatform
+import moe.ouom.neriplayer.platform.search.api.client.QQMusicSearchApi
+import moe.ouom.neriplayer.platform.lyrics.search.SearchManager
+import moe.ouom.neriplayer.platform.youtube.api.client.YouTubeMusicClient
+import moe.ouom.neriplayer.platform.youtube.api.client.YouTubeAccountProfileClient
+import moe.ouom.neriplayer.platform.youtube.repository.YouTubeMusicPlaybackRepository
+import moe.ouom.neriplayer.platform.youtube.api.bootstrap.YouTubePlaybackBootstrapCoordinator
 import moe.ouom.neriplayer.core.download.ManagedDownloadStorage
 import moe.ouom.neriplayer.core.player.download.AudioDownloadManager
+import moe.ouom.neriplayer.core.startup.app.InstrumentationTestRuntime
 import moe.ouom.neriplayer.data.listentogether.ListenTogetherPreferences
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
-import moe.ouom.neriplayer.data.auth.bili.BiliCookieRepository
-import moe.ouom.neriplayer.data.auth.netease.NeteaseCookieRepository
-import moe.ouom.neriplayer.data.auth.web.ForegroundWebLoginGuard
-import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthAutoRefreshManager
-import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthRepository
+import moe.ouom.neriplayer.platform.bilibili.auth.BiliCookieRepository
+import moe.ouom.neriplayer.platform.netease.auth.NeteaseCookieRepository
+import moe.ouom.neriplayer.network.weblogin.ForegroundWebLoginGuard
+import moe.ouom.neriplayer.platform.youtube.auth.YouTubeAuthAutoRefreshManager
+import moe.ouom.neriplayer.platform.youtube.auth.YouTubeAuthRepository
 import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthRotationWorker
-import moe.ouom.neriplayer.data.auth.youtube.YOUTUBE_MUSIC_ORIGIN
+import moe.ouom.neriplayer.data.model.youtube.auth.YOUTUBE_MUSIC_ORIGIN
 import moe.ouom.neriplayer.data.history.PlayHistoryRepository
-import moe.ouom.neriplayer.data.platform.bili.BiliArchiveCacheRepository
-import moe.ouom.neriplayer.data.platform.bili.BiliFavoriteFolderCacheRepository
-import moe.ouom.neriplayer.data.platform.bili.BiliVideoSkipRepository
-import moe.ouom.neriplayer.data.platform.netease.NeteasePlaylistCacheRepository
-import moe.ouom.neriplayer.data.platform.youtube.YouTubeMusicPlaylistCacheRepository
+import moe.ouom.neriplayer.platform.bilibili.cache.BiliCacheRepositories
+import moe.ouom.neriplayer.data.local.platform.bilibili.BiliVideoSkipRepositoryProvider
+import moe.ouom.neriplayer.platform.netease.NeteasePlaylistCacheRepository
+import moe.ouom.neriplayer.platform.netease.encyclopedia.NeteaseSongEncyclopediaRepository
+import moe.ouom.neriplayer.platform.netease.encyclopedia.SongEncyclopediaRepository
+import moe.ouom.neriplayer.platform.youtube.playlist.YouTubeMusicPlaylistCacheRepository
 import moe.ouom.neriplayer.data.playlist.usage.LocalPlaylistPlaybackStatsRepository
 import moe.ouom.neriplayer.data.playlist.usage.PlaylistUsageRepository
 import moe.ouom.neriplayer.data.stats.PlaybackStatsRepository
 import moe.ouom.neriplayer.data.sync.CoverUrlMapper
 import moe.ouom.neriplayer.data.traffic.TrafficStatsRepository
-import moe.ouom.neriplayer.listentogether.network.http.ListenTogetherApi
-import moe.ouom.neriplayer.listentogether.ListenTogetherSessionManager
-import moe.ouom.neriplayer.listentogether.network.ws.ListenTogetherWebSocketClient
+import moe.ouom.neriplayer.api.ltw.http.ListenTogetherApi
+import moe.ouom.neriplayer.data.ltw.ListenTogetherSessionManager
+import moe.ouom.neriplayer.api.ltw.ws.ListenTogetherWebSocketClient
 import moe.ouom.neriplayer.data.settings.dataStore
-import moe.ouom.neriplayer.data.settings.persistBootstrapSettingsSnapshot
-import moe.ouom.neriplayer.data.settings.persistPlaybackPreferenceSnapshot
-import moe.ouom.neriplayer.data.settings.readBootstrapSettingsSnapshotSync
+import moe.ouom.neriplayer.data.settings.bootstrap.persistBootstrapSettingsSnapshot
+import moe.ouom.neriplayer.data.settings.playback.persistPlaybackPreferenceSnapshot
+import moe.ouom.neriplayer.data.settings.bootstrap.readBootstrapSettingsSnapshotSync
 import moe.ouom.neriplayer.data.settings.SettingsRepository
-import moe.ouom.neriplayer.data.settings.toBootstrapSettingsSnapshot
-import moe.ouom.neriplayer.data.settings.toPlaybackPreferenceSnapshot
-import moe.ouom.neriplayer.data.platform.youtube.buildYouTubeInnertubeRequestHeaders
-import moe.ouom.neriplayer.data.platform.youtube.buildYouTubePageRequestHeaders
-import moe.ouom.neriplayer.data.platform.youtube.buildYouTubeStreamRequestHeaders
-import moe.ouom.neriplayer.data.platform.youtube.isTrustedYouTubeHost
-import moe.ouom.neriplayer.data.platform.youtube.isYouTubeGoogleVideoHost
-import moe.ouom.neriplayer.data.platform.youtube.isYouTubeInnertubeHost
-import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureDisabledException
-import moe.ouom.neriplayer.data.platform.youtube.YouTubeFeatureGate
-import moe.ouom.neriplayer.core.logging.NPLogger
-import moe.ouom.neriplayer.util.network.DynamicProxySelector
+import moe.ouom.neriplayer.data.settings.bootstrap.toBootstrapSettingsSnapshot
+import moe.ouom.neriplayer.data.settings.playback.toPlaybackPreferenceSnapshot
+import moe.ouom.neriplayer.platform.youtube.api.transport.buildYouTubeInnertubeRequestHeaders
+import moe.ouom.neriplayer.platform.youtube.api.transport.buildYouTubePageRequestHeaders
+import moe.ouom.neriplayer.platform.youtube.api.transport.buildYouTubeStreamRequestHeaders
+import moe.ouom.neriplayer.platform.youtube.api.transport.isTrustedYouTubeHost
+import moe.ouom.neriplayer.platform.youtube.api.transport.isYouTubeGoogleVideoHost
+import moe.ouom.neriplayer.platform.youtube.api.transport.isYouTubeInnertubeHost
+import moe.ouom.neriplayer.platform.youtube.config.YouTubeFeatureDisabledException
+import moe.ouom.neriplayer.platform.youtube.config.YouTubeFeatureGate
+import moe.ouom.neriplayer.common.logging.NPLogger
+import moe.ouom.neriplayer.platform.comments.CommentMemoryCache
+import moe.ouom.neriplayer.data.model.comments.CommentPlatform
+import moe.ouom.neriplayer.platform.comments.repository.CommentRepository
+import moe.ouom.neriplayer.platform.comments.repository.BiliCommentRepository
+import moe.ouom.neriplayer.platform.comments.repository.NeteaseCommentRepository
+import moe.ouom.neriplayer.network.proxy.DynamicProxySelector
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -162,7 +177,7 @@ internal fun resolveInitialManagedDownloadSettings(
 }
 
 internal fun handleYouTubeAuthStateChanged(
-    bundle: moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle,
+    bundle: moe.ouom.neriplayer.data.model.youtube.auth.YouTubeAuthBundle,
     clearBootstrapCache: () -> Unit,
     clearPlaybackAuthBoundCaches: (Boolean) -> Unit,
     evictConnections: () -> Unit,
@@ -190,9 +205,10 @@ internal fun handleYouTubeAuthStateChanged(
  */
 internal fun warmYouTubePlaybackIfEnabled(
     youtubeEnabled: Boolean = true,
+    backgroundWarmupAllowed: Boolean = !InstrumentationTestRuntime.isActive,
     warmBootstrapAsync: () -> Unit
 ) {
-    if (youtubeEnabled && !ForegroundWebLoginGuard.isActive) {
+    if (youtubeEnabled && backgroundWarmupAllowed && !ForegroundWebLoginGuard.isActive) {
         warmBootstrapAsync()
     }
 }
@@ -205,7 +221,7 @@ private data class YouTubeAuthWarmBootstrapKey(
     val userAgent: String,
 )
 
-private fun moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle.toWarmBootstrapKey():
+private fun moe.ouom.neriplayer.data.model.youtube.auth.YouTubeAuthBundle.toWarmBootstrapKey():
     YouTubeAuthWarmBootstrapKey {
     val normalized = normalized()
     return YouTubeAuthWarmBootstrapKey(
@@ -240,6 +256,7 @@ object AppContainer {
     val youtubeAuthRepo by lazy { YouTubeAuthRepository(application) }
     internal val youtubeAuthAutoRefreshManager by lazy {
         YouTubeAuthAutoRefreshManager(
+            httpClientProvider = { sharedOkHttpClient },
             context = application,
             authProvider = youtubeAuthRepo::getAuthOnce,
             authHealthProvider = youtubeAuthRepo::getAuthHealthOnce,
@@ -267,10 +284,10 @@ object AppContainer {
         LocalPlaylistPlaybackStatsRepository.getInstance(application)
     }
     val biliFavoriteFolderCacheRepo by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        BiliFavoriteFolderCacheRepository(application)
+        BiliCacheRepositories.createFavoriteFolder(application)
     }
     val biliArchiveCacheRepo by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        BiliArchiveCacheRepository(application)
+        BiliCacheRepositories.createArchive(application)
     }
     val neteasePlaylistCacheRepo by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         NeteasePlaylistCacheRepository(application)
@@ -345,15 +362,11 @@ object AppContainer {
     }
 
     // 网络客户端
-    val kugouCookieStore by lazy { KugouCookieStore(application) }
-    val kugouSession by lazy { KugouSession(kugouCookieStore) }
-    val kugouSearchApi by lazy { KugouSearchApi(kugouSession) }
-
-    /** QQ音乐会话（guid 持久化；匿名走 web 协议；登录态经 QQMusicCookieStore 持久化）。 */
-    val qqMusicSession by lazy { QQMusicSession(application) }
-
     val neteaseClient by lazy {
-        NeteaseClient().also { client ->
+        NeteaseClient {
+            NeteaseYdDeviceTokenProvider(applicationContext)
+                .getCommentToken()
+        }.also { client ->
             neteaseCookieRepo.withCurrentCookies { cookies ->
                 client.setPersistedCookies(cookies)
             }
@@ -361,8 +374,22 @@ object AppContainer {
     }
 
     val biliClient by lazy { BiliClient(biliCookieRepo, client = sharedOkHttpClient) }
+
+    /** 歌曲百科仓库；数据源为网易云，其它来源返回 NotSupported。 */
+    val songEncyclopediaRepository: SongEncyclopediaRepository by lazy {
+        NeteaseSongEncyclopediaRepository(neteaseClient)
+    }
+
+    private val commentCache = CommentMemoryCache()
+    private val neteaseComments = NeteaseCommentRepository(commentCache) { neteaseClient }
+    private val biliComments = BiliCommentRepository(commentCache) { biliClient }
+
+    internal fun commentRepositoryFor(platform: CommentPlatform): CommentRepository = when (platform) {
+        CommentPlatform.NETEASE -> neteaseComments
+        CommentPlatform.BILIBILI -> biliComments
+    }
     internal val biliSponsorBlockRepository by lazy { BiliSponsorBlockRepository(sharedOkHttpClient) }
-    internal val biliVideoSkipRepository by lazy { BiliVideoSkipRepository.getInstance(application) }
+    internal val biliVideoSkipRepository by lazy { BiliVideoSkipRepositoryProvider.getInstance(application) }
     private val youtubeMusicClientDelegate = lazy {
         YouTubeMusicClient(
             authRepo = youtubeAuthRepo,
@@ -373,15 +400,33 @@ object AppContainer {
     val youtubeMusicClient: YouTubeMusicClient
         get() = youtubeMusicClientDelegate.value
 
+    // 资料请求保留授权快照，不经过会更新账号 Cookie 的共享拦截器
+    private val youtubeAccountProfileHttpClientDelegate = lazy {
+        val clientBuilder = OkHttpClient.Builder()
+            .proxySelector(DynamicProxySelector)
+            .followRedirects(false)
+            .addInterceptor { chain ->
+                if (!YouTubeFeatureGate.isEnabled()) {
+                    throw YouTubeFeatureDisabledException()
+                }
+                chain.proceed(chain.request())
+            }
+        configureSharedOkHttpClient(clientBuilder).build()
+    }
+    val youtubeAccountProfileClient by lazy {
+        YouTubeAccountProfileClient(youtubeAccountProfileHttpClientDelegate.value)
+    }
+
     // 功能 Repo 和 API
     val biliPlaybackRepository by lazy {
         val dataSource = BiliClientAudioDataSource(biliClient)
-        BiliPlaybackRepository(dataSource, settingsRepo)
+        BiliPlaybackRepository(dataSource) { settingsRepo.biliAudioQualityFlow.first() }
     }
     private val youtubeMusicPlaybackRepositoryDelegate = lazy {
         YouTubeMusicPlaybackRepository(
             okHttpClient = sharedOkHttpClient,
-            settings = settingsRepo,
+            audioQualityProvider = { settingsRepo.youtubeAudioQualityFlow.first() },
+            playbackSourceProvider = { settingsRepo.youtubePlaybackSourceFlow.first() },
             authProvider = youtubeAuthRepo::getAuthOnce,
             authAutoRefreshManager = youtubeAuthAutoRefreshManager,
             applicationContext = application,
@@ -395,7 +440,8 @@ object AppContainer {
             okHttpClient = sharedOkHttpClient.newBuilder()
                 .callTimeout(YOUTUBE_DOWNLOAD_PLAYBACK_CALL_TIMEOUT_MS, TimeUnit.MILLISECONDS)
                 .build(),
-            settings = settingsRepo,
+            audioQualityProvider = { settingsRepo.youtubeAudioQualityFlow.first() },
+            playbackSourceProvider = { settingsRepo.youtubePlaybackSourceFlow.first() },
             authProvider = youtubeAuthRepo::getAuthOnce,
             authAutoRefreshManager = youtubeAuthAutoRefreshManager,
             applicationContext = application,
@@ -405,11 +451,27 @@ object AppContainer {
     val youtubeMusicDownloadPlaybackRepository: YouTubeMusicPlaybackRepository
         get() = youtubeMusicDownloadPlaybackRepositoryDelegate.value
 
-    val cloudMusicSearchApi by lazy { CloudMusicSearchApi(neteaseClient) }
-    val qqMusicSearchApi by lazy { QQMusicSearchApi() }
-    val lrcLibClient by lazy { LrcLibClient(sharedOkHttpClient) }
-    val amllTtmlClient by lazy { AmllTtmlClient(sharedOkHttpClient) }
-    val kugouLyricsClient by lazy { KugouLyricsClient(sharedOkHttpClient) }
+    val cloudMusicSearchApi by lazy {
+        CloudMusicSearchApi(neteaseClient, sharedOkHttpClient, debugLogging = BuildConfig.DEBUG)
+    }
+    val qqMusicSearchApi by lazy {
+        QQMusicLyricsRepository(
+            api = QQMusicSearchApi(sharedOkHttpClient, debugLogging = BuildConfig.DEBUG),
+            amllTtmlClient = amllTtmlClient,
+            amllLyricsEnabledProvider = { settingsRepo.amllLyricsEnabledFlow.first() }
+        )
+    }
+    val searchManager by lazy {
+        SearchManager { platform ->
+            when (platform) {
+                MusicPlatform.CLOUD_MUSIC -> cloudMusicSearchApi
+                MusicPlatform.QQ_MUSIC -> qqMusicSearchApi
+            }
+        }
+    }
+    val lrcLibClient by lazy { LrcLibLyricsRepository(LrcLibClient(sharedOkHttpClient)) }
+    val amllTtmlClient by lazy { AmllLyricsRepository(AmllTtmlClient(sharedOkHttpClient)) }
+    val kugouLyricsClient by lazy { KugouLyricsRepository(KugouLyricsClient(sharedOkHttpClient)) }
     val editableLyricsMatcher by lazy {
         EditableLyricsMatcher(
             cloudMusicSearchApi = cloudMusicSearchApi,
@@ -430,7 +492,10 @@ object AppContainer {
     val listenTogetherSessionManager by lazy {
         ListenTogetherSessionManager(
             api = listenTogetherApi,
-            webSocketClient = listenTogetherWebSocketClient
+            webSocketClient = listenTogetherWebSocketClient,
+            playback = moe.ouom.neriplayer.core.player.ltw.PlayerManagerListenTogetherHost,
+            platform = moe.ouom.neriplayer.core.di.ltw.AppListenTogetherPlatform,
+            songMapper = moe.ouom.neriplayer.core.player.ltw.PlayerListenTogetherSongMapper
         )
     }
 
@@ -455,6 +520,32 @@ object AppContainer {
     fun initialize(app: Application) {
         this.application = app
         initialized = true
+        moe.ouom.neriplayer.core.integration.download.installDownloadDependencies()
+        moe.ouom.neriplayer.core.di.player.installPlayerDependencies(app)
+        moe.ouom.neriplayer.data.local.media.source.LocalMediaHostAccess.bind(
+            downloads = moe.ouom.neriplayer.core.download.host.media.AndroidLocalMediaDownloads,
+            covers = moe.ouom.neriplayer.core.download.host.media.AndroidLocalMediaCovers,
+            crashLogs = moe.ouom.neriplayer.data.local.media.source.CrashLogCleanup(
+                moe.ouom.neriplayer.core.crash.ExceptionHandler::clearCrashLogs
+            )
+        )
+        moe.ouom.neriplayer.data.network.DataHttpClients.bind { sharedOkHttpClient }
+        moe.ouom.neriplayer.data.sync.host.SyncPlaybackActivity.bind {
+            moe.ouom.neriplayer.core.player.PlayerManager.playbackControlPlayingFlow.value
+        }
+        moe.ouom.neriplayer.data.auth.youtube.YouTubeRotationHosts.bind(
+            object : moe.ouom.neriplayer.data.auth.youtube.YouTubeRotationHost {
+                override fun isInitialized() = AppContainer.isInitialized()
+                override suspend fun isYouTubeEnabled() = settingsRepo.youtubeEnabledFlow.first()
+                override fun readAuth() = youtubeAuthRepo.getAuthOnce()
+                override fun persistRotatedCookies(cookies: Map<String, String>) {
+                    youtubeAuthRepo.mergeRotatedCookies(cookies)
+                }
+            }
+        )
+        moe.ouom.neriplayer.data.local.database.maintenance.LegacyJsonCleanupRequests.bind(
+            moe.ouom.neriplayer.core.startup.LegacyJsonCleanupScheduler::schedule
+        )
         AudioDownloadManager.initialize(app)
         warmLocalPlaylistRepository()
         warmBiliVideoSkipRepository()
@@ -482,7 +573,7 @@ object AppContainer {
     private fun warmBiliVideoSkipRepository() {
         scope.launch {
             runCatching {
-                BiliVideoSkipRepository.getInstance(application)
+                BiliVideoSkipRepositoryProvider.getInstance(application)
             }.onFailure { error ->
                 NPLogger.e("AppContainer", "Failed to preload Bili video skip rules", error)
             }
@@ -561,6 +652,9 @@ object AppContainer {
             .onEach { enabled ->
                 DynamicProxySelector.bypassProxy = enabled
                 sharedOkHttpClient.connectionPool.evictAll()
+                if (youtubeAccountProfileHttpClientDelegate.isInitialized()) {
+                    youtubeAccountProfileHttpClientDelegate.value.connectionPool.evictAll()
+                }
                 neteaseClient.evictConnections()
                 AudioDownloadManager.notifyRecoveryOpportunity("proxy_changed")
             }
@@ -624,6 +718,9 @@ object AppContainer {
             sharedOkHttpClient.dispatcher.runningCalls()
         calls.filter { call -> isYouTubeHost(call.request().url.host) }
             .forEach { call -> call.cancel() }
+        if (youtubeAccountProfileHttpClientDelegate.isInitialized()) {
+            youtubeAccountProfileHttpClientDelegate.value.dispatcher.cancelAll()
+        }
     }
 
     private fun isYouTubeHost(host: String): Boolean {

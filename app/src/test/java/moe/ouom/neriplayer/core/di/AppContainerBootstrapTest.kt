@@ -1,6 +1,6 @@
 package moe.ouom.neriplayer.core.di
 
-import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle
+import moe.ouom.neriplayer.data.model.youtube.auth.YouTubeAuthBundle
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -144,6 +144,18 @@ class AppContainerBootstrapTest {
 
         warmYouTubePlaybackIfEnabled(
             youtubeEnabled = false,
+            warmBootstrapAsync = { warmCalls += 1 }
+        )
+
+        assertEquals(0, warmCalls)
+    }
+
+    @Test
+    fun `warmYouTubePlaybackIfEnabled skips background warm bootstrap when runtime disables it`() {
+        var warmCalls = 0
+
+        warmYouTubePlaybackIfEnabled(
+            backgroundWarmupAllowed = false,
             warmBootstrapAsync = { warmCalls += 1 }
         )
 

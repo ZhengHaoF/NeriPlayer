@@ -1,5 +1,7 @@
 package moe.ouom.neriplayer.ui.component.lyrics
 
+import moe.ouom.neriplayer.data.model.lyrics.LyricEntry
+
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
@@ -79,18 +81,19 @@ import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import moe.ouom.neriplayer.data.local.media.LocalMediaSupport
 import moe.ouom.neriplayer.data.local.media.isLocalSong
-import moe.ouom.neriplayer.data.model.displayArtist
-import moe.ouom.neriplayer.data.model.displayCoverUrl
-import moe.ouom.neriplayer.data.model.displayName
+import moe.ouom.neriplayer.data.local.media.displayArtist
+import moe.ouom.neriplayer.data.local.media.displayName
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.ui.util.rememberSongDisplayCoverUrl
 import moe.ouom.neriplayer.util.media.buildRemoteSongShareUrl
 import moe.ouom.neriplayer.util.media.offlineCachedImageRequest
 import java.io.File
 import kotlin.math.roundToInt
 import android.graphics.Color as AndroidColor
+import moe.ouom.neriplayer.ui.feedback.startActivityOrShowUnavailable
 
 private const val LyricShareCardSizePx = 1080
 private const val LyricShareCardCacheDir = "lyric_share_cards"
@@ -152,7 +155,7 @@ fun LyricShareSheet(
         selectedLines.joinToString(separator = "\n") { it.text }
     }
     val selectedCharCount = selectedText.length
-    val coverUrl = remember(song, context) { song.displayCoverUrl(context) }
+    val coverUrl = rememberSongDisplayCoverUrl(song)
     var isSharingCard by remember { mutableStateOf(false) }
 
     LaunchedEffect(shareableLyrics, initialKey) {
@@ -179,9 +182,9 @@ fun LyricShareSheet(
         ) {
             LyricShareHeader(
                 coverUrl = coverUrl,
-                title = stringResource(R.string.lyric_share_selected_lines, selectedLines.size),
+                title = stringResource(CoreCommonR.string.lyric_share_selected_lines, selectedLines.size),
                 subtitle = stringResource(
-                    R.string.lyric_share_character_count,
+                    CoreCommonR.string.lyric_share_character_count,
                     selectedCharCount
                 )
             )
@@ -266,7 +269,7 @@ fun LyricShareSheet(
                             }
                             result.onFailure {
                                 onShowMessage(
-                                    composeResources.getString(R.string.lyric_share_card_failed)
+                                    composeResources.getString(CoreCommonR.string.lyric_share_card_failed)
                                 )
                             }.onSuccess {
                                 onDismiss()
@@ -396,7 +399,7 @@ private fun LyricShareActions(
         ) {
             Icon(
                 Icons.Outlined.ContentCopy,
-                contentDescription = stringResource(R.string.lyric_share_copy_lyrics)
+                contentDescription = stringResource(CoreCommonR.string.lyric_share_copy_lyrics)
             )
         }
         FilledTonalButton(
@@ -405,7 +408,7 @@ private fun LyricShareActions(
         ) {
             Icon(
                 Icons.Outlined.Share,
-                contentDescription = stringResource(R.string.lyric_share_song)
+                contentDescription = stringResource(CoreCommonR.string.lyric_share_song)
             )
         }
         FilledTonalButton(
@@ -415,7 +418,7 @@ private fun LyricShareActions(
         ) {
             Icon(
                 Icons.Outlined.Wallpaper,
-                contentDescription = stringResource(R.string.lyric_share_card)
+                contentDescription = stringResource(CoreCommonR.string.lyric_share_card)
             )
         }
     }
@@ -484,7 +487,7 @@ private suspend fun shareSong(
             LocalMediaSupport.shareSongFile(context, song)
         }.getOrElse { false }
         if (!shared) {
-            onShowMessage(context.getString(R.string.local_song_share_failed))
+            onShowMessage(context.getString(CoreCommonR.string.local_song_share_failed))
         }
         return
     }
@@ -494,7 +497,7 @@ private suspend fun shareSong(
         "${song.displayName()} - ${song.displayArtist()}"
     } else {
         context.getString(
-            R.string.nowplaying_share_song,
+            CoreCommonR.string.nowplaying_share_song,
             song.displayName(),
             song.displayArtist(),
             shareUrl,
@@ -504,7 +507,7 @@ private suspend fun shareSong(
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, shareText)
     }
-    context.startActivity(Intent.createChooser(sendIntent, null))
+    context.startActivityOrShowUnavailable(Intent.createChooser(sendIntent, null))
 }
 
 private suspend fun createAndShareLyricCard(
@@ -551,7 +554,7 @@ private suspend fun createAndShareLyricCard(
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         clipData = ClipData.newUri(context.contentResolver, file.name, uri)
     }
-    context.startActivity(Intent.createChooser(sendIntent, null))
+    context.startActivityOrShowUnavailable(Intent.createChooser(sendIntent, null))
 }
 
 private suspend fun loadCoverBitmap(context: Context, coverUrl: String?): Bitmap? {
@@ -582,7 +585,7 @@ internal fun copyDrawableToOwnedBitmap(
     height: Int,
     config: Bitmap.Config
 ): Bitmap {
-    val bitmap = Bitmap.createBitmap(width, height, config)
+    val bitmap = createBitmap(width, height, config)
     val originalBounds = Rect(drawable.bounds)
     return try {
         drawable.setBounds(0, 0, width, height)
@@ -1056,64 +1059,53 @@ private fun Bitmap.boxBlur(
     return working
 }
 
-private fun Bitmap.boxBlurOnce(radius: Int) {
+internal fun Bitmap.boxBlurOnce(radius: Int) {
     val bitmapWidth = width
     val bitmapHeight = height
     val pixels = IntArray(bitmapWidth * bitmapHeight)
     val temp = IntArray(bitmapWidth * bitmapHeight)
     getPixels(pixels, 0, bitmapWidth, 0, 0, bitmapWidth, bitmapHeight)
-
-    for (y in 0 until bitmapHeight) {
-        for (x in 0 until bitmapWidth) {
-            var alpha = 0
-            var red = 0
-            var green = 0
-            var blue = 0
-            var count = 0
-            for (offset in -radius..radius) {
-                val sampleX = (x + offset).coerceIn(0, bitmapWidth - 1)
-                val color = pixels[y * bitmapWidth + sampleX]
-                alpha += AndroidColor.alpha(color)
-                red += AndroidColor.red(color)
-                green += AndroidColor.green(color)
-                blue += AndroidColor.blue(color)
-                count += 1
-            }
-            temp[y * bitmapWidth + x] = AndroidColor.argb(
-                alpha / count,
-                red / count,
-                green / count,
-                blue / count
-            )
-        }
-    }
-
-    for (y in 0 until bitmapHeight) {
-        for (x in 0 until bitmapWidth) {
-            var alpha = 0
-            var red = 0
-            var green = 0
-            var blue = 0
-            var count = 0
-            for (offset in -radius..radius) {
-                val sampleY = (y + offset).coerceIn(0, bitmapHeight - 1)
-                val color = temp[sampleY * bitmapWidth + x]
-                alpha += AndroidColor.alpha(color)
-                red += AndroidColor.red(color)
-                green += AndroidColor.green(color)
-                blue += AndroidColor.blue(color)
-                count += 1
-            }
-            pixels[y * bitmapWidth + x] = AndroidColor.argb(
-                alpha / count,
-                red / count,
-                green / count,
-                blue / count
-            )
-        }
-    }
-
+    boxBlurPass(pixels, temp, bitmapWidth, bitmapHeight, radius, horizontal = true)
+    boxBlurPass(temp, pixels, bitmapWidth, bitmapHeight, radius, horizontal = false)
     setPixels(pixels, 0, bitmapWidth, 0, 0, bitmapWidth, bitmapHeight)
+}
+
+private fun boxBlurPass(
+    source: IntArray,
+    target: IntArray,
+    bitmapWidth: Int,
+    bitmapHeight: Int,
+    radius: Int,
+    horizontal: Boolean
+) {
+    for (y in 0 until bitmapHeight) {
+        for (x in 0 until bitmapWidth) {
+            var alpha = 0
+            var red = 0
+            var green = 0
+            var blue = 0
+            var count = 0
+            for (offset in -radius..radius) {
+                val sampleIndex = if (horizontal) {
+                    y * bitmapWidth + (x + offset).coerceIn(0, bitmapWidth - 1)
+                } else {
+                    (y + offset).coerceIn(0, bitmapHeight - 1) * bitmapWidth + x
+                }
+                val color = source[sampleIndex]
+                alpha += AndroidColor.alpha(color)
+                red += AndroidColor.red(color)
+                green += AndroidColor.green(color)
+                blue += AndroidColor.blue(color)
+                count += 1
+            }
+            target[y * bitmapWidth + x] = AndroidColor.argb(
+                alpha / count,
+                red / count,
+                green / count,
+                blue / count
+            )
+        }
+    }
 }
 
 private fun buildLyricCardShareText(

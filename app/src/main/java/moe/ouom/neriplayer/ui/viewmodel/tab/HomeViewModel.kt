@@ -23,7 +23,10 @@ package moe.ouom.neriplayer.ui.viewmodel.tab
  * Created: 2025/8/10
  */
 
+import moe.ouom.neriplayer.platform.youtube.api.auth.hasEffectiveAuth
+import moe.ouom.neriplayer.platform.youtube.api.auth.hasSavedAuthMaterial
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
@@ -35,7 +38,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -43,20 +45,23 @@ import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
-import moe.ouom.neriplayer.R
-import moe.ouom.neriplayer.core.api.kugou.KugouChannelContent
-import moe.ouom.neriplayer.core.api.kugou.loadKugouChannelContent
-import moe.ouom.neriplayer.core.api.netease.mergeNeteaseSessionCookies
-import moe.ouom.neriplayer.core.api.youtube.YouTubeMusicHomeShelf
+import moe.ouom.neriplayer.common.R as CoreCommonR
+import moe.ouom.neriplayer.platform.netease.api.client.mergeNeteaseSessionCookies
+import moe.ouom.neriplayer.data.model.bilibili.music.BiliMusicHotVideo
+import moe.ouom.neriplayer.data.model.bilibili.music.BiliMusicRankPeriod
+import moe.ouom.neriplayer.data.model.bilibili.music.BiliMusicRankSong
+import moe.ouom.neriplayer.data.model.bilibili.music.BiliMusicRankType
+import moe.ouom.neriplayer.data.model.youtube.music.YouTubeMusicHomeShelf
 import moe.ouom.neriplayer.core.di.AppContainer
-import moe.ouom.neriplayer.core.player.PlayerManager
-import moe.ouom.neriplayer.data.auth.youtube.YouTubeAuthBundle
-import moe.ouom.neriplayer.data.auth.youtube.buildRefreshObserverFingerprint
+import moe.ouom.neriplayer.ui.viewmodel.tab.bili.BiliMusicHomeRepository
+import moe.ouom.neriplayer.data.model.youtube.auth.YouTubeAuthBundle
+import moe.ouom.neriplayer.platform.youtube.auth.buildRefreshObserverFingerprint
 import moe.ouom.neriplayer.data.model.SongItem
-import moe.ouom.neriplayer.data.platform.netease.neteaseRadarCacheContext
-import moe.ouom.neriplayer.util.platform.LanguageManager
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.platform.netease.neteaseRadarCacheContext
+import moe.ouom.neriplayer.common.locale.LanguageManager
+import moe.ouom.neriplayer.common.logging.NPLogger
 import java.io.IOException
+import kotlin.time.Duration.Companion.milliseconds
 
 private const val TAG = "NERI-HomeVM"
 private const val HOME_NETEASE_SONG_LIMIT = 30
@@ -65,11 +70,10 @@ private const val HOME_PRIVATE_FM_MAX_BATCHES = 10
 private const val HOME_MAX_FAILURE_BEFORE_WARNING = 3
 private const val HOME_YT_MUSIC_PLAYLIST_LIMIT = 24
 private const val HOME_INITIAL_LOAD_DEFER_MS = 250L
-private const val HOME_NETEASE_PROBE_TIMEOUT_MS = 30_000L
 private const val HOME_SECTION_LOAD_PARALLELISM = 6
 private const val HOME_SECTION_LOAD_PARALLELISM_PER_GROUP = 2
 
-private fun shouldFallbackRecommend(code: Int): Boolean = code == 301 || code == 50000005
+internal fun shouldFallbackRecommend(code: Int): Boolean = code == 301 || code == 50000005
 
 internal fun homeSongFetchAttemptCount(source: NeteaseHomeSongSource): Int {
     return if (source == NeteaseHomeSongSource.PRIVATE_FM) {
@@ -133,20 +137,6 @@ internal fun shouldHandleInitialNeteaseHomeCookieEmission(
     emittedCookies: Map<String, String>
 ): Boolean = !isFirstEmission || initialCookies != emittedCookies
 
-/**
- * 网易云源是否有可展示内容：任一展示板块有真实数据即视为有内容。
- * 雷达歌单失败时的硬编码兜底不算「有数据」，否则永远不会降级到下一个源。
- */
-internal fun neteaseHomeHasData(state: HomeUiState): Boolean =
-    state.playlistSections.any { it.section.items.isNotEmpty() } ||
-        state.trendingSongSections.any { it.section.items.isNotEmpty() } ||
-        state.radarSongSections.any { it.section.items.isNotEmpty() } ||
-        (state.radarPlaylists.items.isNotEmpty() && !state.radarPlaylistsFromFallback)
-
-/** 酷狗源是否有可展示内容：每日推荐/榜单/热门歌单任一非空即视为有内容。 */
-internal fun kugouContentHasData(content: KugouChannelContent): Boolean =
-    content.ranks.isNotEmpty() || content.playlists.isNotEmpty() || content.dailyRecommend.isNotEmpty()
-
 internal enum class HomeSectionLoadGroup {
     PLAYLISTS,
     TRENDING_SONGS,
@@ -159,7 +149,7 @@ internal class HomeSectionLoadCoordinator(
     maxConcurrentLoadsPerGroup: Int = HOME_SECTION_LOAD_PARALLELISM_PER_GROUP
 ) {
     private val totalSemaphore = Semaphore(maxConcurrentLoads)
-    private val groupSemaphores = HomeSectionLoadGroup.values().associateWith { group ->
+    private val groupSemaphores = HomeSectionLoadGroup.entries.associateWith { group ->
         Semaphore(maxConcurrentLoadsPerGroup)
     }
 
@@ -181,7 +171,7 @@ internal class HomeSectionLoadCoordinator(
                 }
             }.toMutableList()
             while (pending.isNotEmpty()) {
-                select<Unit> {
+                select {
                     pending.forEach { deferred ->
                         deferred.onAwait { result ->
                             pending.remove(deferred)
@@ -200,6 +190,15 @@ data class HomeSectionState<T>(
     val error: String? = null
 )
 
+/** 首页 B 站版权音乐榜模块状态（榜单类型、期数与曲目始终同源） */
+data class HomeBiliMusicRankState(
+    val type: BiliMusicRankType = BiliMusicRankType.HOT,
+    val period: BiliMusicRankPeriod? = null,
+    val songs: List<BiliMusicRankSong> = emptyList(),
+    val loading: Boolean = false,
+    val error: String? = null
+)
+
 data class HomeNeteaseSongSectionState(
     val source: NeteaseHomeSongSource,
     val section: HomeSectionState<SongItem> = HomeSectionState()
@@ -210,13 +209,6 @@ data class HomeNeteasePlaylistSectionState(
     val section: HomeSectionState<PlaylistSummary> = HomeSectionState()
 )
 
-/** 酷狗概念版首页内容（每日推荐 + 排行榜 + 热门歌单）。 */
-data class HomeKugouSectionState(
-    val content: KugouChannelContent? = null,
-    val loading: Boolean = false,
-    val error: String? = null
-)
-
 data class HomeUiState(
     val playlistSections: List<HomeNeteasePlaylistSectionState> = emptyList(),
     val trendingSongSections: List<HomeNeteaseSongSectionState> = emptyList(),
@@ -224,12 +216,10 @@ data class HomeUiState(
     val radarPlaylists: HomeSectionState<PlaylistSummary> = HomeSectionState(),
     val ytMusicPlaylists: HomeSectionState<YouTubeMusicPlaylist> = HomeSectionState(),
     val ytMusicHomeShelves: HomeSectionState<YouTubeMusicHomeShelf> = HomeSectionState(),
+    val biliMusicRank: HomeBiliMusicRankState = HomeBiliMusicRankState(),
+    val biliMusicHot: HomeSectionState<BiliMusicHotVideo> = HomeSectionState(),
     val hasLogin: Boolean = false,
-    val internationalizationEnabled: Boolean = false,
-    val activeSource: HomeContentSource? = null,
-    val kugouSections: HomeKugouSectionState = HomeKugouSectionState(),
-    /** 雷达歌单当前是否为失败后的硬编码兜底（不计入源「有数据」）。 */
-    val radarPlaylistsFromFallback: Boolean = false
+    val internationalizationEnabled: Boolean = false
 )
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
@@ -243,11 +233,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         cookies
     }
     private var hasRecommendLogin = !initialRecommendCookies["MUSIC_U"].isNullOrBlank()
-    private val _uiState = MutableStateFlow(
-        createHomeUiState(hasRecommendLogin, loading = true).copy(
-            activeSource = DEFAULT_HOME_CONTENT_SOURCE_ORDER.first()
-        )
-    )
+    private val _uiState = MutableStateFlow(createHomeUiState(hasRecommendLogin, loading = true))
     val uiState: StateFlow<HomeUiState> = _uiState
 
     private var playlistJob: Job? = null
@@ -255,7 +241,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var radarSongsJob: Job? = null
     private val homeSectionLoadCoordinator = HomeSectionLoadCoordinator()
     private var radarPlaylistsJob: Job? = null
-    private var homeContentJob: Job? = null
     private var ytMusicHomeJob: Job? = null
     private var ytMusicHomeRefreshPending = false
     private var ytMusicHomeLoadGeneration: Long = 0L
@@ -263,7 +248,12 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private var lastYouTubeAuthFingerprint: String? = null
     private var lastNeteaseRadarCacheContext = neteaseRadarCacheContext(repo.getCookiesOnce())
     private var radarPlaylistLoadGeneration: Long = 0L
+    private var biliMusicRankJob: Job? = null
+    private var biliMusicHotJob: Job? = null
+    private var biliMusicRankGeneration: Long = 0L
+    private var biliMusicHotGeneration: Long = 0L
     private var offlineMode = false
+    private var biliMusicHomeEnabled = false
 
     private fun localizedAppContext() = LanguageManager.applyLanguage(getApplication())
 
@@ -372,6 +362,24 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     init {
         lastYouTubeAuthFingerprint = buildYouTubeAuthFingerprint(youtubeAuthRepo.getAuthOnce())
 
+        viewModelScope.launch {
+            AppContainer.settingsRepo.homeCardBilibiliFlow.collect { enabled ->
+                if (biliMusicHomeEnabled == enabled) return@collect
+                biliMusicHomeEnabled = enabled
+                if (enabled) {
+                    if (homeRecommendationsBootstrapped) loadBiliMusicHome()
+                } else {
+                    cancelBiliMusicJobs()
+                    _uiState.update { state ->
+                        state.copy(
+                            biliMusicRank = state.biliMusicRank.copy(loading = false, error = null),
+                            biliMusicHot = state.biliMusicHot.copy(loading = false, error = null)
+                        )
+                    }
+                }
+            }
+        }
+
         // 观察国际化设置变化, 切换推荐源
         viewModelScope.launch {
             combine(
@@ -457,10 +465,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (accountContextChanged) {
                     _uiState.update { state ->
-                        state.copy(
-                            radarPlaylists = HomeSectionState(),
-                            radarPlaylistsFromFallback = false
-                        )
+                        state.copy(radarPlaylists = HomeSectionState())
                     }
                 }
                 if (
@@ -471,23 +476,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 ) {
                     homeRecommendationsBootstrapped = true
-                    refreshHomeContent()
+                    refreshNeteaseHome()
                 }
             }
         }
         viewModelScope.launch {
-            delay(HOME_INITIAL_LOAD_DEFER_MS)
+            delay(HOME_INITIAL_LOAD_DEFER_MS.milliseconds)
             if (!homeRecommendationsBootstrapped) {
                 homeRecommendationsBootstrapped = true
-                refreshHomeContent()
+                refreshNeteaseHome()
             }
-        }
-        // 首页内容源排序变化时按新顺序重新探测（主源恢复后自然回切）
-        viewModelScope.launch {
-            AppContainer.settingsRepo.homeContentSourceOrderFlow.drop(1).collect { order ->
-                NPLogger.d(TAG, "home content source order changed: $order")
-                refreshHomeContent()
-            }
+            // 国际版首页不触发网易云推荐，B 站音乐模块独立加载
+            loadBiliMusicHome(force = false)
         }
     }
 
@@ -505,24 +505,21 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 trendingSongSections = clearSongSectionLoading(state.trendingSongSections),
                 radarSongSections = clearSongSectionLoading(state.radarSongSections),
                 radarPlaylists = state.radarPlaylists.copy(loading = false, error = null),
-                kugouSections = state.kugouSections.copy(loading = false, error = null),
                 ytMusicPlaylists = state.ytMusicPlaylists.copy(loading = false, error = null),
-                ytMusicHomeShelves = state.ytMusicHomeShelves.copy(loading = false, error = null)
+                ytMusicHomeShelves = state.ytMusicHomeShelves.copy(loading = false, error = null),
+                biliMusicRank = state.biliMusicRank.copy(loading = false, error = null),
+                biliMusicHot = state.biliMusicHot.copy(loading = false, error = null)
             )
         }
     }
 
     private fun cancelHomeNetworkJobs() {
-        homeContentJob?.cancel()
-        cancelNeteaseSectionJobs()
-        cancelYouTubeHomeJobs()
-    }
-
-    private fun cancelNeteaseSectionJobs() {
         playlistJob?.cancel()
         hotSongsJob?.cancel()
         radarSongsJob?.cancel()
         radarPlaylistsJob?.cancel()
+        cancelYouTubeHomeJobs()
+        cancelBiliMusicJobs()
     }
 
     private fun cancelYouTubeHomeJobs() {
@@ -532,111 +529,191 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         ytMusicHomeRefreshPending = false
     }
 
-    fun refreshNeteaseHome() {
-        refreshHomeContent()
+    private fun cancelBiliMusicJobs() {
+        biliMusicRankGeneration += 1L
+        biliMusicHotGeneration += 1L
+        biliMusicRankJob?.cancel()
+        biliMusicRankJob = null
+        biliMusicHotJob?.cancel()
+        biliMusicHotJob = null
+    }
+
+    /** 首页 B 站音乐两个模块的入口（互不阻塞） */
+    fun loadBiliMusicHome(force: Boolean = false) {
+        loadBiliMusicRank(force = force)
+        loadBiliMusicHot(force = force)
     }
 
     /**
-     * 首页内容源刷新入口：按「首页展示排序」设置依次探测内容源。
-     * 当前源所有展示接口均无数据（失败或为空）时自动降级到下一个源；
-     * 每次刷新都会重新按序探测，主源恢复数据后自然回切。
-     * 探测期间 activeSource 指向当前源，便于 UI 立即展示对应 loading/error。
+     * 首页刷新入口使用的合并加载：某个模块已经在加载时不再强制重启它。
+     *
+     * 国际化启动时，设置收集器会走 [refreshYtMusicHome]，而独立的 250ms 引导仍会走
+     * [refreshNeteaseHome]，两条路径都会触达这里；若无条件 `force = true`，后一条会取消并
+     * 重启前一条刚发起的榜单 / 热门请求，重复拉取列表并可能重复逐条补全官方 MV。
      */
-    private fun refreshHomeContent() {
-        if (offlineMode) return
-
-        homeContentJob?.cancel()
-        cancelNeteaseSectionJobs()
-        homeContentJob = viewModelScope.launch {
-            val orderedSources = parseHomeContentSourceOrder(
-                AppContainer.settingsRepo.homeContentSourceOrderFlow.first()
-            )
-            NPLogger.d(TAG, "refreshHomeContent: sources=$orderedSources")
-            for (source in orderedSources) {
-                _uiState.update { state -> state.copy(activeSource = source) }
-                val hasData = when (source) {
-                    HomeContentSource.NETEASE -> probeNeteaseSource()
-                    HomeContentSource.KUGOU -> probeKugouSource()
-                }
-                if (hasData) {
-                    NPLogger.d(TAG, "refreshHomeContent: active source=$source")
-                    return@launch
-                }
-                if (source == HomeContentSource.NETEASE) {
-                    cancelNeteaseSectionJobs()
-                    _uiState.update { state ->
-                        state.copy(
-                            playlistSections = emptyList(),
-                            trendingSongSections = emptyList(),
-                            radarSongSections = emptyList(),
-                            radarPlaylists = HomeSectionState(),
-                            radarPlaylistsFromFallback = false
-                        )
-                    }
-                } else {
-                    _uiState.update { state ->
-                        state.copy(kugouSections = HomeKugouSectionState())
-                    }
-                }
-            }
-            NPLogger.d(TAG, "refreshHomeContent: no source has data")
-            _uiState.update { state -> state.copy(activeSource = null) }
+    private fun loadBiliMusicHomeCoalesced() {
+        if (biliMusicRankJob?.isActive != true) {
+            loadBiliMusicRank(force = true)
+        }
+        if (biliMusicHotJob?.isActive != true) {
+            loadBiliMusicHot(force = true)
         }
     }
 
-    /** 加载网易云全部板块并等待完成，返回是否有可展示内容。 */
-    private suspend fun probeNeteaseSource(): Boolean {
-        refreshRecommend()
-        loadHomeRecommendations(force = true)
-        refreshRadarPlaylists()
-        val deadline = System.currentTimeMillis() + HOME_NETEASE_PROBE_TIMEOUT_MS
-        while (System.currentTimeMillis() < deadline) {
-            val state = _uiState.value
-            val songSections = state.trendingSongSections + state.radarSongSections
-            val playlistSections = state.playlistSections
-            val settled =
-                (songSections.isEmpty() || songSections.all { !it.section.loading }) &&
-                    (playlistSections.isEmpty() || playlistSections.all { !it.section.loading }) &&
-                    !state.radarPlaylists.loading
-            if (settled) break
-            delay(200)
-        }
-        return neteaseHomeHasData(_uiState.value)
-    }
+    /** 切换版权榜类型：先清掉上一个榜的数据，避免串期显示 */
+    fun selectBiliMusicRankType(type: BiliMusicRankType) {
+        if (!biliMusicHomeEnabled) return
+        val current = _uiState.value.biliMusicRank
+        if (current.type == type && current.songs.isNotEmpty()) return
 
-    /** 加载酷狗概念版默认内容（每日推荐/榜单/热门歌单），返回是否有可展示内容。 */
-    private suspend fun probeKugouSource(): Boolean {
+        // 脱机时同样先读缓存，且不置 loading：随后的 loadBiliMusicRank 会走仅缓存分支，
+        // 若在这里把 loading 置为 true 会短暂闪一下加载态。
+        val cached = BiliMusicHomeRepository.cachedRank(type)
         _uiState.update { state ->
-            state.copy(kugouSections = HomeKugouSectionState(loading = true))
-        }
-        return try {
-            val content = withContext(Dispatchers.IO) {
-                PlayerManager.kugouSession.loadKugouChannelContent()
-            }
-            val hasData = kugouContentHasData(content)
-            NPLogger.d(
-                TAG,
-                "probeKugouSource: hasData=$hasData ranks=${content.ranks.size} " +
-                    "playlists=${content.playlists.size} daily=${content.dailyRecommend.size}"
+            state.copy(
+                biliMusicRank = HomeBiliMusicRankState(
+                    type = type,
+                    period = cached?.period,
+                    songs = cached?.songs.orEmpty(),
+                    loading = cached == null && !offlineMode,
+                    error = null
+                )
             )
+        }
+        loadBiliMusicRank(force = true)
+    }
+
+    fun loadBiliMusicRank(force: Boolean = false) {
+        if (!biliMusicHomeEnabled) return
+        val current = _uiState.value.biliMusicRank
+        if (!force && (current.songs.isNotEmpty() || current.loading)) return
+
+        if (offlineMode) {
+            val cached = BiliMusicHomeRepository.cachedRank(current.type)
+            _uiState.update { state ->
+                if (state.biliMusicRank.type != current.type) {
+                    state
+                } else {
+                    state.copy(
+                        biliMusicRank = state.biliMusicRank.copy(
+                            period = cached?.period ?: state.biliMusicRank.period,
+                            songs = cached?.songs ?: state.biliMusicRank.songs,
+                            loading = false,
+                            error = null
+                        )
+                    )
+                }
+            }
+            return
+        }
+
+        val type = current.type
+        val generation = ++biliMusicRankGeneration
+        biliMusicRankJob?.cancel()
+        _uiState.update { state ->
+            if (state.biliMusicRank.type != type) {
+                state
+            } else {
+                state.copy(biliMusicRank = state.biliMusicRank.copy(loading = true, error = null))
+            }
+        }
+        biliMusicRankJob = viewModelScope.launch {
+            val result = runCatching { BiliMusicHomeRepository.loadRank(type, force) }
+            if (generation != biliMusicRankGeneration) return@launch
+            result.fold(
+                onSuccess = { snapshot ->
+                    _uiState.update { state ->
+                        if (state.biliMusicRank.type != type) {
+                            state
+                        } else {
+                            state.copy(
+                                biliMusicRank = state.biliMusicRank.copy(
+                                    period = snapshot.period,
+                                    songs = snapshot.songs,
+                                    loading = false,
+                                    error = null
+                                )
+                            )
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    val message = buildHomeErrorMessage(error, localizedAppContext())
+                    _uiState.update { state ->
+                        if (state.biliMusicRank.type != type) {
+                            state
+                        } else {
+                            state.copy(
+                                biliMusicRank = state.biliMusicRank.copy(
+                                    loading = false,
+                                    error = message
+                                )
+                            )
+                        }
+                    }
+                }
+            )
+        }
+    }
+
+    fun loadBiliMusicHot(force: Boolean = false) {
+        if (!biliMusicHomeEnabled) return
+        val current = _uiState.value.biliMusicHot
+        if (!force && (current.items.isNotEmpty() || current.loading)) return
+
+        if (offlineMode) {
+            val cached = BiliMusicHomeRepository.cachedHot()
             _uiState.update { state ->
                 state.copy(
-                    kugouSections = HomeKugouSectionState(
-                        content = content.takeIf { hasData },
-                        loading = false
+                    biliMusicHot = state.biliMusicHot.copy(
+                        items = cached ?: state.biliMusicHot.items,
+                        loading = false,
+                        error = null
                     )
                 )
             }
-            hasData
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Throwable) {
-            NPLogger.e(TAG, "probeKugouSource failed", e)
-            _uiState.update { state ->
-                state.copy(kugouSections = HomeKugouSectionState(error = buildHomeErrorMessage(e)))
-            }
-            false
+            return
         }
+
+        val generation = ++biliMusicHotGeneration
+        biliMusicHotJob?.cancel()
+        _uiState.update { state ->
+            state.copy(biliMusicHot = state.biliMusicHot.copy(loading = true, error = null))
+        }
+        biliMusicHotJob = viewModelScope.launch {
+            val result = runCatching { BiliMusicHomeRepository.loadHot(force) }
+            if (generation != biliMusicHotGeneration) return@launch
+            result.fold(
+                onSuccess = { videos ->
+                    _uiState.update { state ->
+                        state.copy(
+                            biliMusicHot = state.biliMusicHot.copy(
+                                items = videos,
+                                loading = false,
+                                error = null
+                            )
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    val message = buildHomeErrorMessage(error, localizedAppContext())
+                    _uiState.update { state ->
+                        state.copy(
+                            biliMusicHot = state.biliMusicHot.copy(loading = false, error = message)
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun refreshNeteaseHome() {
+        if (offlineMode) return
+
+        refreshRecommend()
+        loadHomeRecommendations(force = true)
+        refreshRadarPlaylists()
+        loadBiliMusicHomeCoalesced()
     }
 
     /** 拉首页推荐歌单 */
@@ -797,8 +874,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     NPLogger.d(TAG, "refreshRadarPlaylists success: count=${result.items.size}")
                     _uiState.value = _uiState.value.copy(
-                        radarPlaylists = HomeSectionState(items = result.items),
-                        radarPlaylistsFromFallback = false
+                        radarPlaylists = HomeSectionState(items = result.items)
                     )
                 }
                 is RetryLoadResult.Failure -> {
@@ -809,8 +885,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     _uiState.value = _uiState.value.copy(
                         radarPlaylists = HomeSectionState(
                             items = NeteaseRadarPlaylistDefinitions.map { it.toPlaylistSummary() }
-                        ),
-                        radarPlaylistsFromFallback = true
+                        )
                     )
                 }
             }
@@ -832,6 +907,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     /** 拉取一次 YouTube Music 首页快照并同时更新歌单和推荐栏 */
     fun refreshYtMusicHome() {
         requestYtMusicHomeRefresh(queueIfLoading = true)
+        loadBiliMusicHomeCoalesced()
     }
 
     /** 兼容旧调用，复用正在加载的首页快照 */
@@ -914,7 +990,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                             return@launch
                         }
                         NPLogger.e(TAG, "refreshYtMusicHome failed", result.throwable)
-                        val error = buildHomeErrorMessage(result.throwable)
+                        val error = buildHomeErrorMessage(result.throwable, localizedAppContext())
                         _uiState.update { state ->
                             state.copy(
                                 ytMusicPlaylists = state.ytMusicPlaylists.copy(
@@ -966,56 +1042,6 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    private suspend fun <T> fetchWithRetry(
-        name: String,
-        maxAttempts: Int = HOME_MAX_FAILURE_BEFORE_WARNING,
-        fetch: suspend () -> List<T>
-    ): RetryLoadResult<T> {
-        require(maxAttempts > 0) { "maxAttempts must be positive" }
-        var lastError: Throwable? = null
-        repeat(maxAttempts) { attempt ->
-            try {
-                val items = fetch()
-                if (attempt > 0) {
-                    NPLogger.d(
-                        TAG,
-                        "$name recovered on attempt ${attempt + 1}: count=${items.size}"
-                    )
-                }
-                return RetryLoadResult.Success(items)
-            } catch (e: Throwable) {
-                if (e is CancellationException) throw e
-                lastError = e
-                NPLogger.w(
-                    TAG,
-                    "$name attempt ${attempt + 1}/$maxAttempts failed: ${e.message}"
-                )
-            }
-        }
-        return RetryLoadResult.Failure(lastError ?: IllegalStateException("Unknown error"))
-    }
-
-    private fun buildHomeErrorMessage(error: Throwable): String {
-        val localizedContext = localizedAppContext()
-        return when (error) {
-            is IOException -> localizedContext.getString(
-                R.string.home_error_network,
-                error.message ?: error.javaClass.simpleName
-            )
-            is ApiCodeException -> {
-                if (error.code == 50000005) {
-                    localizedContext.getString(R.string.home_login_required)
-                } else {
-                    localizedContext.getString(R.string.error_api_code, error.code)
-                }
-            }
-            else -> localizedContext.getString(
-                R.string.home_error_unknown,
-                error.message ?: error.javaClass.simpleName
-            )
-        }
-    }
-
     private suspend fun parseRecommendOnWorker(raw: String): List<PlaylistSummary> =
         withContext(Dispatchers.Default) {
             parseNeteaseHomePlaylists(raw, limit = HOME_NETEASE_PLAYLIST_LIMIT)
@@ -1052,7 +1078,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 NPLogger.e(TAG, "$name failed: source=$source", result.throwable)
                 HomeNeteaseSongSectionState(
                     source = source,
-                    section = HomeSectionState(error = buildHomeErrorMessage(result.throwable))
+                    section = HomeSectionState(error = buildHomeErrorMessage(result.throwable, localizedAppContext()))
                 )
             }
         }
@@ -1100,7 +1126,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 NPLogger.e(TAG, "refreshRecommend failed: source=$source", result.throwable)
                 HomeNeteasePlaylistSectionState(
                     source = source,
-                    section = HomeSectionState(error = buildHomeErrorMessage(result.throwable))
+                    section = HomeSectionState(error = buildHomeErrorMessage(result.throwable, localizedAppContext()))
                 )
             }
         }
@@ -1265,9 +1291,56 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private fun YouTubeAuthBundle.hasYouTubeMusicCookieContext(): Boolean {
         return hasSavedAuthMaterial()
     }
+}
 
-    private sealed interface RetryLoadResult<out T> {
-        data class Success<T>(val items: List<T>) : RetryLoadResult<T>
-        data class Failure(val throwable: Throwable) : RetryLoadResult<Nothing>
+internal sealed interface RetryLoadResult<out T> {
+    data class Success<T>(val items: List<T>) : RetryLoadResult<T>
+    data class Failure(val throwable: Throwable) : RetryLoadResult<Nothing>
+}
+
+internal suspend fun <T> fetchWithRetry(
+    name: String,
+    maxAttempts: Int = HOME_MAX_FAILURE_BEFORE_WARNING,
+    fetch: suspend () -> List<T>
+): RetryLoadResult<T> {
+    require(maxAttempts > 0) { "maxAttempts must be positive" }
+    var lastError: Throwable? = null
+    repeat(maxAttempts) { attempt ->
+        try {
+            val items = fetch()
+            if (attempt > 0) {
+                NPLogger.d(
+                    TAG,
+                    "$name recovered on attempt ${attempt + 1}: count=${items.size}"
+                )
+            }
+            return RetryLoadResult.Success(items)
+        } catch (e: Throwable) {
+            if (e is CancellationException) throw e
+            lastError = e
+            NPLogger.w(
+                TAG,
+                "$name attempt ${attempt + 1}/$maxAttempts failed: ${e.message}"
+            )
+        }
+    }
+    return RetryLoadResult.Failure(lastError ?: IllegalStateException("Unknown error"))
+}
+
+internal fun buildHomeErrorMessage(error: Throwable, context: Context): String {
+    return when {
+        error is IOException -> context.getString(
+            CoreCommonR.string.home_error_network,
+            error.messageOrTypeName()
+        )
+        error is ApiCodeException && error.code == 50000005 ->
+            context.getString(CoreCommonR.string.home_login_required)
+        error is ApiCodeException -> context.getString(CoreCommonR.string.error_api_code, error.code)
+        else -> context.getString(
+            CoreCommonR.string.home_error_unknown,
+            error.messageOrTypeName()
+        )
     }
 }
+
+private fun Throwable.messageOrTypeName(): String = message ?: javaClass.simpleName

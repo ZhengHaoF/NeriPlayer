@@ -7,10 +7,14 @@ on:
     paths-ignore:
       - '**/*.md'
       - '.github/ISSUE_TEMPLATE/**'
+      - 'site/**'
+      - '.github/workflows/site_pages.yml'
   pull_request:
     paths-ignore:
       - '**/*.md'
       - '.github/ISSUE_TEMPLATE/**'
+      - 'site/**'
+      - '.github/workflows/site_pages.yml'
   workflow_dispatch:
 
 permissions:
@@ -33,18 +37,25 @@ jobs:
           fetch-depth: 0
           submodules: recursive
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
           cache: gradle
 
       - name: Grant execute permission
         run: chmod +x gradlew
 
-      - name: Run unit tests and lint
-        run: ./gradlew :app:testDebugUnitTest :app:lintDebug --warning-mode all --stacktrace
+      - name: Install Android NDK
+        uses: ./.github/actions/android-ndk
+
+      - name: Run unit tests, CRAP gate and lint
+        run: >-
+          ./gradlew :playback:logic:verifyCrap :playback:runtime:verifyCrap
+          :lyrics:verifyCrap :platform:verifyCrap :platform:verifyDomainDependencies :sync:verifyCrap :sync:verifyDomainDependencies
+          :local:verifySyncIntegrationCrap :download:logic:verifyCrap :download:runtime:verifyCrap
+          verifyModularization --warning-mode all --stacktrace
 
       - name: Upload Gradle test reports
         if: always()
@@ -55,6 +66,8 @@ jobs:
             **/build/reports/tests/**
             **/build/test-results/**/*.xml
             **/build/reports/lint-results-debug.html
+            **/build/reports/crap/**
+            **/build/reports/problems/**
           if-no-files-found: ignore
 
   listen-together-tests:
@@ -86,11 +99,14 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
+      - name: Install Android NDK
+        uses: ./.github/actions/android-ndk
+
       - name: Install Worker dependencies
         run: npm ci --prefix np-submodule/NeriPlayer-LTW
 
       - name: Run Android Listen Together tests
-        run: ./gradlew :app:testDebugUnitTest --tests "*ListenTogether*" --warning-mode all --stacktrace
+        run: ./gradlew :listentogether:verifyCrap :listentogether:verifyDomainDependencies :listentogether:lintDebug :listentogether:testDebugUnitTest :app:testDebugUnitTest --tests "*ListenTogether*" --warning-mode all --stacktrace
 
       - name: Run Worker protocol tests
         run: npm run check --prefix np-submodule/NeriPlayer-LTW
@@ -103,13 +119,51 @@ jobs:
           path: |
             **/build/reports/tests/**
             **/build/test-results/**/*.xml
+            modules/listentogether/build/reports/crap/**
+            modules/listentogether/build/reports/domain-dependencies/**
+            modules/listentogether/build/reports/lint-results-debug.html
           if-no-files-found: ignore
 
   android-instrumented-tests:
-    name: Android instrumented tests
+    name: Android instrumented tests (${{ matrix.test_group }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
     if: ${{ github.event_name != 'push' || !startsWith(github.event.head_commit.message, '[skip ci]') }}
+    # app 仪器测试单分片已接近 60 分钟上限，按 AndroidJUnitRunner 分片拆成两个模拟器并行；库模块只在 0 号分片完整运行
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: 0
+            test_group: shard 0
+            emulator_gpu: swiftshader
+            build_tasks: >-
+              :database:assembleDebugAndroidTest :local:assembleDebugAndroidTest
+              :playback:runtime:assembleDebugAndroidTest :app:assembleDebug :app:assembleDebugAndroidTest
+            module_tests: >-
+              :database:connectedDebugAndroidTest :local:connectedDebugAndroidTest
+              :playback:runtime:connectedDebugAndroidTest
+            app_test_arguments: >-
+              -Pandroid.testInstrumentationRunnerArguments.numShards=2
+              -Pandroid.testInstrumentationRunnerArguments.shardIndex=0
+              -Pandroid.testInstrumentationRunnerArguments.notClass=moe.ouom.neriplayer.ui.screen.tab.settings.component.floating.SettingsExternalLyricsPageTouchTest
+          - shard: 1
+            test_group: shard 1
+            emulator_gpu: swiftshader
+            build_tasks: ":app:assembleDebug :app:assembleDebugAndroidTest"
+            module_tests: ""
+            app_test_arguments: >-
+              -Pandroid.testInstrumentationRunnerArguments.numShards=2
+              -Pandroid.testInstrumentationRunnerArguments.shardIndex=1
+              -Pandroid.testInstrumentationRunnerArguments.notClass=moe.ouom.neriplayer.ui.screen.tab.settings.component.floating.SettingsExternalLyricsPageTouchTest
+          # 完整宿主触摸回归使用独立的新 AVD，隔离套件间图形状态并保留全部断言
+          - shard: 2
+            test_group: External Lyrics host
+            emulator_gpu: swangle
+            build_tasks: ":app:assembleDebug :app:assembleDebugAndroidTest"
+            module_tests: ""
+            app_test_arguments: >-
+              -Pandroid.testInstrumentationRunnerArguments.class=moe.ouom.neriplayer.ui.screen.tab.settings.component.floating.SettingsExternalLyricsPageTouchTest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,11 +181,27 @@ jobs:
       - name: Grant execute permission
         run: chmod +x gradlew
 
+      - name: Install Android NDK
+        uses: ./.github/actions/android-ndk
+
       - name: Enable KVM
         run: |
           sudo sh -c 'echo "KERNEL==\"kvm\", GROUP=\"kvm\", MODE=\"0666\", OPTIONS+=\"static_node=kvm\"" > /etc/udev/rules.d/99-kvm4all.rules'
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
+
+      # 先编译好测试 APK 再启动模拟器，避免编译与空闲模拟器争抢 CPU 时 Launcher 无响应
+      # 编译 JVM 随阶段退出，避免空闲编译守护进程在设备测试期间继续占用内存
+      - name: Build instrumented test APKs
+        run: >-
+          ./gradlew ${{ matrix.build_tasks }} --no-daemon
+          -Pkotlin.compiler.execution.strategy=in-process --warning-mode all --stacktrace
+
+      - name: Record memory before emulator startup
+        run: |
+          mkdir -p build/reports/emulator-host || exit 0
+          free -h > build/reports/emulator-host/before-emulator-memory.txt 2>&1 || true
+          "$JAVA_HOME/bin/jps" -l > build/reports/emulator-host/before-emulator-jvm-classes.txt 2>&1 || true
 
       - name: Run connected Android tests
         uses: reactivecircus/android-emulator-runner@v2
@@ -141,16 +211,63 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disable-animations: true
-          script: ./gradlew :app:connectedDebugAndroidTest --warning-mode all --stacktrace
+          # 完整歌词宿主使用 ANGLE 的 GLES 路径，常规分片保留原后端作为对照
+          emulator-options: >-
+            -no-window -gpu ${{ matrix.emulator_gpu }} -no-snapshot -noaudio -no-boot-anim
+          # 保留 Launcher 组件，用设置页承接测试前的前台焦点
+          # 首次沉浸模式提示会抢走原生输入，测试 AVD 预先标记已确认
+          # 隐藏错误弹窗不会关闭已有 ANR，停止启动器和 SDK Setup 以清理无关窗口
+          # 歌词页使用固定离线夹具，避免虚拟 Wi-Fi 失联反复移动迷你播放器
+          script: >-
+            { ps -eLo pid,tid,comm > build/reports/emulator-host/before-tests-threads.txt || true; } &&
+            adb shell settings put global hide_error_dialogs 1 &&
+            adb shell settings --user 0 put secure anr_show_background 0 &&
+            adb shell settings --user 0 put secure immersive_mode_confirmations confirmed &&
+            adb shell am start -W -a android.settings.SETTINGS &&
+            adb shell am force-stop --user 0 com.google.android.apps.nexuslauncher &&
+            adb shell am force-stop --user 0 com.google.android.googlesdksetup &&
+            { [ "${{ matrix.test_group }}" != "External Lyrics host" ] ||
+            { adb shell cmd connectivity airplane-mode enable && adb shell svc wifi disable; }; } &&
+            { [ -z "${{ matrix.module_tests }}" ] || ./gradlew ${{ matrix.module_tests }}
+            -Pandroid.testInstrumentationRunnerArguments.notAnnotation=moe.ouom.neriplayer.testing.ManualInstrumentedTest
+            --no-daemon -Pkotlin.compiler.execution.strategy=in-process --warning-mode all --stacktrace; } &&
+            ./gradlew :app:connectedDebugAndroidTest
+            -Pandroid.testInstrumentationRunnerArguments.notAnnotation=moe.ouom.neriplayer.testing.ManualInstrumentedTest
+            ${{ matrix.app_test_arguments }}
+            --no-daemon -Pkotlin.compiler.execution.strategy=in-process --warning-mode all --stacktrace
+
+      - name: Collect emulator host diagnostics
+        if: always()
+        shell: bash
+        run: |
+          diagnostics_dir=build/reports/emulator-host
+          mkdir -p "$diagnostics_dir" || exit 0
+          date -u > "$diagnostics_dir/collected-at.txt" 2>&1 || true
+          free -h > "$diagnostics_dir/memory.txt" 2>&1 || true
+          df -h . > "$diagnostics_dir/disk.txt" 2>&1 || true
+          ps -eo pid,comm,rss,%mem --sort=-rss > "$diagnostics_dir/processes.txt" 2>&1 || true
+          "$JAVA_HOME/bin/jps" -l > "$diagnostics_dir/jvm-classes.txt" 2>&1 || true
+          {
+            if dmesg --color=never 2>/dev/null; then
+              printf 'source=dmesg\n' >&2
+            elif sudo -n dmesg --color=never 2>/dev/null; then
+              printf 'source=sudo-dmesg\n' >&2
+            else
+              printf 'kernel log unavailable\n' >&2
+            fi
+          } 2> "$diagnostics_dir/kernel-status.txt" |
+            grep -Ei 'out of memory|oom-kill|oom_reaper|killed process|segfault|qemu' \
+              > "$diagnostics_dir/kernel-filtered.txt" || true
 
       - name: Upload Android test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-instrumented-test-reports
+          name: android-instrumented-test-reports-${{ matrix.shard }}
           path: |
             **/build/reports/androidTests/connected/**
             **/build/outputs/androidTest-results/connected/**
+            build/reports/emulator-host/**
           if-no-files-found: ignore
 
   worker-check:
@@ -183,6 +300,7 @@ jobs:
       - gradle-tests
       - listen-together-tests
       - worker-check
+      - android-instrumented-tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
     if: ${{ (github.event_name != 'push' || !startsWith(github.event.head_commit.message, '[skip ci]')) && (github.ref == 'refs/heads/master' || github.event_name == 'pull_request') }}
@@ -210,6 +328,15 @@ jobs:
 
       - name: Grant execute permission
         run: chmod +x gradlew
+
+      - name: Install Android NDK
+        uses: ./.github/actions/android-ndk
+
+      - name: Verify Native USB behavior before packaging
+        run: |
+          tools_pub/usb-async-lab host-test \
+            --manifest modules/native/src/main/cpp/tests/usb/config/run-manifest.example.yaml \
+            --profile release-werror-asserts
 
       - name: Build unsigned Release for PR
         if: github.event_name == 'pull_request'

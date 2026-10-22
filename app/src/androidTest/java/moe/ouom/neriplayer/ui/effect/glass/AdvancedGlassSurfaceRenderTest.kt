@@ -21,11 +21,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarState
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.MutableState
@@ -42,9 +42,9 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -62,11 +62,10 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import kotlinx.coroutines.flow.collect
-import moe.ouom.neriplayer.R
-import moe.ouom.neriplayer.data.settings.AdvancedBlurQuality
+import moe.ouom.neriplayer.common.R as CoreCommonR
+import moe.ouom.neriplayer.data.model.settings.appearance.AdvancedBlurQuality
 import moe.ouom.neriplayer.testutil.assumeComposeHostAvailable
-import moe.ouom.neriplayer.ui.screen.tab.ExploreGlassPillSurface
+import moe.ouom.neriplayer.ui.screen.tab.explore.ExploreGlassPillSurface
 import moe.ouom.neriplayer.ui.screen.tab.settings.component.ThemeModeActionButton
 import moe.ouom.neriplayer.ui.screen.tab.settings.page.MiuixSettingsHomeScaffold
 import org.junit.Assert.assertEquals
@@ -78,6 +77,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.atomic.AtomicBoolean
 
 @RunWith(AndroidJUnit4::class)
 @SdkSuppress(minSdkVersion = Build.VERSION_CODES.TIRAMISU)
@@ -108,6 +108,7 @@ class AdvancedGlassSurfaceRenderTest {
                 "uniform float4 cornerRadii[$ADVANCED_GLASS_MAX_REGIONS];"
             )
         )
+        assertTrue(source.contains("uniform float regionOpacity[$ADVANCED_GLASS_MAX_REGIONS];"))
         assertTrue(
             source.contains(
                 "for (int index = 0; index < $ADVANCED_GLASS_MAX_REGIONS; index++)"
@@ -1027,7 +1028,18 @@ class AdvancedGlassSurfaceRenderTest {
 
     @Test
     fun topOnlyCornerRadiiKeepTopCornerOutsideBlurMask() {
+        val firstFrameCommitted = AtomicBoolean(false)
         composeRule.setContent {
+            val view = LocalView.current
+            DisposableEffect(view) {
+                val observer = view.viewTreeObserver
+                val callback = Runnable { firstFrameCommitted.set(true) }
+                observer.registerFrameCommitCallback(callback)
+                view.invalidate()
+                onDispose {
+                    if (observer.isAlive) observer.unregisterFrameCommitCallback(callback)
+                }
+            }
             val assetManager = LocalContext.current.applicationContext.assets
             val shaderSource = remember(assetManager) {
                 AdvancedGlassShaderSource(assetManager)
@@ -1082,6 +1094,8 @@ class AdvancedGlassSurfaceRenderTest {
         }
 
         composeRule.waitForIdle()
+        // Compose 空闲不代表硬件帧已提交，先等首次绘制完成再进入截图的重绘期限
+        composeRule.waitUntil(timeoutMillis = 5_000L) { firstFrameCommitted.get() }
         val image = composeRule.onNodeWithTag(TopOnlyCornersTag).captureToImage()
         val pixels = image.toPixelMap()
         val sampleX = image.width / 10
@@ -1341,7 +1355,7 @@ class AdvancedGlassSurfaceRenderTest {
     fun themeToggleClickabilityIsIndependentFromBackdropRegistration() {
         val darkThemeDescription = InstrumentationRegistry.getInstrumentation()
             .targetContext
-            .getString(R.string.settings_theme_toggle_dark)
+            .getString(CoreCommonR.string.settings_theme_toggle_dark)
         var toggleRequests = 0
         lateinit var titleSlotVisible: MutableState<Boolean>
 
@@ -1384,10 +1398,10 @@ class AdvancedGlassSurfaceRenderTest {
     fun settingsTopAppBarThemeToggleHandlesConsecutiveClicks() {
         val darkThemeDescription = InstrumentationRegistry.getInstrumentation()
             .targetContext
-            .getString(R.string.settings_theme_toggle_dark)
+            .getString(CoreCommonR.string.settings_theme_toggle_dark)
         val lightThemeDescription = InstrumentationRegistry.getInstrumentation()
             .targetContext
-            .getString(R.string.settings_theme_toggle_light)
+            .getString(CoreCommonR.string.settings_theme_toggle_light)
         var toggleRequests = 0
         lateinit var isDarkTheme: MutableState<Boolean>
 

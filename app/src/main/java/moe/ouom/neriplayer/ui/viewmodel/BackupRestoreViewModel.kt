@@ -32,14 +32,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import moe.ouom.neriplayer.R
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import moe.ouom.neriplayer.data.backup.BackupManager
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 
 /**
  * 备份与恢复的ViewModel
@@ -56,7 +55,6 @@ class BackupRestoreViewModel internal constructor(
     private var backupManager: BackupManager? = null
     private var strings: BackupRestoreStrings? = null
     private var playlistCountJob: Job? = null
-    private var playlistCountContext: Context? = null
 
     fun initialize(context: Context) {
         val appContext = context.applicationContext
@@ -68,11 +66,10 @@ class BackupRestoreViewModel internal constructor(
     }
 
     fun observePlaylistCount(context: Context) {
-        val appContext = context.applicationContext
-        if (playlistCountJob?.isActive == true && playlistCountContext == appContext) {
+        if (playlistCountJob?.isActive == true) {
             return
         }
-        playlistCountContext = appContext
+        val appContext = context.applicationContext
         playlistCountJob?.cancel()
         playlistCountJob = viewModelScope.launch {
             try {
@@ -146,23 +143,11 @@ class BackupRestoreViewModel internal constructor(
 
             result.fold(
                 onSuccess = { importResult ->
-                    val message = buildString {
-                        append(resources.importComplete)
-                        append("\n${resources.importCount(importResult.importedCount)}")
-                        if (importResult.hasMerged) {
-                            append("\n${resources.mergeCount(importResult.mergedCount)}")
-                        }
-                        if (importResult.hasSkipped) {
-                            append("\n${resources.skipCount(importResult.skippedCount)}")
-                        }
-                        append("\n${resources.backupDate(importResult.backupDate)}")
-                    }
-
                     _uiState.value = _uiState.value.copy(
                         isImporting = false,
                         importProgress = null,
                         lastImportSuccess = true,
-                        lastImportMessage = message
+                        lastImportMessage = resources.importSummary(importResult)
                     )
                 },
                 onFailure = { exception ->
@@ -211,47 +196,59 @@ class BackupRestoreViewModel internal constructor(
         strings = null
     }
 
-    private data class BackupRestoreStrings(
+    internal data class BackupRestoreStrings(
         private val context: Context
     ) {
         private val resources = context.resources
 
-        val exportProgress: String = context.getString(R.string.playlist_export_progress)
-        private val exportSuccessPrefix: String = context.getString(R.string.playlist_export_success)
-        private val exportFailedPrefix: String = context.getString(R.string.playlist_export_failed)
-        val importProgress: String = context.getString(R.string.playlist_importing)
-        val importComplete: String = context.getString(R.string.playlist_import_complete)
-        private val importFailedPrefix: String = context.getString(R.string.playlist_import_failed)
-        val analysisProgress: String = context.getString(R.string.playlist_analyzing)
+        val exportProgress: String = context.getString(CoreCommonR.string.playlist_export_progress)
+        private val exportSuccessPrefix: String = context.getString(CoreCommonR.string.playlist_export_success)
+        private val exportFailedPrefix: String = context.getString(CoreCommonR.string.playlist_export_failed)
+        val importProgress: String = context.getString(CoreCommonR.string.playlist_importing)
+        val importComplete: String = context.getString(CoreCommonR.string.playlist_import_complete)
+        private val importFailedPrefix: String = context.getString(CoreCommonR.string.playlist_import_failed)
+        val analysisProgress: String = context.getString(CoreCommonR.string.playlist_analyzing)
 
         fun exportSuccess(fileName: String): String = "$exportSuccessPrefix: $fileName"
 
         fun exportFailed(message: String?): String = "$exportFailedPrefix: $message"
 
         fun importCount(count: Int): String = resources.getQuantityString(
-            R.plurals.playlist_import_count,
+            CoreCommonR.plurals.playlist_import_count,
             count,
             count
         )
 
         fun mergeCount(count: Int): String = resources.getQuantityString(
-            R.plurals.playlist_merge_count,
+            CoreCommonR.plurals.playlist_merge_count,
             count,
             count
         )
 
         fun skipCount(count: Int): String = resources.getQuantityString(
-            R.plurals.playlist_skip_count,
+            CoreCommonR.plurals.playlist_skip_count,
             count,
             count
         )
 
-        fun backupDate(date: String): String = context.getString(R.string.playlist_backup_date, date)
+        fun backupDate(date: String): String = context.getString(CoreCommonR.string.playlist_backup_date, date)
+
+        fun importSummary(importResult: BackupManager.ImportResult): String = buildString {
+            append(importComplete)
+            append("\n${importCount(importResult.importedCount)}")
+            if (importResult.hasMerged) {
+                append("\n${mergeCount(importResult.mergedCount)}")
+            }
+            if (importResult.hasSkipped) {
+                append("\n${skipCount(importResult.skippedCount)}")
+            }
+            append("\n${backupDate(importResult.backupDate)}")
+        }
 
         fun importFailed(message: String?): String = "$importFailedPrefix: $message"
 
         fun analysisFailed(message: String): String =
-            context.getString(R.string.playlist_analysis_failed, message)
+            context.getString(CoreCommonR.string.playlist_analysis_failed, message)
 
         companion object {
             fun from(context: Context): BackupRestoreStrings {

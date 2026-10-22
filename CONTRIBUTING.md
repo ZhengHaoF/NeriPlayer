@@ -13,7 +13,7 @@
 - NeriPlayer 是一个**原生 Android 音频播放器**，不是公共云端曲库服务。
 - 在线内容能力主要来自 **网易云音乐**、**Bilibili** 与 **YouTube Music**。
 - 播放页元数据/歌词补全链路目前使用 **网易云 + QQ 音乐**，
-  并接入 LRCLIB 外部歌词来源。
+  并接入 LRCLIB、酷狗和 AMLL TTML 外部歌词来源。
 - 数据默认保存在本地；GitHub / WebDAV 同步是**可选能力**，
   同步对象是歌单、收藏、最近播放、播放统计等元数据，不是媒体文件本身。
 - 一起听服务端在 `np-submodule/NeriPlayer-LTW`，基于 Cloudflare Workers
@@ -25,19 +25,23 @@
 
 维护文档时建议按用途拆开看：
 
-- `README.md` / `README_EN.md`
+- [README.md](README.md)
   - 面向用户和新贡献者，说明项目定位、能力边界、安装构建、同步与隐私。
-- `CONTRIBUTING.md` / `CONTRIBUTING_EN.md`
+- [CONTRIBUTING.md](CONTRIBUTING.md)
   - 面向开发者，说明真实模块边界、扩展路径、测试和提交要求。
-- `app/src/main/cpp/README.md`
+- [docs/kotlin-helpers.md](docs/kotlin-helpers.md)
+  - 说明请求代次、单位、播放器读取和协程结果等辅助工具的用法与边界。
+- [tools_pub/quality/README.md](tools_pub/quality/README.md)
+  - 说明 CRAP、模块归属、依赖边界检查的范围、命令和验证限制。
+- [modules/native/src/main/cpp/README.md](modules/native/src/main/cpp/README.md)
   - 说明 NeriPlayer 自有 Native 源码的替代授权范围、第三方排除项和
     外部贡献所需的显式双授权声明。
-- `app/src/main/cpp/tests/usb/config/host-gate-contract.md`
+- [modules/native/src/main/cpp/tests/usb/config/host-gate-contract.md](modules/native/src/main/cpp/tests/usb/config/host-gate-contract.md)
   - 说明公开 Native USB host 门禁、CI 覆盖与真实设备验证边界。
-- `app/src/main/cpp/tests/usb/corpus/README.md` 与
-  `app/src/main/cpp/tests/usb/fixtures/README.md`
+- [modules/native/src/main/cpp/tests/usb/corpus/README.md](modules/native/src/main/cpp/tests/usb/corpus/README.md) 与
+  [modules/native/src/main/cpp/tests/usb/fixtures/README.md](modules/native/src/main/cpp/tests/usb/fixtures/README.md)
   - 说明公开测试语料/夹具只能使用合成或可审计资料，真实设备证据留在私有目录。
-- `np-submodule/NeriPlayer-LTW/README.md`
+- [np-submodule/NeriPlayer-LTW/README.md](https://github.com/TheSmallHanCat/NeriPlayer-LTW#readme)
   - 面向一起听服务端部署者，说明 Worker API、事件模型、部署和本地检查。
 
 行为变更如果影响用户理解，请同步更新 README；
@@ -48,13 +52,13 @@
 ### 开发环境 / Development Environment
 
 - **Android Studio**：最新稳定版
-- **JDK**：17
+- **JDK**：17 用于构建；运行 `:playback:runtime` JVM 测试另需 21
 - **Kotlin**：2.4.10，JVM target 17
-- **AGP**：9.2.1
-- **Gradle**：9.4.1
+- **AGP**：9.4.1
+- **Gradle**：9.6.1
 - **compileSdk / targetSdk / minSdk**：37 / 36 / 28
 - **NDK**：`27.0.12077973`
-- **CMake**：`3.28.0+`
+- **CMake**：`3.22.1`，由 Android 构建脚本固定指定
 - **Node.js**：22，用于一起听 Worker 检查
 - **版本名格式**：`<git短哈希>.<MMddHHmm>`
 - **Release APK 文件名**：`NeriPlayer-<versionName>[-abi].apk`
@@ -63,6 +67,10 @@
 
 - 仓库依赖 Git 子模块，首次克隆请使用 `--recursive`，或手动执行
   `git submodule update --init --recursive`。
+- `build-logic` 的 Java/Kotlin 编译目标为 17，`ksp-annotations` 与 `ksp-processor` 使用 JDK 17 工具链；
+  请安装 JDK 17，建议 Android Studio 的 Gradle JDK 和命令行 `JAVA_HOME` 也指向它。
+- `:playback:runtime` 的 JVM 测试通过 Java toolchain 使用 JDK 21 运行 Android 16 Robolectric sandbox。
+  运行该模块测试或 `verifyModularization` 前，还需安装可被 Gradle 发现的 JDK 21；生产字节码目标仍为 17。
 - 构建脚本会读取 Git 短提交生成版本名，本地请确保已安装 Git。
 - 依赖版本由 `gradle/libs.versions.toml` 与各模块 `build.gradle.kts` 管理。
 - 应用只保留 `zh` 与 `en` 资源，见 `build-logic` 的 locale filter。
@@ -81,12 +89,14 @@
   续传检查点、sidecar 文件、任务队列恢复、取消清理和 SAF 目录迁移。
 - **同步链路**：GitHub / WebDAV 的三路合并、删除记录、播放统计、
   缺字段快照清洗、JSON/ProtoBuf/Base64 格式兼容和 WebDAV 并发保护。
-- **本地数据**：歌单 JSON 原子写入、本地元信息补全、配置导入导出、
+- **本地数据**：歌单 Room 事务、旧 JSON 升级与原子回退、本地元信息补全、配置导入导出、
   授权加密存储和 DataStore 设置。
 - **歌词与播放页 UI**：`AdvancedLyricsView`、`SyncedLyricsView`、
   `LyricShareSheet`、歌词音译显示、日语歌词翻译间距、歌词长按分享和 Lyrics 全屏页。
 - **导航与玻璃 UI**：`MainTabLayerHost`、详情页抽屉/连贯反馈、
   可打断主标签切换、页面状态保留、标准化 Snackbar 覆盖层和 Advanced Glass owner 接力。
+- **主题与资料面板**：Material / Clean 预览主题、深浅色切换、预测性返回取消、
+  歌曲百科的歌曲身份校验、请求代次和附加板块降级。
 - **系统入口与桌面外壳**：`LauncherShortcuts`、桌面小组件、
   `USB_DEVICE_ATTACHED` 处理开关和播放服务控制入口。
 - **存储与缓存 UI**：`StorageUsageAnalyzer`、缓存清理选项、下载目录索引和 SAF 快照。
@@ -96,7 +106,7 @@
 - **本地持久化**：播放/流量统计的批量写入、生命周期 flush、原子文件替换和
   SAF/本地歌单初始化就绪状态。
 
-对应测试已分布在 `app/src/test/` 与 `app/src/androidTest/`。
+对应测试分布在 app 与各库模块的 `src/test/` 和 `src/androidTest/`。
 修改上述链路时，优先搜索同名目录或相邻测试类，再补新的覆盖。
 
 ---
@@ -125,7 +135,7 @@
 ### 构建发布版 / Release Build
 
 发布版默认启用混淆与资源收缩。
-普通 `assembleRelease` 默认只构建 `arm64-v8a`，手动多 ABI 构建需要额外参数。
+普通 `assembleRelease` 默认在 APK 中只打包 `arm64-v8a`，手动多 ABI 输出需要额外参数。
 
 1. 在 `~/.gradle/gradle.properties`、项目 Gradle properties 或命令行 `-P`
    中提供签名信息：
@@ -170,20 +180,24 @@
 
 #### 根模块
 
-- `:app`
-  - Android 主应用。
-- `:ksp-annotations` / `:ksp-processor`
-  - 设置项 schema、key、备份白名单和设置 UI 元数据的 KSP 生成链路。
-- `:accompanist-lyrics-core` / `:accompanist-lyrics-ui`
-  - 歌词解析和 Compose 歌词 UI 子模块。
-- `build-logic`
-  - Android/Kotlin/Compose convention plugins。
-- `buildSrc`
-  - 保留的辅助 Gradle 构建逻辑模块。
-- `np-submodule/NeriPlayer-LTW`
-  - 一起听 Cloudflare Workers 服务端。
-- `np-submodule/miuix`
-  - 仓库内附带的上游 Miuix 源码/文档树，当前不参与主应用模块构建。
+自有库的入口与完整职责见根目录 [README.md](README.md#模块结构)。14 个库由 `gradle/owned-modules.txt` 统一登记，构建、lint 和结构检查读取同一份登记；覆盖率只收集包含 Kotlin/Java 生产源码的库，`:native` 使用独立的 host 测试与四 ABI 编译。一级目录表达业务领域，远程来源集中在 `:platform`；播放和下载保留规则与运行实现两个构建边界。
+
+- 基础能力：`:common`、`:network`、`:model`、`:database`。模型不依赖项目实现；历史 Room schema 和完整升级链由数据库维护。
+- Native：`:native` 维护 CMake 构建边界、崩溃处理、USB 协议与 PCM 计算、独占传输和第三方 libusb；app 消费它的 AAR，Kotlin 播放会话与 JNI 桥仍由 `:playback:runtime` 维护。
+- 播放：`:playback:logic` 集中 policy/runtime/audio/queue，`:playback:runtime` 维护引擎、服务、USB、音源解析与接入。policy 的九个叶子包保持窄依赖，USB policy 归运行库；下载只能通过 `PlayerDownloadAccess` 调用。
+- 下载：`:download:logic` 维护可复用规则与基础存储工具，`:download:runtime` 维护 Room、SAF、恢复和服务。规则不得依赖运行实现，Worker 与 JobService 的类全名保持稳定。
+- 歌词：`:lyrics` 维护解析、转换、共用时间偏移和词幕输出。SDK 和位置推送位于同库 `lyrics/lyricon`，`lyrics/output` 管理异步请求代次、取消与偏移快照；播放器通过窄加载端口提供歌词和快照。歌词库不依赖平台或播放器实现。
+- 平台：`:platform` 维护 Bilibili、网易云和 YouTube 的请求协议、账号、缓存与业务，以及评论、歌词来源和元数据搜索、匹配与回退。`api` 是同库协议职责，禁止反向读取账号仓库、Room 和播放器；各平台按包保持依赖边界。YouTube JS assets 和 consumer R8 规则随平台维护，解析能力通过 `api(:lyrics)` 对外提供。
+- 本地数据：`:local` 按设置、媒体、歌单、统计、备份、流量与同步接入分包，维护业务映射、宿主接口和 WorkManager 适配。设置 schema 在此运行 KSP，页面渲染留在 app。
+- 同步：`:sync` 同时维护 GitHub/WebDAV 传输、加密凭据、设备身份、因果计数器、会话、清洗、合并与 Worker 策略。传输和计算组件仍受各自依赖白名单约束，本地仓库适配位于 `:local`；删除记录与 mutation version 原子提交。
+- 一起听：`:listentogether` 维护协议、传输、身份规则和客户端会话。协议只使用模型、序列化与标准库；业务通过宿主接口接入播放器、资源和 Android 服务。
+- 应用与工具：`:app` 维护 Android 入口、Compose 页面和依赖组装；KSP 工具、上游歌词子模块、`build-logic` 和一起听服务端不计入 14 个库。Miuix 的上游源码与文档树不参与主应用构建。
+
+所有库禁止引用 app、页面或 `AppContainer`，依赖不得形成循环；`:playback:runtime` 内部可以使用自己的 `PlayerManager`。设置通过 provider 按需读取，HTTP 客户端、账号与设备令牌由宿主注入，不通过全局容器绕过接口。Room 业务映射随本地或平台仓库维护；数据库和规则组件不得反向引用运行实现。
+
+包含 Kotlin/Java 生产源码的库使用 `build-logic.android.feature-library` convention；纯 Native 的 `:native` 使用 `build-logic.android.library`，不接入 JaCoCo 或 JVM 测试。自有库均在 `gradle/owned-modules.txt` 登记真实 Gradle 路径，无需另行维护 JVM 覆盖率列表。测试随实现放在该库 `src/test` / `src/androidTest`，宿主集成测试放在 app。模块目录归属调整不改变既有生产包名或类全名；源码内部包与目录保持一致，相关路径契约、测试夹具、资源与 CRAP 选择器一起维护。
+
+`verifyModuleBoundaries` 检查登记与实际目录、领域依赖、循环、禁止导入、源码所有者和包目录一致性。库主源码少于 2000 行，库和 `APP_FAMILIES` 区域每个目录最多 16 个直接源码文件。包级计算域由编译字节码门禁继续隔离。
 
 #### Android 客户端关键路径
 
@@ -192,8 +206,11 @@
     Lyricon、全局下载管理和共享图片加载器。
 
 - `app/src/main/java/moe/ouom/neriplayer/activity/`
-  - `MainActivity.kt` 是唯一对外入口，负责安全模式、启动流程、免责声明、
+  - `MainActivity.kt` 是主界面与音频分享/深链入口，负责安全模式、启动流程、免责声明、
     启动引导、外部音频导入、一起听深链和顶层 Compose 宿主。
+  - `activity/car/BluetoothMediaValidationActivity.kt` 是系统蓝牙媒体能力确认入口，
+    USB 插入通过 Activity alias 转到 `MainActivity`；车载浏览服务和封面 Provider
+    由播放运行库的 Manifest 声明，各入口按其权限与调用方边界维护。
   - 平台登录 Activity 位于 `activity/auth/`，并在独立次进程中运行；
     `activity/sync/` 保存 Activity 侧的同步告警状态。
   - `UsbDeviceAttachHandling.kt` 负责按设置启停 USB 设备插入 Activity alias，
@@ -207,6 +224,10 @@
     `MiniPlayer`、`Now Playing` 覆盖层、Debug 路由、主题、缓存清理和播放服务同步。
   - 主标签页面由 `MainTabLayerHost.kt` 保留出场/入场双场景，
     按标签顺序执行可打断横向转场，并为各场景保留 saveable state 和玻璃 owner。
+  - `ui/theme/NeriTheme.kt` 通过同一内容宿主切换 Material / Clean，
+    `NeriDesign.kt` 提供样式几何，`CleanTheme.kt` 提供 Clean 配色和排版。
+    主题切换不得重建导航；全局下载流量确认由 `AppGlobalDialogHosts.kt` 展示，
+    `globalDialogVisible` 同时通知播放页和更多面板避让。
   - `ui/feedback/` 承载应用级 Snackbar/Toast 反馈策略；新增全局反馈前先确认
     `AppFeedback` 与 `ViewSnackbar` 是否已经覆盖所需场景。
 
@@ -214,23 +235,31 @@
   - `AdvancedLyricsView.kt` 与 `SyncedLyricsView.kt` 负责高级歌词排版、
     逐字/逐词高亮、翻译/音译显示、点击跳转和长按回调。
   - `LyricShareSheet.kt` 负责歌词行选择、复制、歌曲分享和歌词卡片生成。
+  - LRC/YRC/TTML 解析和翻译对齐位于 `modules/lyrics` 的 `lyrics.parser` 包；共享歌词数据位于 `:model` 的 `lyrics` 包。
   - 旧 `AppleMusicLyric` 名称只存在于 `ui/component/LyricsCompatibility.kt`
     的 `@Deprecated` 包装中，新代码统一使用 `SyncedLyricsView`。
 
 - `app/src/main/java/moe/ouom/neriplayer/ui/component/playback/`
   - `NeriMiniPlayer.kt` 负责底部迷你播放器、播放暂停和横向滑动切歌；
-    播放音效与睡眠定时器面板也在该目录。
+    睡眠定时器面板也在该目录；音效与倍速设置页位于 `ui/screen/tab/settings/audio/`。
   - `ui/component/` 根目录中的同名文件主要是旧包兼容入口，新增实现应放入
     `lyrics/`、`playback/`、`download/`、`navigation/` 等职责子包。
 
 - `app/src/main/java/moe/ouom/neriplayer/ui/screen/tab/`
   - `LibraryScreen.kt` 负责媒体库顶层分类，本地内容可在歌单/歌手之间切换，
-    收藏页可展示歌单和已关注艺术家。
+    收藏页可展示歌单、已关注艺术家和热点歌单。
   - `LocalArtistLibraryGrid.kt` 展示本地艺术家网格、空状态和艺术家卡片。
 
 - `app/src/main/java/moe/ouom/neriplayer/ui/screen/playlist/`
   - `LocalArtistDetailScreen.kt` 展示本地艺术家详情，支持播放全部、
     多选、导出歌单和批量下载可在线解析的歌曲。
+  - `curation/` 是批量词图管理：`LocalCurationCoordinator` 持有进程级会话并通过
+    `LocalCurationPorts` 访问副作用（生产实现 `AppLocalCurationPorts` 调用
+    `PlayerManager.embedLocalSongAssets`：文件写入在全局元数据锁外并行、同一文件由本地媒体层按目标排队，
+    锁内只基于最新副本合并歌词与封面字段），`LocalCurationPolicy` 是可单测的规划、自动勾选与空间估算规则。
+    文件侧的嵌入资产检查、封面压缩、文件夹封面定位与媒体写入授权位于
+    `modules/local` 的 `data/local/media/curation/`；时间轴、现场版与 LRC 标签加权位于
+    `:platform` 的 `LyricMatchSupplementalSignals.kt`。
 
 - `app/src/main/java/moe/ouom/neriplayer/ui/screen/artist/`
   - 网易云艺术家详情页，展示艺术家信息、热门歌曲、分页专辑和关注状态。
@@ -241,27 +270,63 @@
 - `app/src/main/java/moe/ouom/neriplayer/ui/onboarding/`
   - 首次启动引导，覆盖语言、平台账号、权限说明、播放控件、GitHub 同步和个性化设置。
 
-- `app/src/main/java/moe/ouom/neriplayer/core/api/`
-  - `netease/`：网易云接口、加密和账号能力。
-  - `bili/`：Bilibili 搜索、二维码登录、收藏夹、合集、播放信息和音频播放解析。
-    Explore 链接识别会保留 Bilibili 分 P、`cid` 和 `season_id` 上下文；
-    改动时同步检查 `ExploreLinkRecognizer` 与 `ExploreViewModel`。
-  - `youtube/`：YouTube Music 客户端（NewPipe Extractor）、
-    首页/歌单/搜索/播放、PoToken 和 JS Challenge 支持。
-  - `search/`：播放页元数据/歌词补全接口，
-    当前实现为 `CloudMusicSearchApi` 与 `QQMusicSearchApi`。
-  - `lyrics/`：外部歌词来源，当前实现为 `LrcLibClient`。
+- `modules/platform/src/main/java/moe/ouom/neriplayer/platform/`
+  - `netease/api`：网易云客户端、加密、请求参数和二维码认证协议。
+  - `bilibili/api`：搜索、二维码登录、收藏夹、合集和播放信息；仓库与跳过规则位于同库 `platform/bilibili`。
+    Explore 链接识别会保留分 P、`cid` 和 `season_id` 上下文，改动时同步检查 `ExploreLinkRecognizer` 与 `ExploreViewModel`。
+  - `youtube/api`：YouTube Music 客户端、PoToken、JS Challenge、请求/响应解析；协议模型位于 `:model`，认证持久化与缓存位于同库 `platform/youtube`。
+  - `lyrics/api`：LrcLib、Kugou 和 AMLL 服务访问；来源仓库、匹配与回退位于同库 `platform/lyrics`。
+  - `search/api`：`SearchApi`、网易云和 QQ 元数据搜索服务；`SearchManager` 位于同库 `platform/lyrics`，共享音乐模型属于 `modules/model`。
+  - `netease/encyclopedia`：歌曲百科数据源、解析和有界内存缓存；共享模型位于
+    `:model` 的 `data/model/encyclopedia`，页面和请求状态留在 app。
+  - `AppContainer` 组装客户端与路由，注入 HTTP、调试配置和实时设置 provider；库不读取应用容器或播放器单例。
+  - 纯文本歌词时间轴转换位于 `modules/lyrics` 的 `PlainLyrics.kt`，播放器与匹配器共享同一实现。
 
-- `app/src/main/java/moe/ouom/neriplayer/core/player/`
+- `modules/platform/src/main/java/moe/ouom/neriplayer/platform/comments/`
+  - 评论来源、解析、分页和缓存；评论数据契约属于 `:model`；客户端 provider 与缓存由 `AppContainer` 组装注入。
+  - 缓存实例的生命周期由宿主决定，库内不读取全局容器；仓库测试位于该模块，ViewModel 集成测试位于 `app`。
+  - 歌曲来源标签属于 `:model`，Bilibili 历史播放身份解析属于同库 `platform/bilibili/playback/resolver`，无需引用播放器单例。
+
+- `modules/playback/runtime/src/main/java/moe/ouom/neriplayer/core/player/`
   - `PlayerManager.kt`：Media3 ExoPlayer 的统一管理层，
     负责音源解析、播放队列、缓存、状态恢复、失败重试和播放策略。
   - `service/AudioPlayerService.kt`：前台播放服务、媒体通知、MediaSession 和媒体按钮。
-  - `download/AudioDownloadManager.kt`：受管下载核心链路；同目录的
-    `DownloadParallelism.kt` 定义并发边界。
-  - `effects/PlaybackEffectsController.kt`：倍速、音调、响度增强和均衡器。
-  - `engine/`：Media3 音频处理器，包括响度均衡、声道平衡和高解析输出相关处理。
-  - `playback/PlaybackStatsTracker.kt`：播放统计采集；播放命令与队列推进也在
-    `playback/PlayerManagerPlaybackExtensions.kt`。
+  - 下载执行实现归 `:download:runtime`；播放器只消费 `host/PlayerDownloadAccess.kt`，下载状态契约位于 `:model` 的 `playback/storage`。
+  - `effects/PlaybackEffectsController.kt`：倍速和音调。
+  - `audio/effects/`：`AudioEffectsAudioSink` 位于 USB/系统输出 sink 之前，调用 `:native` 的
+    `dsp/` 引擎处理 16/24/32-bit 整数与 float PCM；中性或关闭时原样旁路并允许 offload，
+    USB 独占默认旁路以保持 bit-perfect。音效配置、内置音效、编解码与 DSP 参数映射位于
+    `:model` 的 `playback/effects`，参数下标必须与 `dsp/neri_dsp_params.h` 保持一致。
+  - `engine/`：Media3 渲染器与数据源组装；PCM 声道平衡、响度归一化和音频可视化位于 `:playback:logic` 的 `audio/processing` 和 `audio/reactive`。
+  - `:playback:logic` 的 `runtime/stats`、`runtime/progress`、`runtime/transport` 和 `runtime/quality` 分别维护统计采集、播放进度、传输及音质控制；宿主通过对应 Port 提供副作用。
+    播放命令与队列推进仍在 `playback/PlayerManagerPlaybackExtensions.kt`。
+  - `:playback:logic` 的 `queue/state` 和 `queue/policy` 维护状态所有权与编辑/导航规则；队列数据契约位于 `:model` 的 `playback/queue` 包。
+    `PlayerQueueSnapshot` 持有列表与当前索引；`PlayerQueueSessionSnapshot` 将队列、
+    随机播放模式和恢复顺序组成完整会话，由 `PlayerQueueStateStore` 统一发布。
+    开始播放新歌单、切换本地随机播放和加载持久化会话分别使用 `startPlayback`、
+    `setLocalShuffle` 和 `restoreSession`，在同一事务内更新队列与恢复信息。
+    远端整队更新使用 `publishCurrentQueue`；移动、删除和插入使用 `updateCurrentQueue`。
+    这些操作在锁内基于最新快照计算，播放器与磁盘操作放在锁外。
+    异步歌曲元数据写回使用 `updateQueuedSong`，按歌曲身份更新最新队列，保留当前选曲。
+    UI 重排只提供顺序，歌曲内容取自最新队列；重复歌曲无法准确对应时拒绝旧请求并刷新界面。
+    恢复洗牌前顺序时若歌曲集合已改变或副本对应存在歧义，保留当前队列。
+    清空队列同时清除恢复顺序；持久化读取一次会话快照，避免混用不同版本的随机播放状态。
+    当前歌曲 Flow 和 Media3 副作用的线程边界仍需单独检查。
+    `session/PlayerQueueSessionBindings` 适配新引擎初始化、本地/远端播放请求和持久化恢复。
+    队列计算包的直接 JVM 依赖由 `verifyDomainDependencies` 检查，禁止引用该宿主适配器。
+  - `:playback:logic` 的 `runtime/persistence/PlaybackStatePersistenceCoordinator.kt` 统一管理保存请求与延迟任务。
+    在同步事件入口调用 `prepareStatePersist` 或 `scheduleStatePersist`，先捕获完整快照并签发请求，
+    再等待统计落盘或其它异步工作；写入串行执行，排队期间被替代的请求不再写入。
+    `PlaybackStateWriter` 只确认实际成功的后端；JSON 回退后必须完整写回 Room，才能恢复增量保存。
+    协程取消继续向上传播，释放播放器会关闭保存请求入口；存储完成回调不修改当前播放状态。
+    `RestoredPlaybackState` 表达无恢复、保留暂停进度、待自动恢复三种状态，禁止独立修改恢复进度与标记。
+  - URL 刷新的活动状态只由 `RefreshInFlightController` 持有。
+    请求契约、副作用门控和活动任务控制位于 `:playback:logic` 的 `runtime/refresh`。
+    参数相同可以复用活动任务；写回、完成和取消使用该任务的 `RefreshRequestHandle` 身份，
+    避免旧任务影响参数相同的新任务。看门狗直接读取控制器，不另存“正在刷新”标记。
+    任务完成清理要覆盖 lazy 协程尚未执行就被取消的情况。
+    播放意图通过 `updateResumePlaybackRequested` 修改并撤销冲突刷新；音质刷新在主线程内
+    同步采集当前状态和创建请求，避免捕获旧意图后跨线程读取新代次。
   - `timer/SleepTimerManager.kt`：睡眠定时器。
   - `engine/datasource/ConditionalHttpDataSourceFactory.kt`：为特定域名动态附加 Header。
   - `watchdog/PlayerManagerStartupWatchdogExtensions.kt`、
@@ -269,10 +334,11 @@
     播放启动看门狗、前后台健康审计、失败恢复和 USB 独占异常回退。
   - `resolver/netease/PlayerManagerNeteaseAutoSourceSwitch.kt`：网易云无权限、
     无可用播放结果或试听片段时的 Bilibili 播放兜底。
-  - `resolver/youtube/YouTubeGoogleVideoRangeSupport.kt`、`YouTubeSeekRefreshPolicy.kt`、
+  - `YouTubeGoogleVideoRangeSupport.kt` 位于 `:platform` 的 `platform/youtube/api/transport/range/`；
+    播放器的 `resolver/youtube/YouTubeSeekRefreshPolicy.kt`、
     `prefetch/YouTubePrefetchRunner.kt`：YouTube Music 播放兼容策略。
   - `metadata/`：歌词、元数据、外部蓝牙歌词等播放页数据处理。
-  - `model/`：播放器专用状态模型；跨数据层共享的歌曲模型不在此处。
+  - 播放器状态契约统一位于 `:model` 的 `playback` 包；纯播放 policy 归 `:playback:logic`，播放呈现适配与副作用由 `:playback:runtime` 和 app 承担。
     随机播放展示状态通过 `PlayerQueueDisplayState` 表达；不要把乱序显示队列退回
     只靠索引重映射的隐式语义。
   - `usb/`：按 `device/`、`path/`、`session/`、`sink/`、`system/` 与
@@ -281,56 +347,68 @@
     并已经包含 32-bit PCM、PCM float 软件转换、UAC2 显式反馈、
     协调式 AudioSink 重配置、动态传输缩放和背压卡顿恢复。
 
-- `app/src/main/java/moe/ouom/neriplayer/core/download/`
+- `modules/download/runtime/src/main/java/moe/ouom/neriplayer/core/download/`
   - `GlobalDownloadManager.kt` 维护全局下载任务与本地已下载列表。
   - `ManagedDownloadStorage.kt` 是应用目录/SAF 目录的外观入口；具体实现已拆到
     `storage/commit/`、`delete/`、`lookup/`、`migration/`、`recovery/`、
     `snapshot/`、`tree/` 与 `working/` 等子包。
-  - `task/DownloadTaskStore.kt` 持久化下载任务、状态、进度和 attemptId。
+  - `task/DownloadTaskStore.kt` 管理内存中的任务展示、状态、进度和 attemptId。
+  - `execution/persistence/DownloadExecutionRoomStore.kt` 通过 Room 持久化下载操作和恢复状态。
   - `policy/DownloadLifecyclePolicies.kt` 集中封装下载恢复、取消清理和快速结算策略。
   - `naming/ManagedDownloadNaming.kt` 管理下载文件名模板和历史命名兼容。
-  - `metadata/DownloadedAudioTagWriter.kt` 写入音频标签；`catalog/` 管理已下载歌曲目录模型。
+  - `metadata/DownloadedAudioTagWriter.kt` 写入音频标签；`catalog/` 管理已下载歌曲目录的读写与投影。
 
 - `app/src/main/java/moe/ouom/neriplayer/core/startup/`
   - 启动阶段与决策已按 `app/`、`crash/`、`download/`、`logging/`、
     `permission/`、`player/`、`safemode/`、`sync/` 和 `theme/` 拆分；
     `MainActivity` 只负责协调这些组件与 UI 生命周期。
 
-- `app/src/main/java/moe/ouom/neriplayer/data/`
-  - `model/`：跨播放器、歌单、下载、同步、一起听和 UI 共享的 `SongItem`、
-    `SongIdentity` 与媒体模型扩展。
-  - `settings/`：`DataStore` 设置、KSP schema、启动快照、主题快照和播放偏好快照。
-  - `auth/`：网易云、Bilibili、YouTube 的 Cookie / Auth 本地存储与校验。
-  - `platform/netease/`：网易云平台侧缓存，当前包含歌单详情本地缓存。
+- `modules/local/src/main/java/moe/ouom/neriplayer/data/`
+  - `identity/`：歌曲身份转换；`SongIdentity` 与 `SongItem` 属于 `modules/model`。
+  - `settings/`：`DataStore` 设置、KSP schema 和偏好映射；快照契约位于 `:model` 的 `settings` 包。
+  - `auth/`：通用 Web 登录状态与 YouTube 凭据轮换 Worker；平台 Cookie / Auth 仓库位于 `:platform` 的 `data/auth` 和 `platform/youtube/auth`。
+  - 平台缓存归 `:platform`，本地歌单编排和共享缓存表 schema 分别归 `:local` 与 `:database`。
   - `storage/`：存储占用分析、缓存分组和额外缓存清理。
-  - `local/playlist/`：本地歌单 JSON 原子写入、系统歌单兼容、
-    后台元信息补全和本地艺术家聚合模型。
+  - `local/playlist/`：本地歌单 Room 读写、旧 JSON 升级与原子回退、系统歌单兼容、
+    后台元信息补全和本地艺术家聚合。
   - `local/audioimport/`、`local/media/`：本地音频导入、快速扫描、
     后台元信息补全、封面回退和分享。
   - `playlist/favorite/`、`playlist/usage/`：收藏歌单、收藏艺术家和首页继续播放数据。
   - `history/`、`stats/`：最近播放、播放统计和日/周/月/年/总计周期聚合。
   - `backup/`：本地歌单 JSON 备份、导入与差异分析。
   - `config/`：完整配置导入/导出。
-  - `sync/model/`：GitHub 与 WebDAV 共用的同步载荷和冲突模型。
-  - `sync/`：provider 无关的协调、偏好和封面映射。
-  - `sync/github/`：GitHub 传输、三路合并、序列化、省流模式和安全存储。
-  - `sync/webdav/`：WebDAV 同步、远端配置、Worker 和 WebDAV API。
+  - `sync/host/`：Android 仓库快照、资源解析与落库适配；`AndroidSyncMergeHost` 提供系统歌单身份与文案，会话和合并组件通过接口调用这些实现。
+  - `sync/cover/`：封面映射持久化与旧 JSON 导入；导入失败时保留旧数据，阻止后续清理。
+  - `sync/github/`、`sync/webdav/`：提供者后端与兼容 Worker 入口；`sync/work/` 维护 WorkManager、网络验证和通知适配。
+  - app 不保留 `data/sync` 生产源码。
 
-- `app/src/main/java/moe/ouom/neriplayer/listentogether/`
-  - `protocol/` 定义房间、事件与传输模型，`network/` 负责 HTTP/WebSocket 与重连，
-    `playback/` 负责队列、权威播放候选和进度同步，`control/`、`session/`、`invite/`、
-    `mapping/`、`validation/` 分别承载控制、会话策略、邀请、模型映射和输入边界。
-  - 根目录保留 `ListenTogetherSessionManager.kt` 与少量兼容入口；新增协议逻辑
-    不应继续堆入根包。
+- `modules/sync/src/main/java/moe/ouom/neriplayer/`
+  - `api/sync/`：GitHub/WebDAV 传输、响应读取和条件写入。
+  - `data/sync/store/`：加密凭据、偏好、设备身份、因果计数器和删除状态。
+  - `data/sync/merge/`：按 `engine`、`host`、`playlist`、`song`、`history`、`stats` 维护合并入口、宿主契约、冲突、排序和统计规则。
+  - `data/sync/runtime/`、`codec/`、`sanitize/`、`change/`、`mapping/stats/`、`remote/`、`retry/` 和 `schedule/`：会话、兼容编解码、清洗、变化检测、统计映射、远端保护、重试与 Worker 策略。
+  - 同步载荷和冲突模型位于 `:model` 的同步包。`verifyDomainDependencies` 保持传输与计算域各自的白名单，禁止直接引用 Android 仓库或播放器。
 
-- `app/src/main/cpp/`
-  - Native 崩溃处理位于 `crash/`；USB 实现按 `usb/exclusive/`、
+- `modules/listentogether/src/main/java/moe/ouom/neriplayer/api/ltw/`
+  - HTTP、WebSocket、服务器地址校验和重连策略，依赖协议模型与注入的 HTTP 客户端。
+
+- `modules/listentogether/src/main/java/moe/ouom/neriplayer/data/ltw/`
+  - `ListenTogetherSessionManager` 组装会话组件；`playback/` 维护队列、权威播放候选和进度同步。
+  - `control/`、`session/`、`invite/`、`mapping/`、`validation/` 分别维护控制、会话、邀请、歌曲映射和输入边界。
+  - 房间、事件与传输模型位于 `modules/model` 的 `ltw` 包；`modules/listentogether` 内的 `api/ltw` 维护传输，`listentogether/protocol` 维护有界读取与消息编解码。
+  - app 的 `core/di/ltw` 提供平台接口，播放器的 `core/player/ltw` 提供播放器和歌曲映射接口；`app/listentogether` 不得保留生产源码。
+
+- `modules/native/src/main/cpp/`
+  - Native 崩溃处理位于 `crash/`，PCM 音效引擎位于 `dsp/`，共享编译选项位于 `cmake/`。
+    DSP host 测试位于 `tests/dsp/`，需要单独运行，不属于 USB host 门禁。
+    USB 实现按 `usb/control/`、`usb/exclusive/`、
     `usb/feedback/`、`usb/iso/`、`usb/pcm/`、`usb/uac1/`、`usb/uac2/`
-    拆分，对应 host 测试位于 `tests/usb/`。
+    拆分，对应 host 测试位于 `tests/usb/`；第三方 libusb 和 Android 配置位于
+    `third_party/libusb/`。CMake 目标按职责链接，`lib_neri.so` 由 `:native` AAR 提供。
 
-- `app/src/main/java/moe/ouom/neriplayer/core/lyricon/`
-  - 词幕适配（Lyricon Provider）与 SuperLyric 输出，
-    同步歌曲、播放状态、进度、逐字歌词和翻译。
+- `modules/lyrics/src/main/java/moe/ouom/neriplayer/lyrics/lyricon/`
+  - 词幕适配（Lyricon Provider）与 SuperLyric 输出，同步歌曲、播放状态、进度、逐字歌词和翻译。
+  - 同库 `lyrics/output/` 维护输出控制器、异步请求代次、取消与偏移快照；位置锚点和协调器保持内部可见。
 
 - `app/src/main/java/moe/ouom/neriplayer/navigation/`
   - `LauncherShortcuts.kt` 负责桌面图标快捷方式到导航/播放请求的映射。
@@ -350,8 +428,10 @@
 - 本地艺术家分类来自本地已导入/已保存歌曲的展示艺术家聚合，
   不是在线艺术家资料库。
 - 网易云艺术家详情依赖网易云 artist 元数据和接口；
-  关注状态会保存到本地收藏分类。
-- `Bilibili` 已支持搜索、收藏夹和音频播放/下载，但不是完整视频发现流或评论区。
+  网易云、B 站和 YouTube 创作者的关注状态保存在本地收藏，按平台分类。
+  网易云和 YouTube Music 远端关注由用户手动拉取，完整分页成功且账号未变化时才批量合并；
+  合并保留已有收藏和排序，本次加载期间取消的关注不会被恢复，不向平台回写关注。
+- `Bilibili` 已支持搜索、收藏夹和音频播放/下载，以及评论阅读、楼中楼、复制和登录后的点赞、发评与回复。
   链接识别支持选中分 P、合集分享和 `season_id` 上下文，但仍不代表完整 B 站客户端。
 - `YouTube Music` 已支持登录、匿名播放、首页/歌单浏览、详情、搜索和播放兼容；
   有效身份 Cookie 会保留并支持轮换，播放解析会复用 bootstrap/player.js/PoToken 与挑战
@@ -381,7 +461,7 @@
   - 直接 HTTP 传输通过工作文件大小 + `Range` 头续传
   - 需要显式 Range 的平台传输按字节偏移续传
   - HLS 下载通过 `.hls.json` 检查点按 segment 恢复
-- 工作文件位于 `cache/download_staging/`，并额外保存 `.resume.json`
+- 工作文件位于 `files/download_staging/`，并额外保存 `.resume.json`
   恢复元数据；应用启动和网络恢复后会尝试自动找回未完成下载。
 - 手动取消会回滚半成品并删除工作文件；只有网络策略暂停与可恢复错误重试
   才会保留断点。
@@ -392,8 +472,8 @@
   和普通文件系统一致。
 - 分享受控目录中的本地音频时优先直接暴露可读 URI；无法直接分享的 content URI
   才复制到缓存 staging，分享暂存属于可清理缓存。
-- 存储清理只能删除可再生成缓存、下载暂存和分享暂存；
-  不要通过“清缓存”删除用户主动下载的音频、歌词和封面。
+- 普通缓存清理只能删除可再生成缓存和分享暂存；下载工作文件与续传凭据由下载恢复管理。
+  不要通过“清缓存”删除这些恢复文件或用户主动下载的音频、歌词和封面。
 - 流媒体缓存与下载是两套能力：
   缓存使用 `SimpleCache`，下载由 `AudioDownloadManager` 与
   `ManagedDownloadStorage` 写入本地文件。
@@ -404,17 +484,18 @@
 - 同步快照可能来自旧版 JSON/ProtoBuf 或异常远端文件；读取时要用安全默认值，
   过滤缺少可解析歌曲身份、无有效删除时间或无效歌单 ID 的记录，
   缺失 `addedAt` 的歌曲不能排到已有时间歌曲之前。
-- 省流模式写入 `backup-raw.bin` 原始 `GZIP(ProtoBuf)` 字节；读取必须兼容
-  `backup.json` 与历史 `backup.bin` Base64，不能在 Android 与 Desktop 尚未同时
-  支持 read-both 前单独切换格式。JSON、压缩正文和解压后正文上限分别为 8 MiB、
-  12 MiB 和 16 MiB。
-- GitHub 同步通过 Git Data API 的 blob/tree/commit 写入仓库，分支 ref 使用非强制更新；
-  blob 请求中的 Base64 只是 API 传输封装。读取优先使用 raw 内容，不能再描述为
-  已废弃的资产清单协议。
-- WebDAV 优先使用 ETag/Last-Modified 条件写入；没有条件令牌时只能在远端 SHA-256
-  指纹与已读快照一致的情况下回退无条件写入，否则必须按并发冲突失败。
+- V4 写入 Protobuf 记录流、ZSTD 内容分块和根清单，每个压缩对象不超过 2 MiB。
+  清单不存在时才读取旧 `backup.json`、`backup-raw.bin` GZIP 与 `backup.bin` Base64；
+  8/12/16 MiB 安全限制仅适用于旧格式读取。V3 仅供读取迁移，未知未来版本须明确拒绝；
+  所有同步设备须支持 V4，传统数据或 V3 迁移须先确认升级。
+- GitHub 小归档通过 GraphQL `createCommitOnBranch` 和 `expectedHeadOid` 同时发布对象、
+  清单和清理；较大归档通过 Git Data API 的 blob/tree/commit 写入仓库，以 GraphQL
+  `updateRefs` 的 `beforeOid` 和 `force=false` 原子发布。上传请求的 Base64 只是传输封装，
+  仓库正文仍为原始二进制；读取固定分支头并使用 raw 内容。
+- WebDAV 使用 `If-None-Match: *` 创建不可变对象和首次清单；每次发布前重新核对清单指纹，
+  有强 ETag 时同时使用 `If-Match`。缺少强 ETag 时只能在指纹一致后发布并回读确认，不能跳过核对直接写入。
 - 播放统计与流量统计采用延迟批量写入；播放统计在播放器/Activity 关键生命周期
-  flush，流量累积器在请求或下载尝试结束时 flush，播放每日桶按保留窗口和数量上限裁剪。
+  flush，流量累积器在请求或下载尝试结束时 flush，播放累计与每日桶不再按数量淘汰。
   同步合并需要同时维护全量累计、每日桶和旧版 bucket-only 载荷提升，不能先裁剪窗口再抬升。
 - 平台 Cookie / 鉴权信息、GitHub Token、WebDAV 密码使用
   `Android Keystore + EncryptedSharedPreferences` 加密保存。
@@ -429,8 +510,10 @@
 - USB 独占依赖兼容 **UAC1.0** 或 **UAC2.0 Type I PCM** 的 DAC、
   前台服务、唤醒锁和系统后台策略；
   设置页的后台权限提示不是装饰，改动相关逻辑时要同时考虑息屏场景。
-- USB 设置还包含比特完美音量模式；启用后软件增益保持 0 dB，音量由 DAC 硬件控制，
-  不能把它与普通系统音量或应用内响度处理混为一谈。
+- USB 设置还包含比特完美输出模式；启用后按音源采样率和位深申请 DAC 格式，软件增益保持 0 dB，
+  原生管线不做淡入淡出，音量由 DAC 硬件控制，不能把它与普通系统音量或应用内响度处理混为一谈。
+- USB 独占的音量跟随普通媒体音量（`STREAM_MUSIC`），不要再改回 MediaSession 远程音量；
+  后台锚点不能指定输出设备，Android 12+ 会因此把媒体音量设备切到扬声器。
 - USB 设备插入响应是独立设置；关闭时 Activity alias 和播放服务广播入口都必须跳过
   `USB_DEVICE_ATTACHED`，不能只隐藏设置项或只改其中一个入口。
 - 前后台 USB runtime report 若返回 `native_refresh_deferred`，播放器只在有限次数内
@@ -455,7 +538,7 @@
 
 适用于把新平台接到 `Explore` 页搜索或发现流。
 
-1. 在 `core/api/` 下实现对应客户端或仓库。
+1. 在 `:platform` 的 `platform/<平台>/api` 包实现客户端，缓存和业务编排放在同库对应平台职责包中，并维护协议与业务之间的包级依赖规则。
 2. 在 `ExploreViewModel` 中增加请求、分页和状态映射。
 3. 在 `ExploreScreen` / Host 页面中补充平台标签和结果 UI。
 4. 如需播放，继续接入 `PlayerManager` 的音源解析链路。
@@ -465,14 +548,14 @@
 
 适用于补封面、歌词、曲目信息，而不是扩展 `Explore` 页。
 
-1. 在 `core/api/search/` 下实现新的 `SearchApi`。
+1. 在 `:platform` 的 `platform/search/api` 包实现 `SearchApi` 接口，共享音乐 DTO 保留在 `:model`。
 2. 在 `AppContainer` 中注册单例。
-3. 在 `SearchManager` 中增加路由、匹配和降级逻辑。
+3. 在 `AppContainer.searchManager` 的 provider 中登记路由；匹配和降级规则在 `:platform` 的 `platform/lyrics` 包维护并测试。
 4. 视需要补充 `MusicPlatform`、字符串资源和调试探针。
 
 #### 3. 新增在线播放平台
 
-1. 参考 `bili/` 或 `youtube/` 设计客户端与播放仓库。
+1. 参考 `:platform` 中的 `platform/bilibili/` 或 `platform/youtube/` 设计客户端与播放仓库。
 2. 如需特殊 Header，扩展
    `core/player/engine/datasource/ConditionalHttpDataSourceFactory.kt`。
 3. 在 `core/player/url/` 与对应 `resolver/` 的 URL 解析链路接入平台。
@@ -499,6 +582,12 @@
    `BootstrapSettingsSnapshot`、`ThemePreferenceSnapshot` 或 `PlaybackPreferenceSnapshot`。
 5. UI 入口通常放在 `SettingsScreen.kt` 对应 `SettingsPage` 或
    `ui/screen/tab/settings/component/` 下。
+   下载目录的超时探测和 Provider 失败分类集中在
+   `SettingsDownloadDirectoryPreflight.kt`，设置页只消费探测结果。
+   设置页切换和搜索入口由 `SettingsNavigationSearch.kt` 持有。
+   主题模式和调色选项由 `SettingsThemeControls.kt` 持有，包括切换请求和动画起点的决策。
+   播放控件位置和尺寸的对话框状态与偏好变更决策由 `SettingsPlaybackControlLayout.kt` 持有。
+   个性化和歌词外观卡片由 `SettingsPersonalizationContent.kt` 按卡片独立订阅设置流。
 6. 新增或改名设置时，同步补齐中英文字符串、`SettingsSearchIndex.kt`
    搜索关键词、设置页可见性/过滤测试和 `AutoSettingsGeneratedTest`。
 7. 设置控制 Activity alias、播放服务、系统入口或启动前行为时，必须同时验证
@@ -543,13 +632,13 @@
 
 #### 7. 修改 GitHub / WebDAV 同步
 
-1. 先理解 `data/sync/model/SyncDataModels.kt` 与
-   `data/sync/github/SyncDataSerializer.kt` 的兼容策略；共享载荷模型不得
+1. 先理解 `data/model/sync/SyncDataModels.kt` 与
+   `:sync` 中 `data/sync/codec/SyncDataSerializer.kt` 的兼容策略；共享载荷模型不得
    重新放回 GitHub provider 包。
-2. 同步对象包含歌单、收藏歌单、最近播放、删除记录和播放统计。
-   省流写侧使用 `backup-raw.bin` 原始 `GZIP(ProtoBuf)`，普通模式使用
-   `backup.json`；读侧还必须兼容历史 `backup.bin` Base64。GitHub Git Data API
-   的 blob 请求会使用 Base64 传输封装，但仓库内保存的是原始正文。
+2. 同步对象包含歌单、收藏歌单、最近播放、删除记录、播放统计和独立歌词修改记录。
+   V4 使用 Protobuf 记录流、ZSTD 内容分块与根清单，发布点保留 `neriplayer-sync-v3.manifest` 文件名。
+   V3 仅供读取迁移；仅清单不存在时读取旧 JSON、原始 GZIP 与 Base64。GitHub 二进制上传请求使用 Base64 传输封装，
+   仓库内仍保存原始正文。歌词迁移完整保留旧数据，不再提供有损选择，详见 `modules/sync/LYRIC_SYNC.md`。
 3. `songOrderVersion=0` 表示旧版顺序，`songOrderVersion=1` 表示当前展示顺序；
    序列化、合并和落回本地歌单时必须保留旧数据迁移。
 4. 歌单成员使用 `syncMembershipTokens` / `removedMembershipTokens` 表达
@@ -559,13 +648,26 @@
 5. 缺字段或畸形快照必须先清洗再合并；`SyncSong` 至少要有 id、audioId 或 mediaUri
    之一，删除记录还需要有效删除时间，缺失 `addedAt` 的歌曲只能作为低优先级展示项。
 6. `CoverUrlMapper.kt` 位于 provider 无关的 `data/sync/`；
-   合并策略主要在 `GitHubSyncManager.kt`，WebDAV 复用同一套数据模型和多数合并逻辑。
+   GitHub 与 WebDAV 的首次上传和双端合并统一调用 `data/sync/merge/engine/SyncDataMerger.kt`。
+   业务规则在共享组件中维护，宿主负责资源文案与系统歌单解析；`SyncSession` 统一
+   执行冲突重试、本地 mutation version 校验和落库确认，后端提供传输与远端版本接口。
 7. 不要破坏 `GitHubSyncWorker.kt` / `WebDavSyncWorker.kt` 的延迟同步、
-   周期同步、validated network 检查和失败重试行为。GitHub 写入按远端分支头做
-   非强制更新，冲突时必须失败而不是覆盖；WebDAV 无 ETag/Last-Modified 时仍需
-   重新验证远端 SHA-256 指纹。
+   周期同步、validated network 检查和失败重试行为。GitHub 清单发布必须按固定远端
+   分支头进行批量提交的 `expectedHeadOid` 校验，或分阶段发布的 `beforeOid` 与
+   `force=false` 原子更新，冲突时失败。快速路径预算见 `modules/sync/README.md`，
+   已发送批量提交后的错误不得切换到另一条写入流程。WebDAV 后续清单写入必须先核对指纹，
+   有强 ETag 时使用 `If-Match`，没有时发布后回读确认，发现变化按冲突重新合并。
 8. 涉及敏感信息时统一走 `SecureTokenStorage.kt` 或 `WebDavStorage.kt`，
    不要放回 `DataStore` 或明文 JSON。
+9. 存储文件名、键名、Worker 类全名、任务名与输入键属于升级兼容边界，迁移模块时必须保持。
+   设备 ID 的读取和首次创建共享同一把锁，因果计数器与删除状态保留原子提交。
+   新的同步文件自动进入整目录 CRAP 门禁，任意方法分数大于 9 即失败。
+
+```bash
+./gradlew :sync:verifyCrap :sync:verifyDomainDependencies :sync:lintDebug
+./gradlew :local:verifySyncIntegrationCrap
+./gradlew :local:verifyCrap :local:lintDebug
+```
 
 #### 8. 修改下载存储
 
@@ -573,13 +675,16 @@
    `task/DownloadTaskStore.kt`、`policy/DownloadLifecyclePolicies.kt`
    和相关单元测试。
 2. 同时考虑默认应用目录、SAF 自定义目录、迁移、历史命名、元数据文件和 `.nomedia`。
-3. 下载任务先写入 `cache/download_staging/`，再提交到正式目录；
+3. 下载任务先写入 `files/download_staging/`，再提交到正式目录；
    `.resume.json` 与 `.hls.json` 是续传恢复的一部分，不能当普通临时文件随意清理。
 4. 默认下载并发是 **6**，设置允许调整到 **1-8**；
    修改并发、重试或网络恢复时，请同步检查 `DownloadParallelism.kt`、
    `AudioDownloadManager.kt` 和 `GlobalDownloadManager.kt`。
 5. 修改目录迁移、删除语义、续传检查点或 sidecar 写入时，
    必须补充/更新对应单元测试。
+6. 移动网络高风险下载确认通过 `GlobalDownloadManager.trafficRiskDownloadRequests`
+   交给 `NeriApp` 的全局对话框宿主；改动时同时检查播放页、更多面板的遮挡与输入，
+   并保留 `MainActivityTrafficRiskDownloadTest` 的实际入口覆盖。
 
 #### 9. 修改歌词显示、分享或音译
 
@@ -599,13 +704,13 @@
 
 #### 10. 修改存储占用与缓存清理
 
-1. 入口在 `data/storage/StorageUsageAnalyzer.kt`
+1. 入口在 `data/local/storage/StorageUsageAnalyzer.kt`
    和 `SettingsStorageCacheSection.kt`。
 2. 新增缓存目录时，要决定它属于可清理缓存、下载内容、诊断文件还是应用数据。
 3. 清理操作只能覆盖可再生成内容；
    下载歌曲、下载歌词、下载索引和授权数据不能被普通清缓存误删。
-4. 如果清理下载暂存，要尊重当前下载任务状态；
-   活跃任务的暂存文件应等任务结束后再处理。
+4. 下载暂存包含工作文件、续传凭据和 HLS 检查点，普通缓存清理必须保留；
+   相关文件由下载恢复流程处理，不能根据 UI 的任务状态快照决定整目录删除。
 
 #### 11. 修改网易云歌单详情缓存
 
@@ -617,7 +722,7 @@
 
 #### 12. 修改词幕适配
 
-1. 词幕适配入口在 `core/lyricon/LyriconManager.kt`。
+1. 词幕 SDK 接入位于 `modules/lyrics/src/main/java/moe/ouom/neriplayer/lyrics/lyricon/`，输出控制器位于同库 `lyrics/output/`。播放器只提供歌词、偏好、进度与生命周期快照，不直接管理 SDK。
 2. 开关状态由设置项 `lyricon_enabled` 控制，并由播放器生命周期同步。
 3. 歌词数据使用 `LyricEntry`，逐字信息来自 `WordTiming`；
    翻译行按时间容差匹配到原文行。
@@ -627,10 +732,15 @@
    和外部蓝牙歌词的歌词结构兼容。
 6. 蓝牙歌词的原文与翻译是独立开关；同时输出时必须通过同一个原子快照更新
    标题/艺术家字段，并保留曲目信息、字段长度限制、空白清洗和重复提交去重测试。
+7. `bluetooth_metadata_mode` 只改变实际蓝牙输出时的展示，未连接蓝牙时保留灵动岛行为。
+   车载浏览入口位于播放运行库的 `service/car`，通过私有服务 Binder 复用现有 framework 会话；
+   浏览不提升前台、不自动恢复播放，明确起播时才启动私有播放服务。
+   浏览 ID 必须在当前曲库重新验证，封面使用受限只读 Provider 和有界 JPEG 缓存，
+   不允许客户端传入任意文件或远程地址。Compat 仅用于提供现有会话的浏览搜索桥接。
 
 #### 13. 修改一起听
 
-1. Android 客户端逻辑在 `listentogether/`。
+1. 客户端会话、HTTP/WebSocket 传输、编解码与有界读取统一位于 `modules/listentogether`，分别由既有 `data/ltw`、`api/ltw` 和 `listentogether/protocol` 包维护；协议模型在 `modules/model`。app 的 `core/di/ltw` 只绑定平台能力，播放器适配在 `modules/playback/runtime` 的 `core/player/ltw`。
 2. 服务端逻辑在 `np-submodule/NeriPlayer-LTW`。
 3. 协议字段变更必须同时兼容客户端和 Worker，并更新测试。
 4. `shareAudioLinks=false` 时，HTTP/WS 房间快照都不能暴露
@@ -651,6 +761,13 @@
 10. 房间号 6 位、昵称 1-24、队列上限 2000 和请求去重要视为协议边界，
    不要只改 UI 校验而忘记服务端约束。
 11. 设置页支持自定义服务端地址和可用性测试，不要硬编码单一地址。
+12. HTTP 控制回退必须按服务端、房间、用户和凭据校验回包；离开、断开或更换会话时取消旧任务，协程取消不能进入错误或重连流程。
+13. 队列变更构建与应用必须保留重复曲目的 occurrence 身份、连续插入顺序和当前歌曲；修改后运行模块往返测试。
+
+```bash
+./gradlew :listentogether:verifyCrap :listentogether:verifyDomainDependencies :listentogether:lintDebug
+./gradlew :app:testDebugUnitTest --tests "*ListenTogether*"
+```
 
 #### 14. 修改主导航与玻璃转场
 
@@ -667,6 +784,12 @@
 6. 至少同步检查 `NeriAppMainTabTransitionPolicyTest`、
    `AdvancedGlassNavigationTransitionTest`、`NeriAppNavigationTransitionTest`
    和 `HostNavigationTransitionGeometryTest`。
+7. 主题适配复用 `ui/theme/NeriDesign.kt` 的几何与 `MaterialTheme` 的配色、字体，
+   弹窗使用 `ui/component/overlay/` 的现有入口。修改主题选择时同时维护
+   `SettingsThemeControls.kt`、主题快照与预览提示记录。
+8. Material 与 Clean 的深浅色、手机与平板应分别验证；涉及返回与拖拽时，
+   覆盖系统返回、预测性返回完成/取消/反向、面板拖动和内容滚动。
+   静态截图不能证明触摸与导航正确，截图、录屏、模拟器和实体设备证据应分别记录。
 
 #### 15. 修改桌面小组件、启动器快捷方式或全局反馈
 
@@ -684,6 +807,18 @@
 6. 歌单批量导出、删除撤销和同步删除记录有关联；修改其中任一项时同时检查
    `PlaylistExportSheetTest`、`AppFeedbackPolicyTest`、`LocalPlaylistRepositoryTest`
    和 `SyncPlaylistDeletionPolicyTest`。
+
+#### 16. 修改歌曲百科
+
+1. 共享契约在 `:model` 的 `data/model/encyclopedia/`，网易云实现与解析在
+   `:platform` 的 `platform/netease/encyclopedia/`。当前只对可识别的网易云歌曲请求资料。
+2. `SongEncyclopediaRepository` 区分成功、不支持、暂无资料和失败；
+   取消继续向上传播，创作团队、艺人等附加请求失败只降级对应板块。
+3. app 的 `NowPlayingViewModel` 使用 `RequestGeneration` 丢弃旧请求；
+   `SongEncyclopediaUiState.forSongKey` 在渲染前再次校验歌曲身份，切歌、关闭和重试需一起检查。
+4. `ui/screen/nowplaying/actions/SongEncyclopediaContent.kt` 组合板块，
+   `NowPlayingSecondaryActions.kt` 处理面板及艺人、歌单、评论导航，避免在百科上继续堆叠弹层。
+5. 修改时检查仓库、解析、缓存和 ViewModel 单测，以及百科板块的布局、评论入口与手势设备测试。
 
 ---
 
@@ -712,6 +847,8 @@ adb logcat | grep NeriPlayer
 
 ### 测试与提交流程 / Testing & PR
 
+自动 APK 构建等待已有 JVM、lint、Worker 与模拟器作业，并在打包前运行 Native Release host 检查。手动 Release 对 `target_ref` 实际检出的源码先运行 JVM 测试、lint、可用的模块边界检查与 Native Release host 检查，再构建签名 APK；验证报告以该提交 SHA 命名。历史版本使用自身的新旧 Native 测试入口，存在测试设施但缺少配置时拒绝发布。额外模拟器、sanitizer 和真实 DAC 验证按相关变更风险执行，不把真实设备作为每次发布的前置条件。
+
 提交前建议至少完成以下检查：
 
 1. 能成功构建调试版：
@@ -720,17 +857,17 @@ adb logcat | grep NeriPlayer
    ```
 2. 单元测试：
    ```bash
-   ./gradlew :app:testDebugUnitTest
+   ./gradlew :app:verifyCrap
    ```
 3. 如修改登录态、播放解析链路或回归风险较高的集成行为，可按需执行 smoke test：
    ```bash
    ./gradlew :app:testDebugUnitTest -DrunNeteaseSmoke=true
-   ./gradlew :app:testDebugUnitTest \
+   ./gradlew :platform:testDebugUnitTest \
      -DrunYouTubePlaybackSmoke=true \
-     -DyoutubeSmokeVideoId=<id> \
-     [-DyoutubeSmokeForceRefresh=true] \
-     [-DyoutubeSmokeCookieFile=/absolute/path/to/cookies.json]
+     -DyoutubeSmokeVideoId=VIDEO_ID
    ```
+   将 `VIDEO_ID` 替换为实际视频 ID；需要时追加 `-DyoutubeSmokeForceRefresh=true`
+   或 `-DyoutubeSmokeCookieFile=/absolute/path/to/cookies.json`。
 4. 如修改资源、UI、导航、设置、同步或存储逻辑，建议执行：
    ```bash
    ./gradlew :app:lintDebug
@@ -743,27 +880,74 @@ adb logcat | grep NeriPlayer
    ```bash
    for profile in release-werror-asserts asan-ubsan tsan; do
      tools_pub/usb-async-lab host-test \
-       --manifest app/src/main/cpp/tests/usb/config/run-manifest.example.yaml \
+       --manifest modules/native/src/main/cpp/tests/usb/config/run-manifest.example.yaml \
        --profile "$profile"
    done
 
-   ./gradlew :app:externalNativeBuildDebug \
+   ./gradlew :native:externalNativeBuildDebug \
      --no-daemon \
      --warning-mode all \
      --stacktrace
    ```
    host gate 会固定执行同一组 CTest；Android 编译还要确认
    `arm64-v8a`、`armeabi-v7a`、`x86`、`x86_64` 均生成非空 `lib_neri.so`。
+   修改 DSP 时还需单独运行其 host 测试：
+   ```bash
+   cmake -S modules/native/src/main/cpp/tests/dsp -B .tmp/dsp-host -DCMAKE_BUILD_TYPE=Release
+   cmake --build .tmp/dsp-host --parallel
+   ctest --test-dir .tmp/dsp-host --output-on-failure
+   ```
+   内存/未定义行为检查可用独立构建目录并传入 `-DDSP_TEST_SANITIZER=asan-ubsan`；
+   USB 的 sanitizer profile 不会自动运行 DSP 测试。
 7. 如修改一起听 Worker：
    ```bash
    npm ci --prefix np-submodule/NeriPlayer-LTW
    npm run check --prefix np-submodule/NeriPlayer-LTW
    ```
-   这里的 `npm run check` 会依次执行 `node --check`、协议测试和
+   这里的 `npm run check` 会依次执行 Node.js 版本检查、`node --check`、协议测试和
    `wrangler deploy --dry-run`；协议或房间状态改动还需要实际验证 create/join/ws 流程。
-8. 新增单元测试放到 `app/src/test/`；
-   新增设备或 Compose UI 测试放到 `app/src/androidTest/`。
+8. 新增单元测试放到被测代码所在模块的 `src/test/`，宿主集成测试放在 `app/src/test/`；
+   新增设备或 Compose UI 测试放到对应模块的 `src/androidTest/`，应用宿主集成测试放到 `app/src/androidTest/`。
 9. 行为变更涉及 README、设置文案、用户流程或同步格式时，请同步更新文档。
+
+CRAP 质量门禁与职责拆分：
+
+```bash
+./gradlew verifyModularization
+```
+
+此任务执行模块边界检查、app 与自有库的 lint 和 JVM 测试，合并 JaCoCo 覆盖率，
+输出可映射到 app 与库主源码的全部 JVM 方法分数，
+并单独列出 CRAP > 8 的条目。`config/quality/crap-scope.json` 的 `source_patterns`
+覆盖完整源文件，`method_scopes` 覆盖原入口中受本次拆分影响的方法；
+范围内任意方法 CRAP > 9 即失败，范围外的方法仍保留在完整报告中。
+分数使用 JaCoCo 复杂度覆盖率近似路径覆盖率；不衡量 Native 代码，也不能代替耦合度审查。
+`:app:check` 和 Android CI 均执行门禁；完整评分和范围报告位于
+`app/build/reports/crap/`，口径与依赖见 [质量检查说明](tools_pub/quality/README.md)。
+
+`:playback:logic` 和 `:playback:runtime` 通过 `build-logic.android.module-quality` 提供 `verifyCrap`。
+独立门禁使用模块自己的覆盖率和共享配置中的对应范围，所选范围为空时失败；
+播放策略、运行协调、PCM、宿主接口、USB policy 和小组件呈现包自动包含新增文件。
+app 的播放器适配器参与聚合门禁。迁移到运行库的歌词渲染、Room 队列、解码器和播放 Range
+设备测试通过 `:playback:runtime:connectedDebugAndroidTest` 执行。
+
+`OwnedMainSourceLineBudgetTest` 约束受检自有主源码及组件严格少于 2000 物理行，
+USB `exclusive/` 下的自有 `.cpp` / `.h` 也在检查范围内。新增组件时应同步维护测试中的文件清单；
+第三方 libusb 和测试文件不属于这个行数上限。
+
+`LocalManagementLineBudgetTest` 对下载、本地数据、媒体库及相关测试执行同样的行数限制。
+移动入口文件或拆分目录时，应同步更新测试中的必需文件路径和扫描范围。
+
+拆分时应把状态、异步任务和释放逻辑交给负责该职责的组件，通过小接口接入外部能力。
+`PlayerManager` 的播放器和全局服务访问集中在对应的 `PlayerManager*Port` 适配器；
+一起听的成员操作、房间状态、连接恢复和控制结果由 `:listentogether` 的 `session/` 组件分别维护，平台与播放器实现通过宿主接口注入。唤醒锁随会话释放，异步任务由所属组件取消，不能回读全局容器。
+`NowPlayingScreen`、`SettingsScreen` 和 `NeriApp` 组合页面与功能组件，具体编辑会话、目录选择、
+设置领域绑定和导航副作用在对应组件中处理。不要把原入口作为 receiver 搬进扩展文件，
+也不要让新组件回读原入口的内部状态。
+`:local` 中的本地存储按 `source`、`scan`、`accounting`、`cleanup` 和 `policy` 分类，数据契约集中在 `:model` 的 `storage` 包。
+存储统计由 `StorageUsageScanner` 通过数据源接口采集快照，`StorageUsagePresenter`
+只读取快照和字符串资源；`StorageCacheCleaner` 通过文件和平台清理端口执行操作，Room 和全局服务访问集中在
+`StorageUsageAndroid.kt`。新增组件应保持这个单向依赖，并纳入完整文件门禁。
 
 当前已有测试覆盖的重点包括：
 
@@ -775,6 +959,8 @@ adb logcat | grep NeriPlayer
   背压恢复、延迟 runtime 刷新重试、比特完美音量、USB 插入响应开关和音频焦点策略
 - 主标签双 scene 转场、快速反向切换、抽屉/连贯详情反馈、玻璃 owner 隔离
   和未布局 scene 几何过滤
+- Material / Clean 主题与预览提示、预测性返回、百科请求身份与板块呈现、
+  播放页覆盖层上的移动网络下载确认
 - 桌面小组件状态/取色/RemoteViews 资源、启动器快捷方式映射和全局 Snackbar 覆盖层
 - 下载元数据、命名、目录迁移、快照缓存、`.nomedia`、删除语义和启动恢复
 - 启动阶段、通知权限、播放服务启动、历史记录与安全模式恢复规划
@@ -812,7 +998,7 @@ Commit 信息建议遵循 Conventional Commits，
 - 项目仅供学习与研究使用，请勿用于非法用途。
 - 本项目使用 **GPL-3.0** 协议。
 - 提交贡献即表示你同意至少以 GPL-3.0 分发你的修改。
-- `app/src/main/cpp/README.md` 中的替代授权只覆盖明确列出的
+- `modules/native/src/main/cpp/README.md` 中的替代授权只覆盖明确列出的
   NeriPlayer 自有 Native 源码，不覆盖第三方代码或其他仓库内容。
 - Native PR 本身不代表授予替代授权；若贡献者同意双授权，必须在 PR、
   commit 或版权持有人接受的其他可审计记录中加入该 README 提供的声明。

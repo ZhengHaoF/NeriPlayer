@@ -44,7 +44,6 @@ import android.webkit.WebStorage
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.core.net.toUri
@@ -56,13 +55,14 @@ import com.google.android.material.appbar.AppBarLayout
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.color.MaterialColors
 import com.google.android.material.snackbar.Snackbar
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import moe.ouom.neriplayer.R
-import moe.ouom.neriplayer.data.auth.web.ForegroundWebLoginGuard
+import moe.ouom.neriplayer.network.weblogin.ForegroundWebLoginGuard
 import moe.ouom.neriplayer.data.auth.web.shouldAutoCompleteBiliWebLogin
-import moe.ouom.neriplayer.core.logging.NPLogger
+import moe.ouom.neriplayer.common.logging.NPLogger
 import moe.ouom.neriplayer.ui.feedback.showNeriViewSnackbar
-import moe.ouom.neriplayer.util.network.hostMatchesAnyDomain
-import moe.ouom.neriplayer.util.network.isAllowedMainFrameRequest
+import moe.ouom.neriplayer.network.security.hostMatchesAnyDomain
+import moe.ouom.neriplayer.network.security.isAllowedMainFrameRequest
 import moe.ouom.neriplayer.util.platform.lockPortraitIfPhone
 
 /**
@@ -96,6 +96,10 @@ class BiliWebLoginActivity : ComponentActivity() {
     }
 
     private lateinit var webView: WebView
+    private val webBackNavigation = WebLoginBackNavigation(
+        canGoBack = { this::webView.isInitialized && webView.canGoBack() },
+        goBack = { webView.goBack() }
+    )
     private lateinit var toolbar: MaterialToolbar
     private var foregroundWebLoginToken: AutoCloseable? = null
     private var hasReturned = false
@@ -104,6 +108,7 @@ class BiliWebLoginActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (finishIfWebViewUnavailable()) return
         lockPortraitIfPhone()
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -135,7 +140,7 @@ class BiliWebLoginActivity : ComponentActivity() {
             )
         }
         toolbar = MaterialToolbar(this).apply {
-            title = getString(R.string.bili_web_login)
+            title = getString(CoreCommonR.string.bili_web_login)
             setNavigationIcon(R.drawable.ic_arrow_back_24)
             setNavigationOnClickListener { finish() }
             inflateMenu(R.menu.menu_netease_web_login)
@@ -181,18 +186,7 @@ class BiliWebLoginActivity : ComponentActivity() {
             insets
         }
 
-        onBackPressedDispatcher.addCallback(
-            this,
-            object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() {
-                    if (this@BiliWebLoginActivity::webView.isInitialized && webView.canGoBack()) {
-                        webView.goBack()
-                    } else {
-                        finish()
-                    }
-                }
-            }
-        )
+        onBackPressedDispatcher.addCallback(this, webBackNavigation.callback)
 
         loginCompletionWatcher.start()
         reloadLoginPage("create")
@@ -207,8 +201,8 @@ class BiliWebLoginActivity : ComponentActivity() {
     }
 
     override fun onPause() {
-        CookieManager.getInstance().flush()
         if (this::webView.isInitialized) {
+            CookieManager.getInstance().flush()
             webView.onPause()
         }
         super.onPause()
@@ -262,7 +256,7 @@ class BiliWebLoginActivity : ComponentActivity() {
             if (!shouldAutoCompleteBiliWebLogin(map)) {
                 showNeriViewSnackbar(
                     webView,
-                    getString(R.string.snackbar_cookie_empty),
+                    getString(CoreCommonR.string.snackbar_cookie_empty),
                     Snackbar.LENGTH_SHORT
                 )
                 return
@@ -276,7 +270,7 @@ class BiliWebLoginActivity : ComponentActivity() {
         } catch (error: Throwable) {
             showNeriViewSnackbar(
                 webView,
-                getString(R.string.snackbar_read_failed, error.message ?: error.javaClass.simpleName),
+                getString(CoreCommonR.string.snackbar_read_failed, error.message ?: error.javaClass.simpleName),
                 Snackbar.LENGTH_LONG
             )
         }
@@ -346,6 +340,11 @@ class BiliWebLoginActivity : ComponentActivity() {
     }
 
     private inner class InnerClient : WebViewClient() {
+        override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+            super.doUpdateVisitedHistory(view, url, isReload)
+            webBackNavigation.refresh()
+        }
+
 
         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
             val currentRequest = request ?: return false
