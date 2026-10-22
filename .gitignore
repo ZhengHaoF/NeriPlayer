@@ -48,3 +48,6 @@ AGENTS.md
 # 构建日志与外部 agent 会话残留
 /build_*.log
 /[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-*/
+
+# Qoder session artifacts
+.qoder-credits/
