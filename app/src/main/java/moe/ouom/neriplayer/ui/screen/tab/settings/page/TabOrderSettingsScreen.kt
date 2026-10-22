@@ -245,4 +245,5 @@ private fun libraryTabLabelRes(tab: LibraryTab): Int = when (tab) {
     LibraryTab.NETEASE, LibraryTab.NETEASEALBUM -> CoreCommonR.string.library_tab_netease
     LibraryTab.BILI -> CoreCommonR.string.library_tab_bilibili
     LibraryTab.QQMUSIC -> CoreCommonR.string.library_tab_qqmusic
+    LibraryTab.KUGOU -> CoreCommonR.string.library_tab_kugou
 }

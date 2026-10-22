@@ -65,6 +65,13 @@ import moe.ouom.neriplayer.ui.screen.playlist.NeteaseAlbumDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.NeteasePlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.BiliPlaylistDetailScreen
 import moe.ouom.neriplayer.ui.screen.playlist.YouTubeMusicPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.KugouLibraryEntryKind
+import moe.ouom.neriplayer.ui.screen.playlist.KugouPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.KugouPlaylistSelection
+import moe.ouom.neriplayer.ui.screen.playlist.KugouSongListDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.KugouUserPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.QQMusicPlaylistDetailScreen
+import moe.ouom.neriplayer.ui.screen.playlist.QQMusicPlaylistSelection
 import moe.ouom.neriplayer.ui.screen.tab.library.LibraryTab
 import moe.ouom.neriplayer.ui.screen.tab.library.LibraryScreen
 import moe.ouom.neriplayer.data.model.NeteaseArtistSummary
@@ -182,12 +189,40 @@ sealed class LibrarySelectedItem : Parcelable {
             "coverUrl" to coverUrl
         )
     }
+    @Parcelize
+    data class KugouLibrary(val kind: KugouLibraryEntryKind) : LibrarySelectedItem() {
+        override fun saveState() = hashMapOf(SAVED_TYPE_KEY to "kugouLibrary", "kind" to kind.name)
+    }
+    @Parcelize
+    data class KugouPlaylist(val playlist: KugouPlaylistSelection) : LibrarySelectedItem() {
+        override fun saveState() = hashMapOf(
+            SAVED_TYPE_KEY to "kugouPlaylist",
+            "id" to playlist.globalCollectionId,
+            "name" to playlist.name,
+            "cover" to playlist.coverUrl.orEmpty(),
+            "creator" to playlist.creator.orEmpty()
+        )
+    }
+    @Parcelize
+    data class QqMusicPlaylist(val playlist: QQMusicPlaylistSelection) : LibrarySelectedItem() {
+        override fun saveState() = hashMapOf(
+            SAVED_TYPE_KEY to "qqMusicPlaylist",
+            "id" to playlist.playlistId,
+            "name" to playlist.name,
+            "cover" to playlist.coverUrl.orEmpty(),
+            "creator" to playlist.creator.orEmpty(),
+            "songCount" to playlist.songCount,
+            "playCount" to playlist.playCount
+        )
+    }
 }
 
 private val LibrarySelectedItem?.navigationDepth: Int
     get() = when (this) {
         null -> 0
         is LibrarySelectedItem.NeteaseArtistAlbum -> 2
+        is LibrarySelectedItem.KugouPlaylist -> 2
+        is LibrarySelectedItem.QqMusicPlaylist -> 1
         else -> 1
     }
 
@@ -233,7 +268,9 @@ private enum class LibraryScrollSource {
     NeteasePlaylist,
     NeteaseAlbum,
     YouTubeMusic,
-    Bili
+    Bili,
+    Kugou,
+    QQMusic
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -378,6 +415,7 @@ fun LibraryHostScreen(
     val youtubeMusicListSaver: Saver<LazyListState, *> = LazyListState.Saver
     val biliListSaver: Saver<LazyListState, *> = LazyListState.Saver
     val qqMusicListSaver: Saver<LazyListState, *> = LazyListState.Saver
+    val kugouListSaver: Saver<LazyListState, *> = LazyListState.Saver
 
     val localListState = rememberSaveable(saver = localListSaver) {
         LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
@@ -400,6 +438,9 @@ fun LibraryHostScreen(
     val qqMusicListState = rememberSaveable(saver = qqMusicListSaver) {
         LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
     }
+    val kugouListState = rememberSaveable(saver = kugouListSaver) {
+        LazyListState(firstVisibleItemIndex = 0, firstVisibleItemScrollOffset = 0)
+    }
     val topAppBarState = rememberTopAppBarState()
     fun listStateFor(source: LibraryScrollSource): LazyListState = when (source) {
         LibraryScrollSource.Local -> localListState
@@ -408,6 +449,8 @@ fun LibraryHostScreen(
         LibraryScrollSource.NeteaseAlbum -> neteaseAlbumState
         LibraryScrollSource.YouTubeMusic -> youtubeMusicListState
         LibraryScrollSource.Bili -> biliListState
+        LibraryScrollSource.Kugou -> kugouListState
+        LibraryScrollSource.QQMusic -> qqMusicListState
     }
 
     fun captureLibraryScrollPosition(source: LibraryScrollSource) {
@@ -541,6 +584,7 @@ fun LibraryHostScreen(
                             youtubeMusicListState = youtubeMusicListState,
                             biliListState = biliListState,
                             qqMusicListState = qqMusicListState,
+                            kugouListState = kugouListState,
                             topAppBarState = topAppBarState,
                             offlineMode = offlineMode,
                             onLocalPlaylistClick = { playlist ->
@@ -673,6 +717,16 @@ fun LibraryHostScreen(
                                         subtitle = playlist.subtitle
                                     )
                                 }
+                            },
+                            onKugouOpen = { kind ->
+                                skipDetailCloseAnimation = false
+                                captureLibraryScrollPosition(LibraryScrollSource.Kugou)
+                                openLibrarySelectedItem(LibrarySelectedItem.KugouLibrary(kind))
+                            },
+                            onQqMusicPlaylistClick = { playlist ->
+                                skipDetailCloseAnimation = false
+                                captureLibraryScrollPosition(LibraryScrollSource.QQMusic)
+                                openLibrarySelectedItem(LibrarySelectedItem.QqMusicPlaylist(playlist))
                             },
                             onOpenRecent = onOpenRecent,
                             onOpenStats = onOpenStats
@@ -865,6 +919,53 @@ fun LibraryHostScreen(
                                     offlineMode = offlineMode
                                 )
                         }
+
+                        is LibrarySelectedItem.KugouLibrary -> {
+                            when (current.kind) {
+                                KugouLibraryEntryKind.USER_PLAYLISTS -> {
+                                    KugouUserPlaylistDetailScreen(
+                                        onBack = { closeSelectedDetail() },
+                                        onPlaylistClick = { playlist ->
+                                            openLibrarySelectedItem(
+                                                LibrarySelectedItem.KugouPlaylist(playlist)
+                                            )
+                                        },
+                                        offlineMode = offlineMode
+                                    )
+                                }
+
+                                else -> {
+                                    KugouSongListDetailScreen(
+                                        kind = current.kind,
+                                        onBack = { closeSelectedDetail() },
+                                        onSongClick = onSongClick,
+                                        offlineMode = offlineMode
+                                    )
+                                }
+                            }
+                        }
+
+                        is LibrarySelectedItem.KugouPlaylist -> {
+                            KugouPlaylistDetailScreen(
+                                playlist = current.playlist,
+                                onBack = {
+                                    selected = LibrarySelectedItem.KugouLibrary(
+                                        KugouLibraryEntryKind.USER_PLAYLISTS
+                                    )
+                                },
+                                onSongClick = onSongClick,
+                                offlineMode = offlineMode
+                            )
+                        }
+
+                        is LibrarySelectedItem.QqMusicPlaylist -> {
+                            QQMusicPlaylistDetailScreen(
+                                playlist = current.playlist,
+                                onBack = { closeSelectedDetail() },
+                                onSongClick = onSongClick,
+                                offlineMode = offlineMode
+                            )
+                        }
                         }
                     }
                 }
@@ -889,7 +990,10 @@ private val librarySelectedItemRestorers: Map<String, (Map<String, Any?>) -> Lib
     "bili" to { saved -> restoreBiliPlaylist(saved.savedMap("playlist"))?.let(LibrarySelectedItem::Bili) },
     "ytmusic" to { saved -> restoreYouTubeMusicPlaylist(saved.savedMap("playlist"))?.let(LibrarySelectedItem::YouTubeMusic) },
     "biliArtist" to ::restoreBiliUploaderItem,
-    "youtubeArtist" to ::restoreYouTubeCreatorItem
+    "youtubeArtist" to ::restoreYouTubeCreatorItem,
+    "kugouLibrary" to { saved -> saved.savedKugouLibraryEntryKind()?.let(LibrarySelectedItem::KugouLibrary) },
+    "kugouPlaylist" to ::restoreKugouPlaylistItem,
+    "qqMusicPlaylist" to ::restoreQqMusicPlaylistItem
 )
 
 private fun restoreNeteaseArtistAlbumItem(saved: Map<String, Any?>): LibrarySelectedItem? {
@@ -919,4 +1023,36 @@ private fun Map<String, Any?>.savedNeteaseArtist(): NeteaseArtistSummary? {
     val id = savedNumber("artistId")?.toLong()?.takeIf { it > 0L } ?: return null
     val name = savedNonBlankString("artistName") ?: return null
     return NeteaseArtistSummary(id = id, name = name)
+}
+
+private fun Map<String, Any?>.savedKugouLibraryEntryKind(): KugouLibraryEntryKind? =
+    savedString("kind")
+        ?.let { stored -> KugouLibraryEntryKind.entries.firstOrNull { it.name == stored } }
+
+private fun restoreKugouPlaylistItem(saved: Map<String, Any?>): LibrarySelectedItem? {
+    val playlistId = saved.savedNonBlankString("id") ?: return null
+    val name = saved.savedNonBlankString("name") ?: return null
+    return LibrarySelectedItem.KugouPlaylist(
+        KugouPlaylistSelection(
+            globalCollectionId = playlistId,
+            name = name,
+            coverUrl = saved.savedNonBlankString("cover"),
+            creator = saved.savedNonBlankString("creator")
+        )
+    )
+}
+
+private fun restoreQqMusicPlaylistItem(saved: Map<String, Any?>): LibrarySelectedItem? {
+    val playlistId = saved.savedNonBlankString("id") ?: return null
+    val name = saved.savedNonBlankString("name") ?: return null
+    return LibrarySelectedItem.QqMusicPlaylist(
+        QQMusicPlaylistSelection(
+            playlistId = playlistId,
+            name = name,
+            coverUrl = saved.savedNonBlankString("cover"),
+            creator = saved.savedNonBlankString("creator"),
+            songCount = saved.savedNumber("songCount")?.toInt() ?: 0,
+            playCount = saved.savedNumber("playCount")?.toLong() ?: 0L
+        )
+    )
 }

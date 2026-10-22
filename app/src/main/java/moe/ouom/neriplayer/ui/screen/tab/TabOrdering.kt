@@ -56,6 +56,7 @@ internal val LibraryTab.tabId: String
         LibraryTab.NETEASEALBUM -> "netease_album"
         LibraryTab.BILI -> "bilibili"
         LibraryTab.QQMUSIC -> "qq_music"
+        LibraryTab.KUGOU -> "kugou"
     }
 
 /** 解析设置存储的探索页标签顺序字符串；未知 id 丢弃并去重。 */
