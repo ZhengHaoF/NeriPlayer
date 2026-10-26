@@ -50,7 +50,7 @@ internal fun parseKugouSearchItem(json: JsonObject): KugouSong? {
 
 /**
  * 转成可播放的 [SongItem]（酷狗概念版源标记，与 B 站 `album` 前缀约定一致）：
- * - [SongItem.album] = `"Kugou|{hash}|{albumAudioId}"`，供 [PlayerManager.isKugouTrack] 识别；
+ * - [SongItem.album] = `"Kugou|{hash}|{albumAudioId}"`，供 [PlayerManager.KUGOU_SOURCE_TAG] 前缀判定识别；
  * - [SongItem.audioId] = 播放 hash；
  * - [SongItem.subAudioId] = album_audio_id；
  * - [SongItem.channelId] = "kugou"。

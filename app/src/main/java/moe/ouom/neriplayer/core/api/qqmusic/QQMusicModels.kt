@@ -15,7 +15,7 @@ internal fun buildQQMusicCoverUrl(albumMid: String?): String? {
 /**
  * 构建 QQ音乐 [SongItem]。
  *
- * - [SongItem.album] = `"QQMusic|{songMid}"`，供 [PlayerManager.isQQMusicTrack] 识别；
+ * - [SongItem.album] = `"QQMusic|{songMid}"`，供 [PlayerManager.QQMUSIC_SOURCE_TAG] 前缀判定识别；
  * - [SongItem.audioId] = songmid，取址与缓存的主键；
  * - [SongItem.subAudioId] = media_mid，取址 filename 优先使用它（缺失时回退 songmid）；
  * - [SongItem.channelId] = [QQMUSIC_CHANNEL_ID]。

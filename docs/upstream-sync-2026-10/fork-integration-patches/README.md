@@ -11,7 +11,7 @@
 
 | 补丁 | 处置 |
 |---|---|
-| `PlayerManager.patch` | 部分手工移植（`kugouSearchApi` 走 `PlayerRepositoryDependencies`；音质偏好走 `PlaybackQualityOwner`）；`isKugouTrack` / 缓存键分支待重贴 |
+| `PlayerManager.patch` | 已重贴：`kugouSearchApi` 走 `PlayerRepositoryDependencies`，音质偏好走 `PlaybackQualityOwner` + `AppPlayerBindings`，设置收集器在 `PlayerManagerLifecycleExtensions`，缓存键分支在 `CachedPlaybackDescriptor` / `ListenTogetherQualityPolicy`。补丁里的 `isKugouTrack` / `isQQMusicTrack` 两个具名函数不再重建——上游用 `album` 前缀约定（`SongSourceTags.KUGOU` / `PlayerManager.KUGOU_SOURCE_TAG`）替代，`LyricTrackIdentity` 已按该约定实现 |
 | `PlayerManagerLifecycleExtensions.patch` | 已手工移植（初始化 + 两个设置收集器） |
 | `PlayerManagerPersistenceExtensions.patch` | 已手工移植（搜索 API 分派加 `KUGOU`） |
 | `AppContainer.patch` | 已手工移植（session / searchApi / CookieStore 接线） |
