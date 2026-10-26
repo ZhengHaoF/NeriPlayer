@@ -59,7 +59,7 @@ data class KugouFmUiState(
  */
 class KugouFmViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val kugouSession get() = PlayerManager.kugouSession
+    private val kugouSession get() = AppContainer.kugouSession
 
     private val _uiState = MutableStateFlow(KugouFmUiState())
     val uiState: StateFlow<KugouFmUiState> = _uiState.asStateFlow()

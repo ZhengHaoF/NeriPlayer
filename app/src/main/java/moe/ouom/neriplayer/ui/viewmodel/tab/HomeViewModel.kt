@@ -49,7 +49,6 @@ import kotlinx.coroutines.withContext
 import moe.ouom.neriplayer.common.R as CoreCommonR
 import moe.ouom.neriplayer.core.api.kugou.KugouChannelContent
 import moe.ouom.neriplayer.core.api.kugou.loadKugouChannelContent
-import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.platform.netease.api.client.mergeNeteaseSessionCookies
 import moe.ouom.neriplayer.data.model.bilibili.music.BiliMusicHotVideo
 import moe.ouom.neriplayer.data.model.bilibili.music.BiliMusicRankPeriod
@@ -840,7 +839,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         }
         return try {
             val content = withContext(Dispatchers.IO) {
-                PlayerManager.kugouSession.loadKugouChannelContent()
+                AppContainer.kugouSession.loadKugouChannelContent()
             }
             val hasData = kugouContentHasData(content)
             NPLogger.d(
@@ -862,7 +861,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: Throwable) {
             NPLogger.e(TAG, "probeKugouSource failed", e)
             _uiState.update { state ->
-                state.copy(kugouSections = HomeKugouSectionState(error = buildHomeErrorMessage(e)))
+                state.copy(kugouSections = HomeKugouSectionState(error = buildHomeErrorMessage(e, localizedAppContext())))
             }
             false
         }

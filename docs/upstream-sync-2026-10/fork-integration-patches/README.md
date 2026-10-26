@@ -16,8 +16,8 @@
 | `PlayerManagerPersistenceExtensions.patch` | 已手工移植（搜索 API 分派加 `KUGOU`） |
 | `AppContainer.patch` | 已手工移植（session / searchApi / CookieStore 接线） |
 | `SongMetadataSearchContent.patch` | 已手工移植（`musicPlatformLabel` 加 `KUGOU`） |
-| `ExploreViewModel.patch` | 大部分 hunk 已合入；余下待修 |
-| `NeriApp.patch` | 部分 hunk 已合入 |
+| `ExploreViewModel.patch` | 已重贴：逐行核对时表面上缺 14 行，实际都以适配形式存在（`PlayerManager.kugouSession` → `AppContainer.kugouSession`、`R.string` → `CoreCommonR.string`、`loadKugouChannelContent` 改为扩展函数导入）。残留的 `client.search` 报错来自缺失的酷狗 SDK 构件，不是接线缺口 |
+| `NeriApp.patch` | **不重贴**。音质档位已改走上游的 route-state（`AppSettingsRouteState.defaultAudioQuality.kugouPreferredQuality` / `qqMusicPreferredQuality`），补丁里在 `NeriAppContent` 局部 collect 两个 flow 再传参的两处 hunk 已被该结构取代 |
 | `NowPlayingViewModel.patch` | 已手工移植 |
 | `SettingsScreen.patch` | **已完成**：账号卡片走上游的 `SettingsAccountPlatform` + `SettingsAccountAuthController`；音质档位走上游的 route-state / bindings；首页排序与标签排序入口走 `SettingsPersonalizationHomeCard` |
 | `LibraryScreen.patch` | 已重贴（`LibraryTab.KUGOU` + 排序设置接回上游文件位置 `tab/library/`；上游的 QQ 占位 `QqMusicPlaylistList` 换成 fork 的 `KugouLibraryContent` / `QQMusicLibraryContent`） |

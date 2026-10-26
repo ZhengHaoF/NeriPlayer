@@ -36,6 +36,7 @@ internal fun rememberAuthLoginStorageStatus(platform: SettingsAccountPlatform): 
                         AuthLoginStorageStatus(it.requiresCompatibilityStorageWarning, it.isAuthStoragePersistent)
                     }
                     SettingsAccountPlatform.QqMusic -> AuthLoginStorageStatus(false, false)
+                    SettingsAccountPlatform.Kugou -> AuthLoginStorageStatus(false, false)
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
