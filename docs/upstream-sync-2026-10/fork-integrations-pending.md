@@ -7412,3 +7412,74 @@ private fun SettingsLoginExpandedContent(
 `top.ghhccghk.multiplatform.kugouapi:kugouapi-kmp:1.0.5` 在本机只能解析到
 KMP 元数据 jar（无 `.class`），导致 `core/api/kugou/**`、`core/api/qqmusic/**`
 共 105 个编译错误。恢复 Maven Central 访问或放置该 AAR 后即可一并解决。
+
+---
+
+# Upstream sync 2026-10-25: 合并 4b2ad7bf4
+
+merge 提交 `23ff67750`（双亲 `c32f9aa57` + `4b2ad7bf4`），带入 `294251101` 之后的
+15 个上游提交（443 文件 / +38542 / −2756）。
+
+## 冲突面
+
+双方共改 31 个文件，但只有 **9 个真冲突**，全部是 `modules/common` 的字符串资源：
+`strings_auth.xml`、`strings_settings_playback.xml`、`strings_storage.xml` × 默认 /
+`values-en` / `values-zh`。原因是两边都只在文件尾部追加了互不相同的 key，
+git 无法自动排布。所有 Kotlin 文件均自动合并。
+
+解法取**并集**（两侧条目都保留）。校验方式：合并后每个文件的 key 集合必须等于
+base ∪ ours ∪ theirs 且无重复 key（重复会让 AAPT 直接失败）。21 个 XML 全部通过。
+
+## merge 打开的 fork 缺口（`152bc3908` 修复）
+
+上游新增的代码写于 fork 定制消失之后，自动合并不会报错，只能由编译器暴露：
+
+- `AuthLoginStorage.kt` 的 `when (platform)`（#554 新增）枚举了上游自己的三个平台，
+  加上 fork 早先补的 `QqMusic` 分支，但**不含 `Kugou`** → 非穷尽，整个 lambda 类型崩掉。
+  给 `Kugou` 返回与 `QqMusic` 相同的 `AuthLoginStorageStatus(false, false)`：
+  两个平台都不走上游的 cookie repo，不存在兼容性存储告警。
+- `HomeViewModel.probeKugouSource()` 仍从 `PlayerManager.kugouSession` 取会话，
+  模块化后该属性属于 `AppContainer`；同文件 `buildHomeErrorMessage(e)` 也漏了
+  后来新增的 `context` 形参。`KugouFmViewModel` 有同一处 `kugouSession` 引用。
+  三处都按现有调用点（`ExploreViewModel` / `HomeViewModel` 其余分支）的写法对齐。
+
+编译错误：基线 107 → merge 后 109 → 修复后 103。**相对基线新增 0 条**。
+剩余 103 条全部可归因于 `kugouapi-kmp:1.0.5` 只有 KMP 元数据 jar（无 `.class`）：
+`core/api/kugou/**` 93 条，其余 10 条是 SDK 类型缺失在 `KugouFmViewModel` /
+`ExploreViewModel` 里的级联。
+
+## 单元测试：本机不能作为门
+
+全量模块单测在 merge 后共 1877 个失败（`:local` 1463/2467、`:sync` 219/1030），
+但这是宿主环境而非同步造成的。对照组用 `git worktree` 固定在 merge 前的
+`c32f9aa57`，同样只跑 `:playback:runtime`：
+
+| | 测试数 | 失败数 |
+|---|---|---|
+| merge 前 | 1789 | 67 |
+| merge 后 | 1953 | 79 |
+
+按**失败方法名集合**做差集：merge 后新增的 12 个失败全部落在
+`StorageAudioCacheClearTest`(11) 与 `RetainedImageCacheClearTest`(1)，
+这两个类是上游 #571 新建的、merge 前根本不存在，异常链是
+`Cache$CacheException → DatabaseIOException → SQLiteCantOpenDatabaseException`，
+即 Robolectric 的原生 SQLite 在本机开不了 media3 的缓存库。
+merge 前失败的 67 个方法在 merge 后仍然失败（差集为 0），
+没有任何原本通过的测试转为失败。
+
+`:common` / `:database` / `:download:logic` 的对照同样成立：
+`FilePathGuardsTest > rejectsSymbolicLinksThatEscapeTheDirectory`
+（本仓库 `core.symlinks=false`）、`ManagedDownloadReferenceIoTest`、
+`NeriUserDataDatabaseVersionTest` 在 merge 前后都失败，且对照组失败更多
+（`:download:logic` 16 vs 4、`:database` 5 vs 2）。
+
+结论：本机能用的门是**编译错误差分**，不是单测红绿。
+
+## 台账纠正
+
+`fork-integration-patches/README.md` 里三条已过期记录按现状改写：
+`ExploreViewModel.patch` 与 `PlayerManager.patch` 实为已完成（逐行核对缺的 14 行都
+以改名后的形式存在），`NeriApp.patch` 判为不重贴（音质改走 route-state）。
+`KugouModels.kt` / `QQMusicModels.kt` 里指向 `PlayerManager.isKugouTrack` /
+`isQQMusicTrack` 的 KDoc 链接改为 `PlayerManager.KUGOU_SOURCE_TAG` /
+`QQMUSIC_SOURCE_TAG`——那两个具名 helper 已被 `album` 前缀约定取代。
