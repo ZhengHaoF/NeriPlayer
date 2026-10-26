@@ -51,6 +51,7 @@ internal const val HomeScrollKeyYtShelvesLoading = "home:ytmusic:shelves:loading
 internal const val HomeScrollKeyYtShelvesError = "home:ytmusic:shelves:error"
 internal const val HomeScrollKeyYtEmptyFeedLoading = "home:ytmusic:empty-feed:loading"
 internal const val HomeScrollKeyYtEmptyFeedError = "home:ytmusic:empty-feed:error"
+internal const val HomeScrollKeyKugouHome = "home:kugou:home"
 internal const val HomeScrollKeyNeteaseRadarPlaylists = "home:netease:radar-playlists"
 internal const val HomeScrollKeyNeteaseRadarPlaylistsHeader = "$HomeScrollKeyNeteaseRadarPlaylists:header"
 internal const val HomeScrollKeyNeteaseRadarPlaylistsContent = "$HomeScrollKeyNeteaseRadarPlaylists:content"
