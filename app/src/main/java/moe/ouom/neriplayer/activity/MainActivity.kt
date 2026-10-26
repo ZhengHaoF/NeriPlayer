@@ -37,7 +37,6 @@ import android.os.Looper
 import android.os.SystemClock
 import android.view.MotionEvent
 import androidx.activity.ComponentActivity
-import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -76,6 +75,9 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import moe.ouom.neriplayer.ui.navigation.LocalPredictiveBackPlatformSupported
+import moe.ouom.neriplayer.ui.navigation.LocalPredictiveBackPreviewEnabled
+import moe.ouom.neriplayer.ui.navigation.rememberPredictiveBackPlatformSupport
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
@@ -279,7 +281,8 @@ internal fun LocalizedAppContent(
     val baseContext = LocalContext.current
     val configuration = LocalConfiguration.current
     val localizedContext = remember(baseContext, language, configuration) {
-        LanguageManager.localizedContext(baseContext, language)
+        // 语言 Context 会替换已有密度覆盖，在应用入口恢复设备适配
+        applyOnePlusHighDensityDisplayCorrection(LanguageManager.localizedContext(baseContext, language))
     }
     CompositionLocalProvider(
         LocalContext provides localizedContext,
@@ -294,6 +297,7 @@ private fun MainActivity.setNeriContent(
 ) {
     setContent {
         val configuration = LocalConfiguration.current
+        val predictiveBackSupported by rememberPredictiveBackPlatformSupport()
         val hideNavigationBar = shouldHideTabletNavigationBar(
             smallestScreenWidthDp = configuration.smallestScreenWidthDp,
             isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE,
@@ -304,6 +308,8 @@ private fun MainActivity.setNeriContent(
             LocalActivityResultRegistryOwner provides this@setNeriContent,
             LocalOverscrollFactory provides AdvancedGlassOverscrollFactory,
             LocalOverlayNavigationBarHidden provides hideNavigationBar,
+            LocalPredictiveBackPlatformSupported provides predictiveBackSupported,
+            LocalPredictiveBackPreviewEnabled provides predictiveBackSupported,
             content = content
         )
     }
@@ -374,7 +380,7 @@ class MainActivity : ComponentActivity() {
         preferHighRefreshRate = startupSettingsSnapshot.preferHighRefreshRate
         updateWindowRefreshRate()
         observePreferredHighRefreshRate()
-        enableEdgeToEdge()
+        enableNeriEdgeToEdge()
         applyNavigationBarVisibility()
         observeImeDismissal()
         window.applyMainWindowBackground(
@@ -1271,6 +1277,13 @@ class MainActivity : ComponentActivity() {
         scheduleStartupSyncIfNeeded()
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        // 旋转只更新现有 Compose 页面，保留底层内容和返回层级
+        super.onConfigurationChanged(newConfig)
+        applyNowPlayingOrientation()
+        applyNavigationBarVisibility()
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putBoolean(STATE_NOW_PLAYING_OPEN, nowPlayingOrientationState.playerOpen)
         outState.putBoolean(STATE_PLAYER_PORTRAIT_REQUESTED, nowPlayingOrientationState.portraitRequested)
@@ -1285,6 +1298,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun applyNavigationBarVisibility() {
+        window.applyNeriSystemBarTransparency()
         val configuration = resources.configuration
         val hideNavigationBar = shouldHideTabletNavigationBar(
             smallestScreenWidthDp = configuration.smallestScreenWidthDp,

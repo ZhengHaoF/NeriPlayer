@@ -3,6 +3,7 @@ package moe.ouom.neriplayer.ui.playback.visual
 import moe.ouom.neriplayer.ui.navigation.LocalPredictiveBackPreviewEnabled
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -48,7 +49,8 @@ internal data class NowPlayingOverlayCover(
     val url: String?,
     val songKey: String?,
     val song: SongItem?,
-    val assetRefreshKey: Int
+    val assetRefreshKey: Int,
+    val assetRefresh: NowPlayingCoverAssetRefresh? = null
 )
 
 internal data class NowPlayingOverlayTheme(
@@ -178,14 +180,18 @@ internal fun AppNowPlayingOverlay(
         val morph = rememberNowPlayingMorphState(
             visible = visible,
             flight = sharedCoverFlight,
-            backProgress = { if (backPreviewEnabled) dismissState.progress else 0f }
+            artwork = { resolveNowPlayingOverlayArtwork(cover.songKey, sharedCoverFlight) },
+            backProgress = {
+                if (backPreviewEnabled) {
+                    FastOutLinearInEasing.transform(dismissState.progress.coerceIn(0f, 1f))
+                } else 0f
+            }
         )
         if (morph.mounted) {
             NowPlayingContainerMorph(
                 morph = morph,
                 flight = sharedCoverFlight,
                 capsuleInWindow = { sharedCoverFlight?.miniPlayerContainerBounds },
-                artwork = { resolveNowPlayingOverlayArtwork(cover.songKey, sharedCoverFlight) },
                 cardColor = remember(theme.activeCoverSeedHex) {
                     nowPlayingMorphCardColor(theme.activeCoverSeedHex)
                 },

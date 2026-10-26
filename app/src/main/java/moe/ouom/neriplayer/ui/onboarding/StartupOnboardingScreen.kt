@@ -41,6 +41,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.AlertDialog
+import moe.ouom.neriplayer.ui.component.overlay.ApplyOverlayWindowNavigationBarPolicy
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -1565,6 +1566,7 @@ private fun StartupNoPlatformWarningDialog(
             Text(stringResource(CoreCommonR.string.onboarding_platforms_no_login_desc))
         },
         confirmButton = {
+            ApplyOverlayWindowNavigationBarPolicy()
             HapticTextButton(onClick = onContinue) {
                 Text(stringResource(CoreCommonR.string.onboarding_platforms_no_login_continue))
             }
@@ -1591,6 +1593,7 @@ private fun StartupEnhancedAdvancedBlurPromptDialog(
             Text(stringResource(CoreCommonR.string.onboarding_enhanced_blur_prompt_desc))
         },
         confirmButton = {
+            ApplyOverlayWindowNavigationBarPolicy()
             HapticTextButton(onClick = onEnable) {
                 Text(stringResource(CoreCommonR.string.onboarding_enhanced_blur_prompt_enable))
             }
@@ -1635,6 +1638,7 @@ private fun StartupNotificationPermissionWarningDialog(
             )
         },
         confirmButton = {
+            ApplyOverlayWindowNavigationBarPolicy()
             HapticTextButton(onClick = onRequestPermission) {
                 Text(
                     stringResource(

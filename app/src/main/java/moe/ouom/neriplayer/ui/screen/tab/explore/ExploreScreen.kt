@@ -32,7 +32,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.shape.CircleShape
 import moe.ouom.neriplayer.ui.component.common.CleanSegmentedTabs
 import moe.ouom.neriplayer.ui.theme.NeriDesign
-import moe.ouom.neriplayer.data.identity.sameIdentityAs
+import moe.ouom.neriplayer.ui.screen.playlist.FavoriteSongLookup
 import moe.ouom.neriplayer.data.identity.stableKey
 import moe.ouom.neriplayer.data.sync.mapping.toSongItem
 import android.app.Application
@@ -435,11 +435,8 @@ fun ExploreScreen(
     val localPlaylistsReady by repo.initializationReadyFlow.collectAsStateWithLifecycle(
         initialValue = false
     )
-    val favoriteSongKeys = remember(allLocalPlaylists, context) {
-        FavoritesPlaylist.firstOrNull(allLocalPlaylists, context)
-            ?.songs
-            .orEmpty()
-            .mapTo(mutableSetOf()) { it.stableKey() }
+    val favoriteSongLookup = remember(allLocalPlaylists, context) {
+        FavoriteSongLookup(FavoritesPlaylist.firstOrNull(allLocalPlaylists, context)?.songs.orEmpty())
     }
     val favoriteRepo = remember(context) { FavoritePlaylistRepository.getInstance(context) }
     val favorites by favoriteRepo.favorites.collectAsStateWithLifecycle()
@@ -566,13 +563,6 @@ fun ExploreScreen(
         stringResource(CoreCommonR.string.tag_all), stringResource(CoreCommonR.string.tag_pop), stringResource(CoreCommonR.string.tag_soundtrack), stringResource(CoreCommonR.string.tag_chinese), stringResource(CoreCommonR.string.tag_nostalgia), stringResource(CoreCommonR.string.tag_rock), stringResource(CoreCommonR.string.tag_acg), stringResource(CoreCommonR.string.tag_western), stringResource(CoreCommonR.string.tag_fresh), stringResource(CoreCommonR.string.tag_night), stringResource(CoreCommonR.string.tag_children), stringResource(CoreCommonR.string.tag_folk), stringResource(CoreCommonR.string.tag_japanese), stringResource(CoreCommonR.string.tag_romantic),
         stringResource(CoreCommonR.string.tag_study), stringResource(CoreCommonR.string.tag_korean), stringResource(CoreCommonR.string.tag_work), stringResource(CoreCommonR.string.tag_electronic), stringResource(CoreCommonR.string.tag_cantonese), stringResource(CoreCommonR.string.tag_dance), stringResource(CoreCommonR.string.tag_sad), stringResource(CoreCommonR.string.tag_game), stringResource(CoreCommonR.string.tag_afternoon_tea), stringResource(CoreCommonR.string.tag_healing), stringResource(CoreCommonR.string.tag_rap), stringResource(CoreCommonR.string.tag_light_music)
     )
-
-    // Initialize with default tag
-    LaunchedEffect(Unit) {
-        if (ui.selectedTag == "tag_all" && ui.playlists.isEmpty()) {
-            vm.loadHighQuality("tag_all")
-        }
-    }
 
     var lastRecordedSearchKeyword by remember { mutableStateOf<String?>(null) }
     var pendingSearchHistoryRecord by remember { mutableStateOf<String?>(null) }
@@ -964,7 +954,7 @@ fun ExploreScreen(
                                             val songListIndex = ui.searchResults.indexOfFirst {
                                                 it.stableKey() == song.stableKey()
                                             }.takeIf { it >= 0 } ?: index
-                                            val isFavoriteSong = favoriteSongKeys.contains(song.stableKey())
+                                            val isFavoriteSong = favoriteSongLookup.contains(song)
                                             SongRow(
                                                 state = ExploreSongRowState(
                                                     index = index + 1,
@@ -1036,9 +1026,7 @@ fun ExploreScreen(
                                                                         )
                                                                         ?.songs
                                                                         ?.any {
-                                                                            it.sameIdentityAs(
-                                                                                song
-                                                                            )
+                                                                            FavoritesPlaylist.matchesSong(it, song)
                                                                         } == true
                                                                 if (isFavoriteAtAction) {
                                                                     repo.removeFromFavorites(song)

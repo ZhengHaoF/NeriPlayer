@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Debug
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Process
 import android.os.SystemClock
 import android.util.Log
 import android.view.FrameMetrics
@@ -40,6 +41,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import moe.ouom.neriplayer.activity.MainActivity
+import moe.ouom.neriplayer.common.R as CoreCommonR
 import moe.ouom.neriplayer.core.di.AppContainer
 import moe.ouom.neriplayer.core.player.PlayerManager
 import moe.ouom.neriplayer.core.player.persistence.PlaybackQueueRoomStore
@@ -50,6 +52,7 @@ import moe.ouom.neriplayer.data.local.database.NeriUserDataDatabase
 import moe.ouom.neriplayer.data.local.media.LocalMediaSupport
 import moe.ouom.neriplayer.data.local.playlist.LocalPlaylistRepository
 import moe.ouom.neriplayer.data.model.SongItem
+import moe.ouom.neriplayer.data.model.history.PlayedEntry
 import moe.ouom.neriplayer.data.model.playback.PersistedState
 import moe.ouom.neriplayer.data.model.settings.appearance.AdvancedBlurQuality
 import moe.ouom.neriplayer.data.model.settings.appearance.UiStyle
@@ -79,7 +82,7 @@ class NowPlayingManualPerformanceReplayTest {
     fun compareExistingMiniPlayerWithNewPlaylistSong() {
         assumeTrue("需显式启用手动性能回放", InstrumentationRegistry.getArguments()
             .getString("runNowPlayingPerformanceReplay") == "true")
-        assumeTrue("仅操作 API 33+ 模拟器", Build.VERSION.SDK_INT >= 33 &&
+        assumeTrue("仅操作 API 28+ 模拟器", Build.VERSION.SDK_INT >= 28 &&
             Build.HARDWARE in setOf("ranchu", "goldfish"))
         assumeComposeHostAvailable()
         assumeNoSyncTargets()
@@ -88,6 +91,9 @@ class NowPlayingManualPerformanceReplayTest {
         val output = File(checkNotNull(context.getExternalFilesDir(null)), "now-playing-perf-$token")
         check(fixtures.mkdirs() && output.mkdirs())
         val settings = SettingsRepository(context)
+        val requestedStyle = InstrumentationRegistry.getArguments().getString("uiStyle") ?: "Clean"
+        val uiStyle = UiStyle.entries.singleOrNull { it.name.equals(requestedStyle, ignoreCase = true) }
+            ?: error("未知主题: $requestedStyle")
         val restoreSettings = runBlocking { saveSettings(settings) }
         val savedQueue = runBlocking { SavedQueue.read(context) }
         val promptKey = booleanPreferencesKey("preview_theme_prompt_answered")
@@ -101,6 +107,9 @@ class NowPlayingManualPerformanceReplayTest {
         var playlistId: Long? = null
         var scenario: ActivityScenario<MainActivity>? = null
         var songs = emptyList<SongItem>()
+        val recentHistorySize = InstrumentationRegistry.getArguments().getString("recentHistorySize")
+            ?.toIntOrNull()?.coerceIn(0, 20_000) ?: 0
+        var savedHistory: List<PlayedEntry>? = null
         var failure: Throwable? = null
         try {
             automation.serviceInfo = automation.serviceInfo.apply {
@@ -113,7 +122,9 @@ class NowPlayingManualPerformanceReplayTest {
                 settings.setDisclaimerAccepted(true)
                 settings.setStartupOnboardingCompleted(true)
                 settings.setDefaultStartDestination(Destinations.Library.route)
-                settings.setUiStyle(UiStyle.Clean)
+                settings.setUiStyle(uiStyle)
+                settings.setFollowSystemDark(false)
+                settings.setForceDark(InstrumentationRegistry.getArguments().getString("forceDark") == "true")
                 settings.setDynamicColor(true)
                 settings.setUiDensityScale(1f)
                 settings.setLiquidGlassEnabled(true)
@@ -135,10 +146,61 @@ class NowPlayingManualPerformanceReplayTest {
             }
             playlistId = playlist.id
             songs = playlist.songs
+            if (recentHistorySize > 0) {
+                runBlocking {
+                    val history = AppContainer.playHistoryRepo
+                    check(history.awaitHistoryLoaded())
+                    savedHistory = history.syncSnapshot()
+                    val now = System.currentTimeMillis()
+                    val playable = songs.mapIndexed { index, song ->
+                        PlayedEntry(
+                            id = song.id, name = song.name, artist = song.artist,
+                            album = song.album, durationMs = song.durationMs,
+                            coverUrl = song.coverUrl, mediaUri = song.mediaUri,
+                            localFileName = song.localFileName, localFilePath = song.localFilePath,
+                            matchedLyric = song.matchedLyric,
+                            matchedTranslatedLyric = song.matchedTranslatedLyric,
+                            matchedRomanizedLyric = song.matchedRomanizedLyric,
+                            explicitLocalSourceReference = song.explicitLocalSourceReference,
+                            playedAt = now - index
+                        )
+                    }
+                    val extra = List(recentHistorySize) { index ->
+                        PlayedEntry(
+                            id = 8_000_000_000L + index, name = "History fixture $index",
+                            artist = "Synthetic artist", album = "网易云音乐",
+                            durationMs = 180_000L, coverUrl = songs.first().coverUrl,
+                            playedAt = now - songs.size - index
+                        )
+                    }
+                    history.updateHistory(playable + extra)
+                }
+            }
             scenario = ActivityScenario.launch(MainActivity::class.java)
+            Log.i(Tag, "uiStyle=$uiStyle forceDark=${InstrumentationRegistry.getArguments().getString("forceDark")}")
             waitUntil("created playlist '${playlist.name}' visible") { nativeNodes(playlist.name).isNotEmpty() }
+            if (recentHistorySize > 0) {
+                Log.i(Tag, "recentHistorySize=$recentHistorySize")
+                measure(scenario, output, "recent-open") {
+                    clickText(context.getString(CoreCommonR.string.library_recent_played))
+                }
+                waitUntil("recent fixture songs visible") {
+                    nativeNodes(context.getString(CoreCommonR.string.recent_title)).isNotEmpty() &&
+                        nativeNodes(songs[1].name).isNotEmpty()
+                }
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+                waitUntil("library visible after recent back") {
+                    nativeNodes(playlist.name).any { it.text?.toString() == playlist.name } &&
+                        nativeNodes(context.getString(CoreCommonR.string.library_recent_played)).isNotEmpty()
+                }
+            }
             clickText(playlist.name)
-            waitUntil("fixture songs visible after playlist click") { nativeNodes(songs[1].name).isNotEmpty() }
+            val fixturePlaylistVisible = {
+                nativeNodes(playlist.name).any { it.text?.toString() == playlist.name } &&
+                    nativeNodes(songs[1].name).isNotEmpty() &&
+                    nativeNodes(context.getString(CoreCommonR.string.library_recent_played)).isEmpty()
+            }
+            waitUntil("created playlist '${playlist.name}' detail visible", fixturePlaylistVisible)
             scenario.onActivity {
                 PlayerManager.release()
                 PlayerManager.initialize(it.application)
@@ -149,12 +211,27 @@ class NowPlayingManualPerformanceReplayTest {
             }
             SystemClock.sleep(1_000L)
             measure(scenario, output, "existing-mini-player") { clickText(songs[0].name, bottommost = true) }
-            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-            waitUntil("playlist visible after player back") { nativeNodes(songs[1].name).isNotEmpty() }
+            measure(scenario, output, "player-system-back") {
+                instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            }
+            waitUntil("created playlist '${playlist.name}' visible after player back", fixturePlaylistVisible)
             SystemClock.sleep(700L)
             measure(scenario, output, "new-playlist-song") { clickText(songs[1].name) }
             waitUntil("second fixture song playing") {
                 PlayerManager.currentSongFlow.value?.id == songs[1].id && PlayerManager.isPlayingFlow.value
+            }
+            if (InstrumentationRegistry.getArguments().getString("captureCleanPanels") == "true") {
+                saveWindow(output, "player")
+                clickText(context.getString(CoreCommonR.string.nowplaying_more_options))
+                waitUntil("more options visible") {
+                    nativeNodes(context.getString(CoreCommonR.string.local_song_open_details)).isNotEmpty()
+                }
+                saveWindow(output, "more-options")
+                clickText(context.getString(CoreCommonR.string.local_song_open_details))
+                waitUntil("local song details loaded") {
+                    nativeNodes(context.getString(CoreCommonR.string.local_song_detail_display_name)).isNotEmpty()
+                }
+                saveWindow(output, "song-details")
             }
             Log.i(Tag, "diagnosticArtifacts=${output.absolutePath}; tracing perturbs timing; no performance acceptance asserted")
         } catch (error: Throwable) {
@@ -169,6 +246,7 @@ class NowPlayingManualPerformanceReplayTest {
             cleanup { instrumentation.runOnMainSync { PlayerManager.release() } }
             cleanup { scenario?.close() }
             cleanup { runBlocking { removeFixtureStatistics(fixtures, songs) } }
+            cleanup { savedHistory?.let { entries -> runBlocking { AppContainer.playHistoryRepo.updateHistory(entries) } } }
             cleanup { playlistId?.let { id -> runBlocking { restoreFixturePlaylistCount(id) } } }
             cleanup { playlistId?.let { id -> runBlocking { repository.deletePlaylist(id) }
                 AppContainer.playlistUsageRepo.removeEntry(id, "local") } }
@@ -215,9 +293,25 @@ class NowPlayingManualPerformanceReplayTest {
         return window
     }
 
+    private fun saveWindow(directory: File, name: String) {
+        // 等弹层进场结束后再采集稳定布局
+        SystemClock.sleep(1_000L)
+        val bitmap = checkNotNull(automation.takeScreenshot())
+        try {
+            File(directory, "$name.png").outputStream().use {
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it))
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
     private fun measure(scenario: ActivityScenario<MainActivity>, directory: File, name: String, action: () -> Unit) {
         val recorder = FrameRecorder(checkNotNull(scenarioWindow(scenario)))
-        val sampleMethods = InstrumentationRegistry.getArguments().getString("sampleMethods") != "false"
+        val sampleMethods = InstrumentationRegistry.getArguments().getString("sampleMethods") == "true"
+        val pssBeforeKb = Debug.getPss()
+        val cpuBeforeMs = Process.getElapsedCpuTime()
+        val startedMs = SystemClock.elapsedRealtime()
         var tracing = false
         try {
             recorder.start()
@@ -231,7 +325,18 @@ class NowPlayingManualPerformanceReplayTest {
             SystemClock.sleep(3_500L)
         } finally {
             try { if (tracing) Debug.stopMethodTracing() }
-            finally { recorder.stop(File(directory, "$name-frames.csv")) }
+            finally {
+                val wallMs = SystemClock.elapsedRealtime() - startedMs
+                val cpuMs = Process.getElapsedCpuTime() - cpuBeforeMs
+                recorder.stop(File(directory, "$name-frames.csv"))
+                val pssAfterKb = Debug.getPss()
+                File(directory, "$name-resources.csv").writeText(
+                    "wallMs,processCpuMs,pssBeforeKb,pssAfterKb,methodTracing\n" +
+                        "$wallMs,$cpuMs,$pssBeforeKb,$pssAfterKb,$sampleMethods\n"
+                )
+                Log.i(Tag, "$name: wallMs=$wallMs processCpuMs=$cpuMs " +
+                    "pssBeforeKb=$pssBeforeKb pssAfterKb=$pssAfterKb")
+            }
         }
     }
 
@@ -242,8 +347,14 @@ class NowPlayingManualPerformanceReplayTest {
             FrameMetrics.LAYOUT_MEASURE_DURATION, FrameMetrics.ANIMATION_DURATION, FrameMetrics.SYNC_DURATION,
             FrameMetrics.COMMAND_ISSUE_DURATION, FrameMetrics.SWAP_BUFFERS_DURATION, FrameMetrics.UNKNOWN_DELAY_DURATION)
         private val listener = Window.OnFrameMetricsAvailableListener { _, frame, dropped ->
+            val deadline = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                frame.getMetric(FrameMetrics.DEADLINE)
+            } else -1L
+            val gpu = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                frame.getMetric(FrameMetrics.GPU_DURATION)
+            } else -1L
             val row = longArrayOf(SystemClock.elapsedRealtimeNanos(), dropped.toLong()) +
-                LongArray(metrics.size) { frame.getMetric(metrics[it]) }
+                LongArray(metrics.size) { frame.getMetric(metrics[it]) } + longArrayOf(deadline, gpu)
             synchronized(samples) { samples.add(row) }
         }
 
@@ -260,14 +371,17 @@ class NowPlayingManualPerformanceReplayTest {
                 check(drained.await(2, TimeUnit.SECONDS)) { "FrameMetrics callback queue did not drain" }
                 val rows = synchronized(samples) { samples.toList() }
                 file.bufferedWriter().use { writer ->
-                    writer.appendLine("callbackMonotonicNs,droppedReports,totalNs,drawNs,layoutNs,animationNs,syncNs,commandNs,swapNs,unknownNs")
+                    writer.appendLine("callbackMonotonicNs,droppedReports,totalNs,drawNs,layoutNs,animationNs,syncNs,commandNs,swapNs,unknownNs,deadlineNs,gpuNs")
                     rows.forEach { writer.appendLine(it.joinToString(",")) }
                 }
                 check(rows.isNotEmpty()) { "没有收到 FrameMetrics，不能生成性能对比" }
                 val durations = rows.map { it[2] / 1_000_000.0 }.sorted()
                 fun percentile(fraction: Double) = durations.getOrNull(((durations.size - 1) * fraction).toInt())
+                val timedRows = rows.filter { it[10] > 0L }
+                val overBudget = timedRows.count { it[2] > it[10] }
                 Log.i(Tag, "${file.name}: frames=${rows.size} droppedReports=${rows.sumOf { it[1] }} " +
-                    "p50Ms=${percentile(0.5)} p95Ms=${percentile(0.95)} maxMs=${durations.lastOrNull()}")
+                    "p50Ms=${percentile(0.5)} p95Ms=${percentile(0.95)} p99Ms=${percentile(0.99)} " +
+                    "maxMs=${durations.lastOrNull()} overBudget=$overBudget deadlineSamples=${timedRows.size}")
             } finally {
                 thread.quitSafely()
                 thread.join(2_000L)
@@ -363,6 +477,8 @@ class NowPlayingManualPerformanceReplayTest {
             save(settings.startupOnboardingCompletedFlow.filterNotNull(), settings::setStartupOnboardingCompleted),
             save(settings.defaultStartDestinationFlow, settings::setDefaultStartDestination),
             save(settings.uiStyleFlow, settings::setUiStyle),
+            save(settings.followSystemDarkFlow, settings::setFollowSystemDark),
+            save(settings.forceDarkFlow, settings::setForceDark),
             save(settings.dynamicColorFlow, settings::setDynamicColor),
             save(settings.liquidGlassEnabledFlow, settings::setLiquidGlassEnabled),
             save(settings.advancedBlurEnabledFlow, settings::setAdvancedBlurEnabled),

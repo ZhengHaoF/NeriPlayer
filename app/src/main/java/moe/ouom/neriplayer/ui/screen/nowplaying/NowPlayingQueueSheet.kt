@@ -1,7 +1,6 @@
 package moe.ouom.neriplayer.ui.screen.nowplaying
 
 import moe.ouom.neriplayer.ui.theme.neriRoundedShape
-import moe.ouom.neriplayer.data.identity.sameIdentityAs
 import moe.ouom.neriplayer.data.identity.stableKey
 
 import androidx.activity.compose.BackHandler
@@ -338,13 +337,12 @@ internal fun selectAllNowPlayingQueueKeys(
 internal fun removeSelectedNowPlayingQueueEntries(
     entries: List<NowPlayingQueueEntry>,
     selectedKeys: Set<String>,
-    removeAt: (Int) -> Unit
+    removeIndices: (Set<Int>) -> Unit
 ) {
-    // 从尾部移除，避免前面的删除使尚未处理的队列索引发生偏移
-    entries.filter { it.key in selectedKeys }
-        .map { it.queueIndex }
-        .sortedDescending()
-        .forEach(removeAt)
+    val indices = entries.filter { it.key in selectedKeys }
+        .mapTo(LinkedHashSet()) { it.queueIndex }
+    // 一次提交所选位置，避免每删一首都发布和保存整份队列
+    if (indices.isNotEmpty()) removeIndices(indices)
 }
 
 internal class NowPlayingQueueReorderOwner(sourceEntries: List<NowPlayingQueueEntry>) {
@@ -1140,7 +1138,7 @@ internal fun NowPlayingQueueSheet(
                             removeSelectedNowPlayingQueueEntries(
                                 sourceEntries,
                                 selectedKeys,
-                                PlayerManager::removeQueueItem
+                                PlayerManager::removeQueueItems
                             )
                             exitSelection()
                         },
@@ -1237,7 +1235,7 @@ internal fun NowPlayingQueueSheet(
                     ) { index, entry ->
                         ReorderableItem(state = reorderState, key = entry.key) { isDragging ->
                             val isFavoriteSong = remember(favoriteSongs, entry.song) {
-                                favoriteSongs.any { it.sameIdentityAs(entry.song) }
+                                favoriteSongs.any { FavoritesPlaylist.matchesSong(it, entry.song) }
                             }
                             val rowScale by animateFloatAsState(
                                 targetValue = queueRowScale(isDragging),

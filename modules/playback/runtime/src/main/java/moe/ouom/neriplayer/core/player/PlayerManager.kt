@@ -69,6 +69,11 @@ import moe.ouom.neriplayer.core.player.runtime.transport.PlaybackTransportOwner
 import moe.ouom.neriplayer.core.player.audio.output.PlayerManagerPlaybackTransportPort
 import moe.ouom.neriplayer.core.player.engine.datasource.ConditionalHttpDataSourceFactory
 import moe.ouom.neriplayer.core.player.lifecycle.clearCacheImpl
+import moe.ouom.neriplayer.core.player.lifecycle.clearStorageCachesImpl
+import moe.ouom.neriplayer.core.player.lifecycle.estimateStorageCacheClearImpl
+import moe.ouom.neriplayer.data.model.storage.StorageCacheClearOptions
+import moe.ouom.neriplayer.data.model.storage.PlayerCacheClearEstimate
+import moe.ouom.neriplayer.data.model.storage.PlayerCacheClearOutcome
 import moe.ouom.neriplayer.core.player.lifecycle.ensureInitializedImpl
 import moe.ouom.neriplayer.core.player.lifecycle.handleAudioBecomingNoisyImpl
 import moe.ouom.neriplayer.core.player.lifecycle.initializeImpl
@@ -80,6 +85,8 @@ import moe.ouom.neriplayer.core.player.media.LocalPlaybackMediaResolver
 import moe.ouom.neriplayer.core.player.media.PlaybackMediaItemFactory
 import moe.ouom.neriplayer.core.player.lyrics.syncExternalBluetoothLyrics
 import moe.ouom.neriplayer.core.player.lyrics.floating.FloatingLyricsContentSource
+import moe.ouom.neriplayer.core.player.service.lyrics.coloros.ColorOsLyricTimelineOwner
+import moe.ouom.neriplayer.core.player.service.lyrics.coloros.ColorOsLyricRequest
 import moe.ouom.neriplayer.data.model.playback.AudioDevice
 import moe.ouom.neriplayer.data.model.playback.PlaybackAudioInfo
 import moe.ouom.neriplayer.data.model.playback.PreferredQualityKeys
@@ -174,6 +181,7 @@ import moe.ouom.neriplayer.core.player.persistence.playFromQueueImpl
 import moe.ouom.neriplayer.core.player.persistence.rebaseUserLyricOffsetsForSourceImpl
 import moe.ouom.neriplayer.core.player.persistence.removeCurrentFromFavoritesImpl
 import moe.ouom.neriplayer.core.player.persistence.removeQueueItemImpl
+import moe.ouom.neriplayer.core.player.persistence.removeQueueItemsImpl
 import moe.ouom.neriplayer.core.player.persistence.replaceCurrentInQueueAndPlayImpl
 import moe.ouom.neriplayer.core.player.persistence.replaceMetadataFromSearchImpl
 import moe.ouom.neriplayer.core.player.persistence.resumeRestoredPlaybackIfNeededImpl
@@ -453,6 +461,10 @@ object PlayerManager {
     internal var externalBluetoothLyricsEnabled = false
     internal var externalBluetoothTranslationEnabled = false
     internal var dynamicIslandLyricsEnabled = false
+    internal val colorOsLockscreenLyricsEnabledFlow = MutableStateFlow(false)
+    internal var colorOsLockscreenLyricsEnabled: Boolean
+        get() = colorOsLockscreenLyricsEnabledFlow.value
+        set(value) { colorOsLockscreenLyricsEnabledFlow.value = value }
     internal var xiaomiSuperIslandLyricEnabled = false
     internal var liveUpdateLyricEnabled = false
     internal var xiaomiSuperIslandLyricBridge: XiaomiSuperIslandLyricBridge? = null
@@ -662,6 +674,10 @@ object PlayerManager {
         MutableStateFlow(ExternalBluetoothLyricPayload())
     internal val externalBluetoothLyricPayloadFlow: StateFlow<ExternalBluetoothLyricPayload> =
         _externalBluetoothLyricPayloadFlow
+    internal val colorOsLyricTimelineOwner = ColorOsLyricTimelineOwner()
+    internal val colorOsLyricTimelineFlow = colorOsLyricTimelineOwner.timeline
+    internal var externalLyricRequest: ColorOsLyricRequest? = null
+    internal var externalTranslationRequestId = 0L
 
     internal val _playerEventFlow = MutableSharedFlow<PlayerEvent>()
     val playerEventFlow: SharedFlow<PlayerEvent> = _playerEventFlow.asSharedFlow()
@@ -710,6 +726,8 @@ object PlayerManager {
     internal var currentGenericUrlPrefetchKey: String? = null
     @Volatile
     internal var playbackRequestToken = 0L
+        set(value) = synchronized(storageCachePlaybackLock) { field = value }
+    internal val storageCachePlaybackLock = Any()
     @Volatile
     internal var loadedMediaRequestToken = 0L
     internal val _pendingMediaLoadFlow = MutableStateFlow(false)
@@ -783,7 +801,7 @@ object PlayerManager {
     }
 
     private fun publishCurrentSong(song: SongItem?) {
-        _currentSongFlow.value = song
+        synchronized(storageCachePlaybackLock) { _currentSongFlow.value = song }
         lyriconOutput.publishSong(song)
         playbackProgressOwner.onCurrentSongPublished(song)
     }
@@ -1622,6 +1640,13 @@ object PlayerManager {
         clearImage: Boolean = true
     ): Pair<Boolean, String> = clearCacheImpl(clearAudio, clearImage)
 
+    suspend fun clearStorageCaches(
+        options: StorageCacheClearOptions
+    ): PlayerCacheClearOutcome = clearStorageCachesImpl(options)
+
+    suspend fun estimateStorageCacheClear(retainRecentSongs: Int): PlayerCacheClearEstimate =
+        estimateStorageCacheClearImpl(retainRecentSongs)
+
     internal fun ensureInitialized() = ensureInitializedImpl()
 
     fun prefetchYouTubeQueueWindow(
@@ -1838,6 +1863,8 @@ object PlayerManager {
     fun moveQueueItem(fromIndex: Int, toIndex: Int) = moveQueueItemImpl(fromIndex, toIndex)
 
     fun removeQueueItem(index: Int) = removeQueueItemImpl(index)
+
+    fun removeQueueItems(indices: Set<Int>) = removeQueueItemsImpl(indices)
 
     fun reorderQueue(queue: List<SongItem>, currentIndexInQueue: Int) =
         reorderQueueImpl(queue, currentIndexInQueue)

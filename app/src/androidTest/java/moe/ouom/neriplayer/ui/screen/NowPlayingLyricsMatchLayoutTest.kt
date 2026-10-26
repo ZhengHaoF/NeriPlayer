@@ -2,25 +2,21 @@ package moe.ouom.neriplayer.ui.screen
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusManager
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.SoftwareKeyboardController
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
@@ -33,11 +29,11 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
-import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -46,8 +42,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import moe.ouom.neriplayer.data.model.lyrics.matching.EditableLyricMatchCandidate
 import moe.ouom.neriplayer.data.model.lyrics.matching.EditableLyricMatchSource
 import moe.ouom.neriplayer.data.model.lyrics.matching.RankedEditableLyricMatch
+import moe.ouom.neriplayer.data.model.settings.appearance.UiStyle
+import moe.ouom.neriplayer.testutil.FittedTestViewport
 import moe.ouom.neriplayer.testutil.assumeComposeHostAvailable
 import moe.ouom.neriplayer.ui.screen.nowplaying.lyrics.LyricMatchResultsContent
+import moe.ouom.neriplayer.ui.theme.NeriTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -108,7 +107,21 @@ class NowPlayingLyricsMatchLayoutTest {
 
     @Test
     fun keyboardSizedViewportPreservesQueryAndSourceAcrossLayoutBranches() {
-        render(360.dp, 840.dp, 1.3f)
+        verifyKeyboardSizedViewport()
+    }
+
+    @Test
+    fun cleanLightKeyboardSizedViewportPreservesQueryAndSourceAcrossLayoutBranches() {
+        verifyKeyboardSizedViewport(cleanDark = false)
+    }
+
+    @Test
+    fun cleanDarkKeyboardSizedViewportPreservesQueryAndSourceAcrossLayoutBranches() {
+        verifyKeyboardSizedViewport(cleanDark = true)
+    }
+
+    private fun verifyKeyboardSizedViewport(cleanDark: Boolean? = null) {
+        render(360.dp, 840.dp, 1.3f, cleanDark)
         composeRule.onNodeWithTag("lyrics-match-query").performTextReplacement("键盘前的查询")
         clearFocus()
         composeRule.onNodeWithTag("lyrics-match-source-QQ_MUSIC").performClick()
@@ -121,9 +134,14 @@ class NowPlayingLyricsMatchLayoutTest {
         scrollTo("lyrics-match-query")
         val field = composeRule.onNodeWithTag("lyrics-match-query").getUnclippedBoundsInRoot()
         val viewport = composeRule.onNodeWithTag("lyrics-match-layout").getUnclippedBoundsInRoot()
-        capture("lyrics-match-keyboard-before-bounds", force = true)
         assertTrue("查询框应完整可见: field=$field viewport=$viewport",
             field.top >= viewport.top && field.bottom <= viewport.bottom)
+        val captureStyle = when (cleanDark) {
+            null -> "material"
+            false -> "clean-light"
+            true -> "clean-dark"
+        }
+        capture("lyrics-match-keyboard-budget-$captureStyle")
         scrollTo("lyrics-match-search").assertIsEnabled().performClick()
         scrollTo("lyrics-match-result-29").performClick()
         scrollTo("lyrics-match-cancel").performClick()
@@ -133,7 +151,6 @@ class NowPlayingLyricsMatchLayoutTest {
             assertEquals(listOf(result(29)), applied)
             assertEquals(1, cancels)
         }
-        capture("lyrics-match-keyboard-budget")
     }
 
     @Test
@@ -201,12 +218,27 @@ class NowPlayingLyricsMatchLayoutTest {
     }
 
     private fun scrollTo(tag: String): SemanticsNodeInteraction {
+        val target = composeRule.onNodeWithTag(tag)
         if (composeRule.onAllNodesWithTag("lyrics-match-scroll").fetchSemanticsNodes().isNotEmpty()) {
-            composeRule.onNodeWithTag("lyrics-match-scroll").performScrollToNode(hasTestTag(tag))
+            val scroller = composeRule.onNodeWithTag("lyrics-match-scroll")
+            scroller.performScrollToNode(hasTestTag(tag))
+            if (tag == "lyrics-match-query") {
+                val field = target.fetchSemanticsNode()
+                val top = field.positionInRoot.y
+                val bottom = top + field.size.height
+                val viewport = scroller.fetchSemanticsNode().boundsInRoot
+                if (top < viewport.top || bottom > viewport.bottom) {
+                    // 浮动标签和容器 padding 会让默认滚动定位超出裁剪区，按实际视窗居中整框
+                    scroller.performSemanticsAction(SemanticsActions.ScrollBy) { scrollBy ->
+                        assertTrue("查询框应能滚进实际视窗", scrollBy(0f, (top + bottom) / 2f - viewport.center.y))
+                    }
+                    composeRule.waitForIdle()
+                }
+            }
         } else if (tag.startsWith("lyrics-match-result-")) {
             composeRule.onNodeWithTag("lyrics-match-results").performScrollToNode(hasTestTag(tag))
         }
-        return composeRule.onNodeWithTag(tag).assertIsDisplayed()
+        return target.assertIsDisplayed()
     }
 
     private fun hasWholeContentScroll(): Boolean =
@@ -220,44 +252,40 @@ class NowPlayingLyricsMatchLayoutTest {
         composeRule.waitForIdle()
     }
 
-    private fun render(initialWidth: Dp, initialHeight: Dp, fontScale: Float) {
+    private fun render(initialWidth: Dp, initialHeight: Dp, fontScale: Float, cleanDark: Boolean? = null) {
         width.value = initialWidth
         height.value = initialHeight
         composeRule.setContent {
-            MaterialTheme {
+            TestTheme(cleanDark) {
                 val currentFocusManager = LocalFocusManager.current
                 val currentKeyboardController = LocalSoftwareKeyboardController.current
                 SideEffect {
                     focusManager = currentFocusManager
                     keyboardController = currentKeyboardController
                 }
-                BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    val density = LocalDensity.current
-                    val scale = minOf(maxWidth.value / width.value.value, maxHeight.value / height.value.value)
-                    CompositionLocalProvider(LocalDensity provides Density(density.density * scale, fontScale)) {
-                        val parentConnection = remember {
-                            object : NestedScrollConnection {
-                                override fun onPostScroll(consumed: Offset, available: Offset,
-                                    source: NestedScrollSource): Offset {
-                                    if (available.y != 0f) parentMotionCount++
-                                    return available
-                                }
-                                override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                                    if (available.y != 0f) parentMotionCount++
-                                    return available
-                                }
+                FittedTestViewport(width.value, height.value, fontScale = fontScale, layoutOnlyTextInput = true) {
+                    val parentConnection = remember {
+                        object : NestedScrollConnection {
+                            override fun onPostScroll(consumed: Offset, available: Offset,
+                                source: NestedScrollSource): Offset {
+                                if (available.y != 0f) parentMotionCount++
+                                return available
+                            }
+                            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                                if (available.y != 0f) parentMotionCount++
+                                return available
                             }
                         }
-                        Box(Modifier.requiredSize(width.value, height.value).nestedScroll(parentConnection)) {
-                            LyricMatchResultsContent(query.value, { query.value = it }, results.value,
-                                loading.value, error.value, searched.value, selectedSources.value,
-                                onSourceToggle = { source ->
-                                    selectedSources.value = selectedSources.value.let {
-                                        if (source in it) it - source else it + source
-                                    }
-                                }, onSearch = { searches += it }, onApply = { applied += it },
-                                onDismiss = { cancels++ })
-                        }
+                    }
+                    Box(Modifier.nestedScroll(parentConnection)) {
+                        LyricMatchResultsContent(query.value, { query.value = it }, results.value,
+                            loading.value, error.value, searched.value, selectedSources.value,
+                            onSourceToggle = { source ->
+                                selectedSources.value = selectedSources.value.let {
+                                    if (source in it) it - source else it + source
+                                }
+                            }, onSearch = { searches += it }, onApply = { applied += it },
+                            onDismiss = { cancels++ })
                     }
                 }
             }
@@ -265,10 +293,23 @@ class NowPlayingLyricsMatchLayoutTest {
         composeRule.waitForIdle()
     }
 
-    private fun capture(stage: String, force: Boolean = false) {
+    @Composable
+    private fun TestTheme(cleanDark: Boolean?, content: @Composable () -> Unit) {
+        if (cleanDark == null) {
+            MaterialTheme(content = content)
+        } else {
+            NeriTheme(
+                followSystemDark = false, forceDark = cleanDark, dynamicColor = false,
+                seedColorHex = "A8C7FA", uiStyle = UiStyle.Clean, animateColors = false,
+                content = content
+            )
+        }
+    }
+
+    private fun capture(stage: String) {
         val prefix = InstrumentationRegistry.getArguments().getString("capturePrefix")
             ?.replace(Regex("[^a-zA-Z0-9_-]"), "-")?.take(80)?.takeIf { it.isNotBlank() }
-            ?: if (force) "lyrics-match-regression" else return
+            ?: return
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         try {

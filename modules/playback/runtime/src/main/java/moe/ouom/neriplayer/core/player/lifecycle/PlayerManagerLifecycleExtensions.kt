@@ -1923,7 +1923,7 @@ private fun PlayerManager.releaseUsbSessionsAndJobs() {
     usbPlaybackRouteOwner.release()
 }
 
-private fun PlayerManager.releaseMediaJobsAndLyrics() {
+private fun PlayerManager.releaseMediaJobsAndLyrics(): Unit = synchronized(this) {
     cancelJobForRelease(playJob)
     playJob = null
     cancelJobForRelease(currentGenericUrlPrefetchJob)

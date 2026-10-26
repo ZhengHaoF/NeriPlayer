@@ -414,6 +414,9 @@ class SettingsRepository(private val context: Context) {
     val xiaomiSuperIslandLyricEnabledFlow: Flow<Boolean> =
         autoSettingsRepository.xiaomiSuperIslandLyricEnabledFlow
 
+    val colorOsLockscreenLyricsEnabledFlow: Flow<Boolean> =
+        autoSettingsRepository.colorOsLockscreenLyricsEnabledFlow
+
     val xiaomiSuperIslandSettingsFlow: Flow<XiaomiSuperIslandSettings> =
         dataStoreSettingFlow { XiaomiSuperIslandSettings.decode(it[XIAOMI_SUPER_ISLAND_SETTINGS]) }
 
@@ -1078,6 +1081,10 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setXiaomiSuperIslandLyricEnabled(enabled: Boolean) {
         setSetting(AutoSettingsSchema.lyrics.xiaomiSuperIslandLyricEnabled, enabled)
+    }
+
+    suspend fun setColorOsLockscreenLyricsEnabled(enabled: Boolean) {
+        autoSettingsRepository.setColorOsLockscreenLyricsEnabled(enabled)
     }
 
     suspend fun setXiaomiSuperIslandSettings(settings: XiaomiSuperIslandSettings) {
