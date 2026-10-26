@@ -24,7 +24,7 @@
 | `LibraryHostScreen.patch` | 已重贴；KuGou/QQ 子类型改用上游的 `saveState()` + restorer 注册表写法，弃用 fork 的集中式 `when` |
 | `SettingsHostScreen.patch` | 已重贴（`HomeSettings` / `TabOrderSettings` 两个子页接进上游的 `selectSettingsHostPage`） |
 | `StartupOnboardingScreen.patch` | 已重贴（QQ / 酷狗扫码登录引导步骤 + 未登录告警） |
-| `HomeViewModel.patch` | 已重贴（多源首页 + 酷狗兜底 + `HomeScrollKeyKugouHome`；补丁 115 条新增行逐行核对全部落地） |
+| `HomeViewModel.patch` | 已重贴（多源首页 + 酷狗兜底 + `HomeScrollKeyKugouHome`；补丁 115 条新增行逐行核对全部落地），但**尚未编译通过**：`kugouSession` 取值点和一处 `context` 参数仍指向重构前的 API |
 | `PlayerLyricsProvider.patch` | **不重贴**。按设计文档改用上游的 `LyricSourcePreference` + 身份直取链路，见 `docs/歌词源体系接入KuGou与QQMusic设计.md` |
 
 需要重新生成时用：
