@@ -7475,6 +7475,12 @@ merge 前失败的 67 个方法在 merge 后仍然失败（差集为 0），
 
 结论：本机能用的门是**编译错误差分**，不是单测红绿。
 
+补充证据：这轮跑测在 `modules/local`（10 个）、`modules/sync`（6 个）、
+`modules/listentogether`（2 个）里留下了 18 份 `hs_err_pid*.log`，崩溃点是
+`EXCEPTION_ACCESS_VIOLATION` 且落在 `jli.dll`——测试 JVM 在本机直接崩，
+`:local` 1463/2467 与 `:sync` 219/1030 的失败量级由此而来，不是断言层面的回归。
+这些日志属于运行产物，未纳入版本控制。
+
 ## 台账纠正
 
 `fork-integration-patches/README.md` 里三条已过期记录按现状改写：
